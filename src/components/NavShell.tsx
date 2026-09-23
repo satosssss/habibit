@@ -1,0 +1,67 @@
+// src/components/NavShell.tsx
+'use client';
+
+import { BarChart3, CalendarCheck, Flame, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+const TABS = [
+  { href: '/today', label: 'Today', Icon: CalendarCheck },
+  { href: '/stats', label: 'Stats', Icon: BarChart3 },
+  { href: '/settings', label: 'Settings', Icon: Settings },
+] as const;
+
+const linkClass = (active: boolean) =>
+  [
+    'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors',
+    active
+      ? 'bg-[var(--color-accent)] text-white'
+      : 'text-[var(--color-subtle)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]',
+  ].join(' ');
+
+export function NavShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <div className="min-h-dvh md:flex">
+      {/* Tablet icon rail / desktop sidebar */}
+      <nav
+        aria-label="Primary"
+        className="sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 border-r border-[var(--color-line)] bg-[var(--color-bg)] p-3 md:flex md:w-[72px] xl:w-[240px]"
+      >
+        {/* Wordmark only in the labelled sidebar; flame only in the icon rail */}
+        <div className="mb-4 hidden items-center gap-2 px-2 xl:flex">
+          <Flame className="text-[var(--color-accent)]" size={22} />
+          <span className="text-lg font-extrabold tracking-tight">Habibit</span>
+        </div>
+        <div className="mb-4 grid place-items-center xl:hidden">
+          <Flame className="text-[var(--color-accent)]" size={22} />
+        </div>
+        {TABS.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} aria-current={isActive(href) ? 'page' : undefined}
+                className={linkClass(isActive(href))} title={label}>
+            <Icon size={20} />
+            <span className="hidden xl:inline">{label}</span>
+          </Link>
+        ))}
+      </nav>
+
+      <div className="min-w-0 flex-1 pb-24 md:pb-0">{children}</div>
+
+      {/* Mobile bottom tab bar */}
+      <nav aria-label="Primary"
+           className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--color-line)] bg-[var(--color-bg)]/95 backdrop-blur md:hidden">
+        {TABS.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} aria-current={isActive(href) ? 'page' : undefined}
+                className={`flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium ${
+                  isActive(href) ? 'text-[var(--color-accent)]' : 'text-[var(--color-subtle)]'
+                }`}>
+            <Icon size={20} />
+            {label}
+          </Link>
+        ))}
+      </nav>
+    </div>
+  );
+}
