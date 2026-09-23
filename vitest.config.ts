@@ -11,5 +11,6 @@ export default defineConfig({
     css: false,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    env: { TZ: 'America/Los_Angeles' },
   },
 });
