@@ -85,6 +85,7 @@ habits:  'id, name, category, intention, type, order, createdAt'
   intention   string   // meaning/purpose: Study, Fix Bed, Take a Bath
   type        'boolean' | 'quantity' | 'timer'
   target      number   // quantity: cups/calories | timer: seconds
+  unit        string   // quantity unit label ('cups', 'calories'); '' for boolean/timer
   frequency   number[] // 0-6 weekday indices
   order       number   // manual sort within a category
   createdAt   number
