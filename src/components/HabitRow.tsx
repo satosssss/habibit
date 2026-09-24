@@ -54,7 +54,7 @@ export function HabitRow({
 
         {habit.type === 'boolean' && (
           <button type="button"
-                  aria-label={done ? `Mark not done: ${habit.name}` : `Mark done: ${habit.name}`}
+                  aria-label={done ? `Mark ${habit.name} not done` : `Mark ${habit.name} done`}
                   onClick={onToggle}
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white shadow">
             {done ? <Check size={22} color={habit.color} strokeWidth={3} /> : <span className="text-slate-400">○</span>}

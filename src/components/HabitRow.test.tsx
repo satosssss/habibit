@@ -23,9 +23,11 @@ describe('HabitRow', () => {
 
   it('toggles a boolean habit from its check control', () => {
     const onToggle = vi.fn();
-    render(<HabitRow habit={boolHabit} value={0} onToggle={onToggle} {...base} />);
-    fireEvent.click(screen.getByRole('button', { name: /mark done|mark not done/i }));
+    const { rerender } = render(<HabitRow habit={boolHabit} value={0} onToggle={onToggle} {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: /mark take a cold shower done/i }));
     expect(onToggle).toHaveBeenCalledTimes(1);
+    rerender(<HabitRow habit={boolHabit} value={1} onToggle={onToggle} {...base} />);
+    expect(screen.getByRole('button', { name: /mark take a cold shower not done/i })).toBeInTheDocument();
   });
 
   it('shows x/y subtext for quantity habits and steps ±1', () => {
