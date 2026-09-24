@@ -9,6 +9,13 @@ import { Sheet } from './Sheet';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const TYPES: HabitType[] = ['boolean', 'quantity', 'timer'];
+// Spec §9: "Frequency (Every day / Weekdays / Weekends / weekday toggles)" —
+// presets first, then the toggles.
+const PRESETS = [
+  { label: 'Every day', days: [0, 1, 2, 3, 4, 5, 6] },
+  { label: 'Weekdays', days: [1, 2, 3, 4, 5] },
+  { label: 'Weekends', days: [0, 6] },
+] as const;
 
 export function HabitForm({
   habit, open, categories = [], intentions = [], onSave, onClose,
@@ -142,6 +149,25 @@ export function HabitForm({
         <fieldset data-field="frequency" className="block border-0 p-0 text-sm">
           <legend className="mb-1 block font-semibold">Frequency</legend>
           <div className="flex flex-wrap gap-1.5">
+            {PRESETS.map((preset) => {
+              // Presets are actions; the chips are the state of record. A preset
+              // only reports "pressed" while the chip set exactly equals it —
+              // toggling any chip afterwards diverges (no sticky/locked state).
+              const active = draft.frequency.length === preset.days.length
+                && preset.days.every((d) => draft.frequency.includes(d));
+              return (
+                <button key={preset.label} type="button" aria-label={preset.label}
+                        aria-pressed={active} onClick={() => set('frequency', [...preset.days])}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                                 : 'border-[var(--color-line)]'
+                        }`}>
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
             {DAYS.map((day, index) => {
               const active = draft.frequency.includes(index);
               return (

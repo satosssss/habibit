@@ -75,4 +75,94 @@ describe('HabitForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
     expect(onSave.mock.calls[0][0].frequency).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
+
+  // Spec §9: Frequency = "Every day / Weekdays / Weekends / weekday toggles".
+  const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const pressed = (name: string) =>
+    screen.getByRole('button', { name }).getAttribute('aria-pressed') === 'true';
+
+  it('Every day preset selects all seven weekday chips', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, frequency: [1] }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Every day' }));
+    expect(DAYS_SHORT.map(pressed)).toEqual([true, true, true, true, true, true, true]);
+    expect(pressed('Every day')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].frequency).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('Weekdays preset selects Monday through Friday only', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, frequency: [0, 6] }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Weekdays' }));
+    expect(DAYS_SHORT.map(pressed)).toEqual([false, true, true, true, true, true, false]);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].frequency).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('Weekends preset selects Saturday and Sunday only', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, frequency: [1, 2, 3, 4, 5] }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Weekends' }));
+    expect(DAYS_SHORT.map(pressed)).toEqual([true, false, false, false, false, false, true]);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].frequency).toEqual([0, 6]);
+  });
+
+  it('keeps a preset result through save and reopen', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <HabitForm habit={{ ...habit, frequency: [0, 6] }} open onSave={onSave} onClose={vi.fn()} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Weekdays' }));
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].frequency).toEqual([1, 2, 3, 4, 5]);
+
+    rerender(<HabitForm habit={onSave.mock.calls[0][0]} open onSave={onSave} onClose={vi.fn()} />);
+    expect(DAYS_SHORT.map(pressed)).toEqual([false, true, true, true, true, true, false]);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[1][0].frequency).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('lets chips diverge from a preset after applying it', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, frequency: [] }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Every day' }));
+    expect(pressed('Every day')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }));
+    expect(pressed('Every day')).toBe(false);
+    expect(DAYS_SHORT.map(pressed)).toEqual([true, false, true, true, true, true, true]);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].frequency).toEqual([0, 2, 3, 4, 5, 6]);
+  });
+
+  it('edits the timer target in minutes and stores seconds', () => {
+    const onSave = vi.fn();
+    const { rerender } = render(
+      <HabitForm habit={{ ...habit, type: 'timer', target: 900 }} open onSave={onSave} onClose={vi.fn()} />
+    );
+    const target = () => screen.getByLabelText(/^Target/);
+    expect(target()).toHaveValue(15);
+
+    // Regression pin for deviation ④: each partial keystroke must survive the
+    // minutes→seconds round-trip (typing "4" then "5" is 45, never 4 → clobbered).
+    fireEvent.change(target(), { target: { value: '4' } });
+    expect(target()).toHaveValue(4);
+    fireEvent.change(target(), { target: { value: '45' } });
+    expect(target()).toHaveValue(45);
+
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].target).toBe(2700);
+
+    rerender(<HabitForm habit={onSave.mock.calls[0][0]} open onSave={onSave} onClose={vi.fn()} />);
+    expect(target()).toHaveValue(45);
+
+    fireEvent.change(target(), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[1][0].target).toBe(600);
+
+    rerender(<HabitForm habit={{ ...habit, type: 'timer', target: 30 }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[2][0].target).toBe(60);
+  });
 });
