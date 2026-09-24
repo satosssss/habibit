@@ -225,7 +225,7 @@ Three real layouts, one component tree, driven by Tailwind breakpoints plus CSS
 | Nav | Bottom tab bar | Left icon rail (72px) | Left sidebar with labels (240px) |
 | Today | 1 column | 2 columns of category panels | 3 columns, masonry by category |
 | Stats | Stacked | Tiles 2×2, bars + heatmap side by side | Tiles 4-across, heatmap full width |
-| Timer | Bottom sheet | Centered dialog | Centered dialog |
+| Timer | Bottom sheet | Bottom sheet until 1024px, then centered dialog (§6) | Centered dialog |
 
 ## 11. Seed data
 
