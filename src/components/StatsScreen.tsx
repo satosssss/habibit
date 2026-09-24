@@ -11,6 +11,7 @@ import {
 } from '@/lib/stats';
 import { todayKey } from '@/lib/dates';
 import { useLiveQuery } from '@/lib/useLiveQuery';
+import { Heatmap } from './Heatmap';
 import { IntentionBar } from './IntentionBar';
 import { StatTile } from './StatTile';
 import { YearNav } from './YearNav';
@@ -78,26 +79,31 @@ export function StatsScreen() {
         <StatTile icon={CheckSquare} value={sumCompletions(stats)} caption="Completions" />
       </div>
 
-      <h2 className="mb-1 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">By intention</h2>
-      <div className="rounded-2xl bg-[var(--color-panel)] px-4 py-2">
-        {intentions.length === 0 ? (
-          <p className="py-3 text-sm text-[var(--color-subtle)]">No habits yet.</p>
-        ) : (
-          intentions.map((stat) => (
-            <IntentionBar
-              key={stat.intention}
-              intention={stat.intention}
-              completed={stat.completed}
-              scheduled={stat.scheduled}
-              color={intentionColor(stat.intention)}
-              icon={intentionIcon(orderedHabits.filter((h) => h.intention === stat.intention))}
-            />
-          ))
-        )}
-      </div>
+      {/* Spec §10: bars + heatmap side by side at tablet (md), heatmap full
+          width at desktop (xl); mobile stays stacked via the grid gap. */}
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+        <div>
+          <h2 className="mb-1 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">By intention</h2>
+          <div className="rounded-2xl bg-[var(--color-panel)] px-4 py-2">
+            {intentions.length === 0 ? (
+              <p className="py-3 text-sm text-[var(--color-subtle)]">No habits yet.</p>
+            ) : (
+              intentions.map((stat) => (
+                <IntentionBar
+                  key={stat.intention}
+                  intention={stat.intention}
+                  completed={stat.completed}
+                  scheduled={stat.scheduled}
+                  color={intentionColor(stat.intention)}
+                  icon={intentionIcon(orderedHabits.filter((h) => h.intention === stat.intention))}
+                />
+              ))
+            )}
+          </div>
+        </div>
 
-      {/* Heatmap — added by Task 11 */}
-      {/* <Heatmap year={year} habits={habits ?? []} entries={entries ?? []} today={today} /> */}
+        <Heatmap year={year} habits={habits ?? []} entries={entries ?? []} today={today} />
+      </div>
 
       <h2 className="mb-2 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">All time</h2>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

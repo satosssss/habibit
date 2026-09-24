@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
@@ -42,6 +42,17 @@ describe('StatsScreen', () => {
     const { StatsScreen } = await import('./StatsScreen');
     render(<StatsScreen />);
     expect(await screen.findByText(String(new Date().getFullYear()))).toBeInTheDocument();
+  });
+
+  it('lays the intention bars beside the heatmap on tablet, full width on desktop (spec §10)', async () => {
+    const { StatsScreen } = await import('./StatsScreen');
+    const { container } = render(<StatsScreen />);
+    const grid = container.querySelector<HTMLElement>('div[class*="md:grid-cols-2"]');
+    expect(grid).not.toBeNull();
+    expect(grid!.querySelector('[aria-label="Activity heatmap"]')).toBeInTheDocument();
+    expect(within(grid!).getByText('By intention')).toBeInTheDocument();
+    expect(grid!.className).toContain('xl:grid-cols-1');
+    expect(grid!.className).toContain('gap-6');
   });
 
   it('sorts intention rows by habit order (spec §7.3)', async () => {
