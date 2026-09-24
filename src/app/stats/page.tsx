@@ -1,5 +1,10 @@
+'use client';
+
 import { NavShell } from '@/components/NavShell';
+import { StatsScreen } from '@/components/StatsScreen';
 
 export default function StatsPage() {
-  return <NavShell><h1 className="p-6 text-2xl font-bold">Stats</h1></NavShell>;
+  return (
+    <NavShell><StatsScreen /></NavShell>
+  );
 }
