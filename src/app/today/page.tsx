@@ -1,5 +1,11 @@
 import { NavShell } from '@/components/NavShell';
+import { TodayScreen } from '@/components/TodayScreen';
+import { todayKey } from '@/lib/dates';
 
 export default function TodayPage() {
-  return <NavShell><h1 className="p-6 text-2xl font-bold">Today</h1></NavShell>;
+  return (
+    <NavShell>
+      <TodayScreen date={todayKey()} />
+    </NavShell>
+  );
 }
