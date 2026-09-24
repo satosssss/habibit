@@ -4,6 +4,10 @@
 import { BarChart3, CalendarCheck, Flame, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { ensureDb } from '@/lib/db';
+import { pruneOrphans } from '@/lib/repo';
+import { seedIfEmpty } from '@/lib/seed';
 
 const TABS = [
   { href: '/today', label: 'Today', Icon: CalendarCheck },
@@ -22,6 +26,15 @@ const linkClass = (active: boolean) =>
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const [degraded, setDegraded] = useState(false);
+
+  useEffect(() => {
+    void seedIfEmpty(); // idempotent: returns immediately once habits exist
+    void ensureDb().then((s) => {
+      setDegraded(s === 'degraded');
+      void pruneOrphans(); // stray entries from an interrupted delete never reach stats
+    });
+  }, []);
 
   return (
     <div className="min-h-dvh md:flex">
@@ -47,7 +60,15 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         ))}
       </nav>
 
-      <div className="min-w-0 flex-1 pb-24 md:pb-0">{children}</div>
+      <div className="min-w-0 flex-1 pb-24 md:pb-0">
+        {degraded && (
+          <p role="alert"
+             className="m-3 rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Storage is unavailable (private browsing?), so changes will be lost when you close this tab.
+          </p>
+        )}
+        {children}
+      </div>
 
       {/* Mobile bottom tab bar */}
       <nav aria-label="Primary"

@@ -10,9 +10,9 @@ import { useEffect, useMemo, useState, type DependencyList } from 'react';
  * effect that writes route/date state back into React.
  */
 export function useLiveQuery<T>(fn: () => Promise<T>, deps: DependencyList): T | undefined {
-  // Async wrapper: Dexie only carries the query's observability scope across
-  // native promise awaits (e.g. ensureDb()) when the querier is an async function;
-  // a sync arrow like `() => listHabits()` silently stops re-emitting on writes.
+  // Async wrapper: sync queriers can race Dexie's ambient zone state across
+  // awaits (e.g. ensureDb()), so they may stop re-emitting — environment-
+  // dependent. The async querier is Dexie's designed, guaranteed path.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const observable = useMemo(() => liveQuery(async () => fn()), deps);
   const [value, setValue] = useState<T | undefined>(undefined);

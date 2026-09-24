@@ -32,4 +32,25 @@ describe('useLiveQuery', () => {
     expect(result.current).toBeUndefined();
     await waitFor(() => expect(result.current).toEqual([]));
   });
+
+  it('unsubscribes on unmount: later writes neither re-query nor update state', async () => {
+    await putHabit(habit('Meditate'));
+    let queries = 0;
+    const { result, unmount } = renderHook(() =>
+      useLiveQuery(() => { queries += 1; return listHabits(); }, [])
+    );
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    const queriesAtUnmount = queries;
+    const valueAtUnmount = result.current;
+
+    unmount();
+    await putHabit(habit('Read'));
+    await new Promise((r) => setTimeout(r, 50));
+
+    // A live subscription re-runs the querier on every overlapping write; no
+    // re-query proves sub.unsubscribe() tore it down, and the state snapshot
+    // must be untouched afterwards.
+    expect(queries).toBe(queriesAtUnmount);
+    expect(result.current).toBe(valueAtUnmount);
+  });
 });

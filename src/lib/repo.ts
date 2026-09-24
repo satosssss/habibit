@@ -60,9 +60,27 @@ export async function clearAll(): Promise<void> {
 export async function pruneOrphans(): Promise<number> {
   await ensureDb();
   const ids = new Set((await db.habits.toArray()).map((h) => h.id));
-  const orphans = (await db.entries.toArray()).filter((e) => !ids.has(e.habitId));
+  const orphans = (await db.entries.toArray())
+    .filter((e) => e.habitId !== SEED_FLAG_ID && !ids.has(e.habitId));
   if (orphans.length) await db.entries.bulkDelete(orphans.map((e) => e.id));
   return orphans.length;
+}
+
+const SEED_FLAG_ID = '__seed__';
+
+/**
+ * Seed marker row in the entries table (spec §11 "runs on first load"): it
+ * survives habit deletion so deleting everything never resurrects seed data,
+ * yet clearAll() wipes it, so Reset can legitimately re-seed.
+ */
+export async function hasSeeded(): Promise<boolean> {
+  await ensureDb();
+  return !!(await db.entries.get(SEED_FLAG_ID));
+}
+
+export async function markSeeded(): Promise<void> {
+  await ensureDb();
+  await db.entries.put({ id: SEED_FLAG_ID, habitId: SEED_FLAG_ID, date: '', value: 1, timestamp: 0 });
 }
 
 export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[] }> {
