@@ -77,15 +77,28 @@ describe('Heatmap', () => {
     expect(screen.queryByTestId('hm-tooltip')).not.toBeInTheDocument();
   });
 
-  it('renders fewer columns in compact mode', () => {
+  it('renders the whole passed year in compact mode (no window slicing)', () => {
+    // Carry-forward: compact no longer slices to the last 26 weeks of the year
+    // (that window started Jul 6 for 2026 and could omit the viewed date).
     const { container } = render(
       <Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" compact />
     );
+    const cells = container.querySelectorAll('[data-testid^="hm-cell"]');
+    expect(cells.length).toBe(53 * 7);
+    expect(container.querySelector('[data-testid="hm-cell-2026-05-24"]')).not.toBeNull();
+  });
+
+  it('uses smaller cells in compact mode (spec §8)', () => {
     const full = render(
-      <Heatmap year={2025} habits={[habit('a')]} entries={[]} today="2026-12-31" />
+      <Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" />
     );
-    expect(container.querySelectorAll('[data-testid^="hm-cell"]').length)
-      .toBeLessThanOrEqual(full.container.querySelectorAll('[data-testid^="hm-cell"]').length);
+    const compact = render(
+      <Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" compact />
+    );
+    const width = (root: HTMLElement) =>
+      (root.querySelector('[data-testid="hm-cell-2026-06-10"]') as HTMLElement).style.width;
+    expect(width(full.container)).toBe('13px');
+    expect(width(compact.container)).toBe('10px');
   });
 
   it('does not count future-dated entries in tooltip numbers', () => {

@@ -1,5 +1,8 @@
+'use client';
+
 import { NavShell } from '@/components/NavShell';
+import { SettingsScreen } from '@/components/SettingsScreen';
 
 export default function SettingsPage() {
-  return <NavShell><h1 className="p-6 text-2xl font-bold">Settings</h1></NavShell>;
+  return <NavShell><SettingsScreen /></NavShell>;
 }

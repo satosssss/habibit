@@ -49,4 +49,16 @@ describe('NoteScreen', () => {
     await screen.findByText('DO HARD THINGS');
     expect(container.querySelector('[data-testid^="hm-cell-"]')).not.toBeNull();
   });
+
+  it("shows the viewed date's own cell in the compact heatmap", async () => {
+    // The compact window is the viewed date's year: a May date must appear even
+    // though the system clock (and thus any current-year rolling window) sits
+    // months later.
+    await putHabit(habit());
+    render(<NoteScreen date="2026-05-24" />);
+    await screen.findByText('DO HARD THINGS');
+    const cell = screen.getByTestId('hm-cell-2026-05-24');
+    expect(cell).toBeInTheDocument();
+    expect(cell.tagName).toBe('BUTTON'); // an in-year, in-window cell — not an inert spacer
+  });
 });

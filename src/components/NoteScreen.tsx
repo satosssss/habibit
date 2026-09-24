@@ -15,8 +15,9 @@ import { Heatmap } from './Heatmap';
 export function NoteScreen({ date }: { date: string }) {
   const year = Number(date.slice(0, 4));
   const habits = useLiveQuery(() => listHabits(), []);
-  // The whole year, not just this day: the compact heatmap needs the year's
-  // real activity around the viewed date; the checklist filters to `date`.
+  // The whole year, not just this day: the compact heatmap renders the VIEWED
+  // DATE's full-year grid (its own cell always in-window); the checklist
+  // filters down to `date`.
   const entries = useLiveQuery(
     () => loadRange(`${year}-01-01`, `${year}-12-31`),
     [year],

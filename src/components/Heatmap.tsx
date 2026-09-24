@@ -9,7 +9,8 @@ import type { Entry, Habit } from '@/lib/types';
 
 const WEEKDAYS = ['Mon', 'Wed', 'Fri'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const CELL = 13;   // px, gap handled by the grid gap
+const CELL = 13;         // px, gap handled by the grid gap
+const COMPACT_CELL = 10; // px — spec §8's "smaller cells" for the compact variant
 const GAP = 3;
 
 export function Heatmap({
@@ -53,8 +54,11 @@ export function Heatmap({
     };
   }, [pinned]);
 
-  const visibleCells = compact ? cells.slice(Math.max(0, cells.length - 26 * 7)) : cells;
-  const columnCount = visibleCells.length / 7;
+  // Spec §8: compact = smaller cells, same code path. The window is always the
+  // whole year passed in (the note view passes the *viewed* date's year), so
+  // the viewed date can never be sliced out of its own heatmap.
+  const cellSize = compact ? COMPACT_CELL : CELL;
+  const columnCount = cells.length / 7;
 
   const open = (cell: HeatCell) => {
     if (hover?.date === cell.date || pinned?.date === cell.date) {
@@ -88,12 +92,12 @@ export function Heatmap({
           </div>
 
           <div className="min-w-0 flex-1 overflow-x-auto pb-1">
-            <div style={{ width: columnCount * (CELL + GAP) }}>
+            <div style={{ width: columnCount * (cellSize + GAP) }}>
               {/* Month labels */}
               <div className="relative mb-1 h-3 text-[9px] text-[var(--color-subtle)]">
                 {months.map(({ month, column }) => (
                   <span key={month} className="absolute"
-                        style={{ left: column * (CELL + GAP), visibility: column >= columnCount ? 'hidden' : 'visible' }}>
+                        style={{ left: column * (cellSize + GAP), visibility: column >= columnCount ? 'hidden' : 'visible' }}>
                     {MONTHS[month]}
                   </span>
                 ))}
@@ -101,8 +105,8 @@ export function Heatmap({
 
               {/* 7 weekday rows × week columns */}
               <div className="grid grid-flow-col grid-rows-7 gap-[3px]"
-                   style={{ gridAutoColumns: CELL }}>
-                {visibleCells.map((cell) =>
+                   style={{ gridAutoColumns: cellSize }}>
+                {cells.map((cell) =>
                   cell.inYear ? (
                     <button
                       key={cell.date}
@@ -113,8 +117,10 @@ export function Heatmap({
                       onMouseEnter={() => { if (!touchPointer.current) setHover(cell); }}
                       onMouseLeave={() => setHover(null)}
                       onClick={() => open(cell)}
-                      className="h-[13px] w-[13px] rounded-[3px]"
+                      className="rounded-[3px]"
                       style={{
+                        width: cellSize,
+                        height: cellSize,
                         background: !cell.future ? `var(--hm-${cell.level})` : 'var(--hm-empty)',
                         outline: tooltip?.date === cell.date ? '1px solid var(--color-fg)' : 'none',
                       }}
@@ -127,8 +133,8 @@ export function Heatmap({
                       key={cell.date}
                       data-testid={`hm-cell-${cell.date}`}
                       aria-hidden
-                      className="h-[13px] w-[13px] rounded-[3px]"
-                      style={{ background: 'var(--hm-empty)' }}
+                      className="rounded-[3px]"
+                      style={{ width: cellSize, height: cellSize, background: 'var(--hm-empty)' }}
                     />
                   )
                 )}
