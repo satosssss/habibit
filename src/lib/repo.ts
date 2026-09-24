@@ -69,9 +69,10 @@ export async function pruneOrphans(): Promise<number> {
 const SEED_FLAG_ID = '__seed__';
 
 /**
- * Seed marker row in the entries table (spec §11 "runs on first load"): it
- * survives habit deletion so deleting everything never resurrects seed data,
- * yet clearAll() wipes it, so Reset can legitimately re-seed.
+ * Seed marker row — spec §4.2/§11's seed marker: lives in `entries` with
+ * `id = '__seed__'` and `date: ''`; it is not a real entry, so reads, stats,
+ * and exportState skip it, while clearAll() clears it (so Reset can re-seed).
+ * It survives habit deletion so deleting everything never resurrects seed data.
  */
 export async function hasSeeded(): Promise<boolean> {
   await ensureDb();
@@ -85,7 +86,12 @@ export async function markSeeded(): Promise<void> {
 
 export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[] }> {
   await ensureDb();
-  return { habits: await db.habits.toArray(), entries: await db.entries.toArray() };
+  return {
+    habits: (await db.habits.toArray()).filter((h) => h.id !== SEED_FLAG_ID),
+    entries: (await db.entries.toArray()).filter(
+      (e) => e.id !== SEED_FLAG_ID && e.habitId !== SEED_FLAG_ID,
+    ),
+  };
 }
 
 function isHabit(x: unknown): x is Habit {

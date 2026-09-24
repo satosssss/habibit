@@ -72,7 +72,7 @@ export function generateSeedEntries(habits: Habit[], anchorDate: string, weeks =
         habitId: habit.id,
         date,
         value: valueFor(habit, complete, rnd),
-        timestamp: Date.parse(`${date}T09:00:00`),
+        timestamp: Date.parse(`${date}T00:00:00Z`),   // explicit UTC → machine-TZ independent
       });
     }
     // A recent day must be active, or the seeded current streak reads 0.
@@ -89,7 +89,13 @@ export function generateSeedEntries(habits: Habit[], anchorDate: string, weeks =
 export async function seedIfEmpty(): Promise<boolean> {
   // countHabits alone can't tell "fresh install" from "user deleted everything";
   // the marker row (kept even when 0 habits remain) makes seeding run exactly once.
-  if ((await countHabits()) > 0 || (await hasSeeded())) return false;
+  if (await hasSeeded()) return false;
+  if ((await countHabits()) > 0) {
+    // marker-less data (e.g. an imported payload): claim it now so a later
+    // delete-all can't resurrect the seed habits
+    await markSeeded();
+    return false;
+  }
   for (const habit of SEED_HABITS) await putHabit(habit);
   await setMany(generateSeedEntries(SEED_HABITS, todayKey()));
   await markSeeded();

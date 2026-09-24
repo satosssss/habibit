@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAll, countHabits, deleteHabit, listHabits, loadDay } from './repo';
+import { clearAll, countHabits, deleteHabit, hasSeeded, listHabits, loadDay, putHabit } from './repo';
 import { buildDayStats, countActiveDays, currentStreak } from './stats';
 import { addDays, todayKey, weekdayIndex } from './dates';
 import { generateSeedEntries, seedIfEmpty, SEED_HABITS } from './seed';
@@ -39,6 +39,13 @@ describe('generateSeedEntries', () => {
     expect(entries.every((e) => e.date <= anchor)).toBe(true);
   });
 
+  it('pins every timestamp to UTC midnight of its date key', () => {
+    const entries = generateSeedEntries(SEED_HABITS, anchor);
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries)
+      expect(entry.timestamp).toBe(Date.parse(`${entry.date}T00:00:00Z`));
+  });
+
   it('never writes an entry for an unscheduled habit', () => {
     const weekdayOnly = SEED_HABITS.map((h) => ({ ...h, name: 'Weekday only', frequency: [1, 2, 3, 4, 5] }));
     const entries = generateSeedEntries(weekdayOnly, anchor);
@@ -74,5 +81,14 @@ describe('seedIfEmpty', () => {
     for (const h of await listHabits()) await deleteHabit(h.id);
     expect(await seedIfEmpty()).toBe(false);
     expect(await countHabits()).toBe(0);
+  });
+
+  it('claims marker-less existing habits without adding seed data', async () => {
+    await putHabit({ ...SEED_HABITS[0] });   // e.g. an imported payload with no marker row
+    expect(await hasSeeded()).toBe(false);
+    expect(await seedIfEmpty()).toBe(false);
+    expect(await countHabits()).toBe(1);
+    expect(await loadDay(todayKey())).toHaveLength(0); // no seed entries were added
+    expect(await hasSeeded()).toBe(true);
   });
 });

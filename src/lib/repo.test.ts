@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAll, deleteHabit, exportState, importState, listHabits, loadDay, loadRange, newId, pruneOrphans, putEntry, putHabit } from './repo';
+import { clearAll, deleteHabit, exportState, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit } from './repo';
 import type { Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -76,6 +76,17 @@ describe('entries', () => {
     await importState(dump);
     expect(await listHabits()).toHaveLength(1);
     expect(await loadDay('2026-09-20')).toHaveLength(1);
+  });
+
+  it('never exports the seed marker row', async () => {
+    await markSeeded();
+    const h = habit();
+    await putHabit(h);
+    await putEntry(h.id, '2026-09-20', 1);
+    const dump = await exportState();
+    expect(dump.entries.some((e) => e.id === '__seed__' || e.habitId === '__seed__')).toBe(false);
+    expect(dump.habits.some((x) => x.id === '__seed__')).toBe(false);
+    expect(dump.entries).toHaveLength(1); // real entries still export
   });
 
   it('rejects malformed import payloads', async () => {
