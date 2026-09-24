@@ -93,7 +93,7 @@ habits:  'id, name, category, intention, type, order, createdAt'
 entries: 'id, habitId, date, value, timestamp'
   id          string
   habitId     string   // compound index '[habitId+date]' -> one row per habit/day
-  date        string   // 'YYYY-MM-DD', local timezone
+  date        string   // 'YYYY-MM-DD', local timezone (sole exception: the seed-marker row, date '')
   value       number   // boolean -> 0/1, quantity -> count, timer -> seconds done
   timestamp   number   // last write, drives undo
 ```
@@ -229,7 +229,7 @@ Three real layouts, one component tree, driven by Tailwind breakpoints plus CSS
 
 ## 11. Seed data
 
-Runs on first load when the DB version is 0.
+Runs on first load when the seed marker is absent (fresh install).
 
 - ~8 habits across Morning/Health/Evening and four intentions, matching the
   screenshot examples: Meditate, Record Weight, Take a Cold Shower, Burn Calories,
@@ -237,7 +237,10 @@ Runs on first load when the DB version is 0.
 - ~13 weeks of backdated entries generated from a **seeded PRNG** so every fresh
   install gets identical history: realistic gaps, ~12% perfect days, live current
   streak.
-- Seeded rows carry `createdAt` so Reset knows they are seed data.
+- Seeding writes one seed-marker row (`id: '__seed__'` in `entries`, `date: ''`).
+  It is skipped by every read, stat, and export path, and cleared by Reset — so
+  seeding happens exactly once, never resurrects after habits are deleted, and
+  Reset re-seeds. Seeded rows also carry `createdAt`.
 
 ## 12. Error handling
 
