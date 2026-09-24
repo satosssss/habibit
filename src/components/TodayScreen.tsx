@@ -2,7 +2,7 @@
 
 import { Flame, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, classifyDate, formatLong, todayKey } from '@/lib/dates';
 import { loadRange, listHabits, putEntry } from '@/lib/repo';
 import { buildDayStats, currentStreak } from '@/lib/stats';
@@ -11,6 +11,7 @@ import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
 import { DateStrip } from './DateStrip';
+import { TimerModal } from './TimerModal';
 import { ValueSheet } from './ValueSheet';
 
 const STORE_KEY = 'habibit:collapsed';
@@ -23,11 +24,31 @@ const readCollapsed = (): Record<string, boolean> => {
 export function TodayScreen({ date = todayKey() }: { date?: string }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [valueSheet, setValueSheet] = useState<Habit | null>(null);
+  const [timerHabit, setTimerHabit] = useState<Habit | null>(null);
+  const timerBeat = useRef<number | null>(null);
   const router = useRouter();
   const today = todayKey();
 
   // One-time client hydration of the collapse state (localStorage is not SSR-safe).
   useEffect(() => { setCollapsed(readCollapsed()); }, []);
+
+  const closeTimer = useCallback(() => {
+    if (timerBeat.current !== null) {
+      window.clearTimeout(timerBeat.current);
+      timerBeat.current = null;
+    }
+    setTimerHabit(null);
+  }, []);
+
+  // Spec §6: after completion the finished ring stays visible for a beat, then closes.
+  const finishTimer = useCallback(() => {
+    timerBeat.current = window.setTimeout(closeTimer, 700);
+  }, [closeTimer]);
+
+  // Never let a pending close beat outlive the screen itself.
+  useEffect(() => () => {
+    if (timerBeat.current !== null) window.clearTimeout(timerBeat.current);
+  }, []);
 
   const habits = useLiveQuery(() => listHabits(), []);
   // A 40-day window so per-habit streaks and the header flame come from real
@@ -131,7 +152,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
               streaks={streaks}
               onToggle={toggle}
               onStep={step}
-              onOpenTimer={() => { /* wired to TimerModal in Task 9 */ }}
+              onOpenTimer={setTimerHabit}
               onOpenValue={setValueSheet}
             />
           ))}
@@ -145,6 +166,17 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
           open
           onSave={(v) => void setValue(valueSheet, v)}
           onClose={() => setValueSheet(null)}
+        />
+      )}
+
+      {timerHabit && (
+        <TimerModal
+          habit={timerHabit}
+          initialSeconds={values[timerHabit.id] ?? 0}
+          streak={streaks[timerHabit.id] ?? 0}
+          date={date}
+          onClose={closeTimer}
+          onComplete={finishTimer}
         />
       )}
     </div>
