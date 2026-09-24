@@ -18,7 +18,9 @@ const readCollapsed = (): Record<string, boolean> => {
   try { return JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}'); } catch { return {}; }
 };
 
-export function TodayScreen({ date }: { date: string }) {
+// `date` defaults to the current day at render time so the statically
+// prerendered /today route never freezes on the build date.
+export function TodayScreen({ date = todayKey() }: { date?: string }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [valueSheet, setValueSheet] = useState<Habit | null>(null);
   const router = useRouter();
@@ -87,7 +89,8 @@ export function TodayScreen({ date }: { date: string }) {
   return (
     <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
       <header className="flex items-center justify-between gap-3 px-2 py-4">
-        <h1 className="text-lg font-extrabold">{isPast ? formatLong(date) : 'Today'}</h1>
+        {/* Date-derived text: prerendered HTML can't match the client's current day. */}
+        <h1 suppressHydrationWarning className="text-lg font-extrabold">{isPast ? formatLong(date) : 'Today'}</h1>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-sm font-bold">
             <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}

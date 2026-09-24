@@ -22,11 +22,15 @@ export function DateStrip({
                     className="absolute top-[26px] right-1/2 left-1/2 h-0.5 -translate-x-1/2 bg-[var(--color-accent)]"
                     style={{ width: '100%' }} />
             )}
-            <span className={`text-[11px] ${isSelected ? 'font-bold text-[var(--color-fg)]' : 'text-[var(--color-subtle)]'}`}>
+            {/* Weekday label and day numeral are date-derived text; the prerendered
+                build week can't match the client's current week on hydration. */}
+            <span suppressHydrationWarning
+                  className={`text-[11px] ${isSelected ? 'font-bold text-[var(--color-fg)]' : 'text-[var(--color-subtle)]'}`}>
               {formatWeekday(key)}
             </span>
             <button
               type="button"
+              suppressHydrationWarning
               disabled={disabled}
               aria-current={isSelected ? 'date' : undefined}
               aria-label={key}
