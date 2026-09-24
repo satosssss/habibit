@@ -1,6 +1,6 @@
 'use client';
 
-import { Pause, Play, Plus, Minus, RotateCcw, SkipForward, Undo2 } from 'lucide-react';
+import { Pause, Play, Plus, Minus, RotateCcw, SkipForward, Square, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { putEntry } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
@@ -14,6 +14,13 @@ function clock(total: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// Spec §6 says only "±5 when held"; these are the chosen hold timings —
+// first repeat after 500 ms, then one every 250 ms.
+const HOLD_DELAY_MS = 500;
+const HOLD_REPEAT_MS = 250;
+
+type Stage = 'idle' | 'running' | 'paused';
+
 export function TimerModal({
   habit, initialSeconds, streak, date, onClose, onComplete,
 }: {
@@ -26,8 +33,16 @@ export function TimerModal({
 }) {
   const [duration, setDuration] = useState(habit.target || 600);
   const [elapsed, setElapsed] = useState(initialSeconds);
-  const [running, setRunning] = useState(false);
+  const [stage, setStage] = useState<Stage>('idle');
+  const running = stage === 'running';
   const completed = useRef(false);
+
+  // Latest committed elapsed, read by the unmount-persist cleanup below.
+  const elapsedRef = useRef(elapsed);
+  useEffect(() => { elapsedRef.current = elapsed; }, [elapsed]);
+  // The entry value this session last wrote (close/Stop), so the unmount
+  // cleanup never writes the same seconds twice.
+  const persistedRef = useRef<number | null>(null);
 
   // The app's only setInterval: created when running, always cleared on
   // unmount or when `running`/`duration` change.
@@ -42,7 +57,7 @@ export function TimerModal({
   useEffect(() => {
     if (!running || completed.current || elapsed < duration) return;
     completed.current = true;
-    setRunning(false);
+    setStage('idle');
     void putEntry(habit.id, date, habit.target);   // spec §6: value = target
     onComplete();
   }, [elapsed, duration, running, habit.id, habit.target, date, onComplete]);
@@ -50,20 +65,89 @@ export function TimerModal({
   // Spec §6: closing mid-run keeps the elapsed seconds in the entry, so
   // reopening the modal resumes where it left off.
   const close = useCallback(() => {
-    if (!completed.current && elapsed !== initialSeconds) void putEntry(habit.id, date, elapsed);
+    if (!completed.current && elapsed !== initialSeconds) {
+      persistedRef.current = elapsed;
+      void putEntry(habit.id, date, elapsed);
+    }
     onClose();
   }, [elapsed, initialSeconds, habit.id, date, onClose]);
 
+  // Spec §6: a route change unmounts the modal without close(); the session's
+  // seconds still land in the entry — unless close/Stop already wrote them or
+  // the session completed (which wrote `target`, not `elapsed`).
+  useEffect(() => () => {
+    if (completed.current) return;
+    const value = elapsedRef.current;
+    if (value === initialSeconds || value === persistedRef.current) return;
+    void putEntry(habit.id, date, value);
+  }, [habit.id, date, initialSeconds]);
+
+  // Spec §6 "±5 when held": a recursive setTimeout chain — a chain is not a
+  // setInterval, so the single interval stays reserved for the ring tick.
+  const repeatRef = useRef<number | null>(null);
+  const stopRepeat = useCallback(() => {
+    if (repeatRef.current !== null) {
+      window.clearTimeout(repeatRef.current);
+      repeatRef.current = null;
+    }
+  }, []);
+  useEffect(() => stopRepeat, [stopRepeat]);   // also cleared on unmount
+
+  const startRepeat = useCallback((dir: 1 | -1) => {
+    stopRepeat();
+    const step = () => {
+      setDuration((d) => Math.max(60, d + dir * 300));
+      repeatRef.current = window.setTimeout(step, HOLD_REPEAT_MS);
+    };
+    repeatRef.current = window.setTimeout(step, HOLD_DELAY_MS);
+  }, [stopRepeat]);
+
+  const pressedRef = useRef(false);
+  // Handlers for the ± steppers: pointerdown steps ±1 immediately and arms
+  // the hold-repeat; the trailing click from that same press is swallowed
+  // (keyboard activation arrives with no prior press, so its click still steps).
+  const stepper = (dir: 1 | -1) => ({
+    onPointerDown: () => {
+      pressedRef.current = true;
+      setDuration((d) => Math.max(60, d + dir * 60));
+      startRepeat(dir);
+    },
+    onPointerUp: stopRepeat,
+    onPointerLeave: stopRepeat,
+    onPointerCancel: stopRepeat,
+    onBlur: stopRepeat,
+    onClick: () => {
+      if (pressedRef.current) { pressedRef.current = false; return; }
+      setDuration((d) => Math.max(60, d + dir * 60));
+    },
+  });
+
   const remaining = Math.max(0, duration - elapsed);
   const ratio = duration > 0 ? elapsed / duration : 0;
+  // Spec §6: the countdown ring is tick-marked — one tick per minute of the
+  // session; each tick depletes (fades out) once the elapsed sweep passes it.
+  const tickCount = Math.max(1, Math.round(duration / 60));
 
   return (
-    <Sheet open onClose={close} title={habit.name} dark>
+    <Sheet open onClose={close} title={habit.name} dark centerFrom="lg">
       <p className="mb-4 text-center text-xs text-white/60">{habit.name} timer</p>
 
       <div className="relative mx-auto grid h-56 w-56 place-items-center">
         <div className="absolute inset-0 rounded-full"
              style={{ background: `conic-gradient(${habit.color} ${ratio * 360}deg, #2a2a33 0deg)` }} />
+        <div aria-hidden="true" data-tick-count={tickCount} className="absolute inset-0">
+          {Array.from({ length: tickCount }, (_, i) => {
+            const depleted = elapsed > ((i + 0.5) / tickCount) * duration;
+            return (
+              <span key={i} data-tick={i} data-depleted={depleted ? 'true' : 'false'}
+                    className="absolute left-1/2 top-1/2 h-3 w-0.5 rounded-full bg-white/70 transition-opacity"
+                    style={{
+                      transform: `translate(-50%, -50%) rotate(${((i + 0.5) / tickCount) * 360}deg) translateY(-106px)`,
+                      opacity: depleted ? 0 : 1,
+                    }} />
+            );
+          })}
+        </div>
         <div className="absolute inset-3 rounded-full bg-[#111116]" />
         <div className="relative text-center">
           <FlameBadge count={streak} className="justify-center text-white/80" />
@@ -72,20 +156,18 @@ export function TimerModal({
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-6">
-        <button type="button" aria-label="Decrease duration"
-                onClick={() => setDuration((d) => Math.max(60, d - 60))}
+        <button type="button" aria-label="Decrease duration" {...stepper(-1)}
                 className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white">
           <Minus size={18} />
         </button>
-        <button type="button" aria-label="Increase duration"
-                onClick={() => setDuration((d) => d + 60)}
+        <button type="button" aria-label="Increase duration" {...stepper(1)}
                 className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white">
           <Plus size={18} />
         </button>
       </div>
 
       <div className="mt-4 flex items-center gap-2">
-        <button type="button" aria-label="Skip" onClick={() => { setRunning(false); close(); }}
+        <button type="button" aria-label="Skip" onClick={() => { setStage('idle'); close(); }}
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white">
           <SkipForward size={16} />
         </button>
@@ -105,14 +187,23 @@ export function TimerModal({
         </button>
       </div>
 
+      {/* Spec §6: full-width Start timer → Pause → Stop. Pause holds elapsed in
+          memory; Stop commits it to the entry and ends the session (close —
+          reopening the modal resumes, §6 L163). */}
       <button
         type="button"
-        onClick={() => setRunning((r) => !r)}
+        onClick={() => {
+          if (stage === 'idle') setStage('running');
+          else if (stage === 'running') setStage('paused');
+          else { setStage('idle'); close(); }
+        }}
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3.5 font-bold text-white"
         style={{ background: habit.color }}
       >
-        {running ? <Pause size={18} /> : <Play size={18} />}
-        {running ? 'Pause' : 'Start timer'}
+        {stage === 'running' ? <Pause size={18} />
+          : stage === 'paused' ? <Square size={18} />
+          : <Play size={18} />}
+        {stage === 'idle' ? 'Start timer' : stage === 'running' ? 'Pause' : 'Stop'}
       </button>
     </Sheet>
   );
