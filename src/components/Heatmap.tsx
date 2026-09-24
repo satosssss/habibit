@@ -102,25 +102,36 @@ export function Heatmap({
               {/* 7 weekday rows × week columns */}
               <div className="grid grid-flow-col grid-rows-7 gap-[3px]"
                    style={{ gridAutoColumns: CELL }}>
-                {visibleCells.map((cell) => (
-                  <button
-                    key={cell.date}
-                    type="button"
-                    data-testid={`hm-cell-${cell.date}`}
-                    aria-label={`${cell.date}: ${cell.completed} of ${cell.scheduled} completed`}
-                    onPointerEnter={(e) => { touchPointer.current = e.pointerType === 'touch'; }}
-                    onMouseEnter={() => { if (!touchPointer.current) setHover(cell); }}
-                    onMouseLeave={() => setHover(null)}
-                    onClick={() => open(cell)}
-                    className="h-[13px] w-[13px] rounded-[3px]"
-                    style={{
-                      background: cell.inYear && !cell.future
-                        ? `var(--hm-${cell.level})`
-                        : 'var(--hm-empty)',
-                      outline: tooltip?.date === cell.date ? '1px solid var(--color-fg)' : 'none',
-                    }}
-                  />
-                ))}
+                {visibleCells.map((cell) =>
+                  cell.inYear ? (
+                    <button
+                      key={cell.date}
+                      type="button"
+                      data-testid={`hm-cell-${cell.date}`}
+                      aria-label={`${cell.date}: ${cell.completed} of ${cell.scheduled} completed`}
+                      onPointerEnter={(e) => { touchPointer.current = e.pointerType === 'touch'; }}
+                      onMouseEnter={() => { if (!touchPointer.current) setHover(cell); }}
+                      onMouseLeave={() => setHover(null)}
+                      onClick={() => open(cell)}
+                      className="h-[13px] w-[13px] rounded-[3px]"
+                      style={{
+                        background: !cell.future ? `var(--hm-${cell.level})` : 'var(--hm-empty)',
+                        outline: tooltip?.date === cell.date ? '1px solid var(--color-fg)' : 'none',
+                      }}
+                    />
+                  ) : (
+                    // Spec §7.4 clips the year at both ends: out-of-year padding
+                    // keeps its grid slot but is inert — no tooltip, no deep link
+                    // outside the viewed year.
+                    <div
+                      key={cell.date}
+                      data-testid={`hm-cell-${cell.date}`}
+                      aria-hidden
+                      className="h-[13px] w-[13px] rounded-[3px]"
+                      style={{ background: 'var(--hm-empty)' }}
+                    />
+                  )
+                )}
               </div>
             </div>
           </div>

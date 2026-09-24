@@ -125,4 +125,42 @@ describe('Heatmap', () => {
     fireEvent.click(document.body);
     expect(screen.queryByTestId('hm-tooltip')).not.toBeInTheDocument();
   });
+
+  it('treats out-of-year padding cells as inert spacers (spec §7.4)', () => {
+    push.mockClear();
+    render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" />);
+    // Weekday padding on both ends of the 2026 grid: Mon Dec 29 2025 and Fri–Sun Jan 2027.
+    for (const key of ['2025-12-29', '2027-01-01']) {
+      const cell = screen.getByTestId(`hm-cell-${key}`);
+      fireEvent.mouseEnter(cell);
+      expect(screen.queryByTestId('hm-tooltip')).toBeNull();
+      fireEvent.click(cell);
+      expect(screen.queryByTestId('hm-tooltip')).toBeNull();
+      fireEvent.click(cell);
+      expect(push).not.toHaveBeenCalled();
+    }
+  });
+
+  it('gates hover behind pointer type: touch does not hover, tap pins', () => {
+    render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" />);
+    const cell = screen.getByTestId('hm-cell-2026-06-10');
+    // jsdom 25 has no PointerEvent, so inject an Event carrying pointerType.
+    const touch = new Event('pointerover', { bubbles: true, cancelable: true });
+    Object.defineProperty(touch, 'pointerType', { value: 'touch', enumerable: true });
+    fireEvent(cell, touch);
+    fireEvent.mouseEnter(cell);
+    expect(screen.queryByTestId('hm-tooltip')).toBeNull();
+    fireEvent.click(cell);
+    expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('Jun 10, 2026');
+  });
+
+  it("counts an entry dated exactly today in today's cell", () => {
+    render(
+      <Heatmap year={2026} habits={[habit('a')]}
+               entries={[entry('a', '2026-12-31')]} today="2026-12-31" />
+    );
+    fireEvent.mouseEnter(screen.getByTestId('hm-cell-2026-12-31'));
+    expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('1 of 1 completed');
+    expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('100%');
+  });
 });
