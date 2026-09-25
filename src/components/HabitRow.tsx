@@ -40,7 +40,7 @@ export function HabitRow({
       <div data-testid="habit-fill"
            className="absolute inset-y-0 left-0"
            style={{ width: `${Math.round(fill * 100)}%`, background: habit.color, transition: 'width 300ms ease' }} />
-      <div className="relative flex items-center gap-3 px-3 py-2.5">
+      <div className="relative flex items-center gap-3 px-3 py-2.5 xl:gap-2">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/25">
           <Icon size={20} color="#fff" />
         </span>

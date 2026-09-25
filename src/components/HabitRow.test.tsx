@@ -55,6 +55,15 @@ describe('HabitRow', () => {
     expect(onOpenTimer).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps row spacing tight at xl so long names fit beside the chrome (1280, 3-col)', () => {
+    render(<HabitRow habit={qtyHabit} value={4} onToggle={vi.fn()} {...base} />);
+    const flow = document.querySelector<HTMLElement>('li > div[class*="items-center"]');
+    expect(flow).not.toBeNull();
+    const classes = flow!.className.split(/\s+/);
+    expect(classes).toContain('gap-3');    // base spacing unchanged
+    expect(classes).toContain('xl:gap-2'); // xl frees 12px so "Learn Spanish" (91px) fits in 86+12
+  });
+
   it('renders a flame badge only when there is a streak', () => {
     const { rerender } = render(<HabitRow habit={boolHabit} value={0} onToggle={vi.fn()} {...base} streak={0} />);
     expect(screen.queryByText('0')).not.toBeInTheDocument();
