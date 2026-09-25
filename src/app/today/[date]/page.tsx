@@ -9,11 +9,17 @@ import { classifyDate, isValidDateKey, todayKey } from '@/lib/dates';
 
 export default function DayPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = use(params);
-  // URL-deterministic checks run first (malformed/future keys redirect during
-  // the very first render, server or client). The *clock*-dependent branch
-  // stays gated: prerendered HTML must be clock-independent, so under Vercel's
-  // UTC SSR the local-midnight window can never pick the wrong screen —
-  // SSR/first client render is just the shell, and the effect flips it on.
+  // URL-deterministic checks run first: a malformed key redirects during the
+  // very first render, server or client. One exception to "clock-dependent
+  // stays gated" — the future-key check below IS clock-dependent and also
+  // runs pre-mount on server and client, deliberately: page.test pins that a
+  // future date redirects on the first render, and an east-of-UTC client's
+  // local tomorrow checked against Vercel's UTC SSR clock around midnight
+  // redirects to /today, which renders the same (Today) screen. What stays
+  // gated is the *screen choice*: prerendered HTML must be clock-independent,
+  // so under UTC SSR the local-midnight window can never freeze the wrong
+  // screen — SSR/first client render is just the shell, and the effect flips
+  // it on.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 

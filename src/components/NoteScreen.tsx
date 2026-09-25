@@ -54,8 +54,10 @@ export function NoteScreen({ date }: { date: string }) {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-10">
       <header className="flex items-center justify-between py-4">
-        {/* Date-derived text: computed from the route param at render time. */}
-        <h1 suppressHydrationWarning className="text-lg font-extrabold">{formatLong(date)}</h1>
+        {/* NoteScreen renders only post-mount (page.tsx gates the branch) and
+            the text derives from the route param, never the clock — so the h1
+            can never mismatch hydration; no suppression flag needed. */}
+        <h1 className="text-lg font-extrabold">{formatLong(date)}</h1>
         <button type="button" aria-label="Share this day" onClick={() => void share()}
                 className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-muted)]">
           <Share2 size={16} />
