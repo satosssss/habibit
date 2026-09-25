@@ -26,7 +26,9 @@ export function CategorySection({
   const ordered = [...habits].sort((a, b) => a.order - b.order);
 
   return (
-    <section className="rounded-3xl bg-[var(--color-panel)] p-3">
+    // mb-3 = vertical rhythm (a multicol gap can't space stacked blocks);
+    // break-inside-avoid keeps a panel whole inside its column.
+    <section className="mb-3 break-inside-avoid rounded-3xl bg-[var(--color-panel)] p-3">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide">
           <Icon size={16} /> {category}

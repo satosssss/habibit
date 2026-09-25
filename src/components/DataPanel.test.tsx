@@ -1,8 +1,15 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAll, listHabits, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
+import { clearAll, exportState, listHabits, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
 import { DataPanel } from './DataPanel';
+
+// Real functions by default; individual tests reject the next Export/Reset call
+// to pin the panel's error path (spec §12 readable-message treatment).
+vi.mock('@/lib/repo', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/repo')>();
+  return { ...actual, exportState: vi.fn(actual.exportState), clearAll: vi.fn(actual.clearAll) };
+});
 
 // jsdom (25) implements neither Blob.text() nor URL.createObjectURL; real
 // browsers do, so the component uses the standard APIs and the test shims them.
@@ -94,5 +101,23 @@ describe('DataPanel', () => {
       const habits = await listHabits();
       expect(habits.length).toBe(8);   // seed restored
     });
+  });
+
+  // Task 14 review issue 1: Export/Reset get the same readable-error path
+  // Import already had (spec §12).
+  it('surfaces an export failure as an alert', async () => {
+    vi.mocked(exportState).mockRejectedValueOnce(new Error('Storage read failed'));
+    render(<DataPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /export json/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/storage read failed/i));
+  });
+
+  it('surfaces a reset failure as an alert and does not strand the confirm dialog', async () => {
+    vi.mocked(clearAll).mockRejectedValueOnce(new Error('Write blocked'));
+    render(<DataPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /reset data/i }));
+    fireEvent.click(screen.getByRole('button', { name: /yes, reset/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/write blocked/i));
+    expect(screen.queryByText(/erase everything/i)).not.toBeInTheDocument(); // dialog closed
   });
 });

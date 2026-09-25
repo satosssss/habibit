@@ -11,15 +11,19 @@ export function DataPanel() {
   const [confirmReset, setConfirmReset] = useState(false);
 
   const exportJson = async () => {
-    const data = await exportState();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `habibit-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMessage({ kind: 'ok', text: 'Exported.' });
+    try {
+      const data = await exportState();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `habibit-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMessage({ kind: 'ok', text: 'Exported.' });
+    } catch (err) {
+      setMessage({ kind: 'error', text: err instanceof Error ? err.message : 'Export failed.' });
+    }
   };
 
   const importJson = async (file: File | undefined) => {
@@ -39,10 +43,15 @@ export function DataPanel() {
   };
 
   const reset = async () => {
-    await clearAll();
-    await seedIfEmpty();
-    setConfirmReset(false);
-    setMessage({ kind: 'ok', text: 'Reset and re-seeded.' });
+    try {
+      await clearAll();
+      await seedIfEmpty();
+      setConfirmReset(false);
+      setMessage({ kind: 'ok', text: 'Reset and re-seeded.' });
+    } catch (err) {
+      setConfirmReset(false);   // never strand the dialog over a failed write
+      setMessage({ kind: 'error', text: err instanceof Error ? err.message : 'Reset failed.' });
+    }
   };
 
   return (

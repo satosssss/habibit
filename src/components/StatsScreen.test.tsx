@@ -47,12 +47,30 @@ describe('StatsScreen', () => {
   it('lays the intention bars beside the heatmap on tablet, full width on desktop (spec §10)', async () => {
     const { StatsScreen } = await import('./StatsScreen');
     const { container } = render(<StatsScreen />);
-    const grid = container.querySelector<HTMLElement>('div[class*="md:grid-cols-2"]');
+    // gap-6 (not md:grid-cols-2) selects this grid: once tiles also break at md
+    // they would otherwise match first in document order.
+    const grid = container.querySelector<HTMLElement>('div[class*="gap-6"]');
     expect(grid).not.toBeNull();
     expect(grid!.querySelector('[aria-label="Activity heatmap"]')).toBeInTheDocument();
     expect(within(grid!).getByText('By intention')).toBeInTheDocument();
     expect(grid!.className).toContain('xl:grid-cols-1');
     expect(grid!.className).toContain('gap-6');
+  });
+
+  // Task 14 review issue 6a: §10's Stats row — mobile "Stacked", tablet "Tiles
+  // 2×2", desktop "Tiles 4-across".
+  it('stacks tiles one-across on mobile, 2×2 on tablet, 4-across on desktop (spec §10)', async () => {
+    const { StatsScreen } = await import('./StatsScreen');
+    const { container } = render(<StatsScreen />);
+    const grids = container.querySelectorAll<HTMLElement>('div[class*="xl:grid-cols-4"]');
+    expect(grids).toHaveLength(2); // year tiles + all-time tiles
+    for (const grid of grids) {
+      const classes = grid.className.split(/\s+/);
+      expect(classes).toContain('grid-cols-1');     // mobile: stacked
+      expect(classes).toContain('md:grid-cols-2');  // tablet: 2×2
+      expect(classes).toContain('xl:grid-cols-4');  // desktop: 4-across
+      expect(grid.children).toHaveLength(4);
+    }
   });
 
   it('sorts intention rows by habit order (spec §7.3)', async () => {

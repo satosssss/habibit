@@ -89,4 +89,23 @@ describe('TodayScreen', () => {
     screen.getByRole('button', { name: pastKey }).click();
     expect(push).toHaveBeenCalledWith(`/today/${pastKey}`);
   });
+
+  // Task 14 review issue 6b: §10 preamble — "CSS `columns` for category
+  // masonry"; grid leaves gaps between unequal-height category panels.
+  it('lays category panels out in CSS columns: 1 / 2 / 3 across (spec §10)', async () => {
+    await putHabit(habit({ id: 'a-morning', name: 'Meditate', category: 'Morning' }));
+    await putHabit(habit({ id: 'z-health', name: 'Drink Water', category: 'Health' }));
+    render(<TodayScreen date={todayKey()} />);
+    await screen.findByText('Morning');
+    const grid = document.querySelector<HTMLElement>('div[class*="md:columns-2"]');
+    expect(grid).not.toBeNull();
+    const classes = grid!.className.split(/\s+/);
+    expect(classes).toContain('md:columns-2');   // tablet: 2 columns of panels
+    expect(classes).toContain('xl:columns-3');   // desktop: 3 columns, masonry
+    expect(classes.some((c) => c.startsWith('grid-cols'))).toBe(false); // grid ≠ masonry
+    const sections = grid!.querySelectorAll('section');
+    expect(sections).toHaveLength(2);
+    for (const section of sections)               // never split a panel across columns
+      expect(section.className.split(/\s+/)).toContain('break-inside-avoid');
+  });
 });

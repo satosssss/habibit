@@ -68,6 +68,8 @@ export async function pruneOrphans(): Promise<number> {
 
 const SEED_FLAG_ID = '__seed__';
 
+const seedMarker = (): Entry => ({ id: SEED_FLAG_ID, habitId: SEED_FLAG_ID, date: '', value: 1, timestamp: 0 });
+
 /**
  * Seed marker row — spec §4.2/§11's seed marker: lives in `entries` with
  * `id = '__seed__'` and `date: ''`; it is not a real entry, so reads, stats,
@@ -81,7 +83,7 @@ export async function hasSeeded(): Promise<boolean> {
 
 export async function markSeeded(): Promise<void> {
   await ensureDb();
-  await db.entries.put({ id: SEED_FLAG_ID, habitId: SEED_FLAG_ID, date: '', value: 1, timestamp: 0 });
+  await db.entries.put(seedMarker());
 }
 
 export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[] }> {
@@ -132,5 +134,11 @@ export async function importState(data: unknown): Promise<void> {
     await db.entries.clear();
     await db.habits.bulkPut(habits);
     await db.entries.bulkPut(entries);
+    // §11: the clear above also wiped the `__seed__` marker, so a non-empty
+    // payload must claim it here — otherwise import → delete-all → reload
+    // would resurrect the seed data. An empty payload stays marker-less =
+    // spec-blessed fresh install that re-seeds on next load. Written inline
+    // (same row as markSeeded) to avoid ensureDb() inside the transaction.
+    if (habits.length > 0) await db.entries.put(seedMarker());
   });
 }

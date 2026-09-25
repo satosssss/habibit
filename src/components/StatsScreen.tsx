@@ -72,7 +72,7 @@ export function StatsScreen() {
       <YearNav year={year} minYear={minYear} maxYear={maxYear} onChange={setYear} />
 
       <h2 className="mb-2 mt-2 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Year stats</h2>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={CalendarCheck} value={countActiveDays(stats)} caption="Active Days" />
         <StatTile icon={Star} value={countPerfectDays(stats)} caption="Perfect Days" />
         <StatTile icon={Zap} value={`${Math.round(rate.rate * 100)}%`} caption="Completion Rate" />
@@ -106,7 +106,7 @@ export function StatsScreen() {
       </div>
 
       <h2 className="mb-2 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">All time</h2>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={Flame} value={currentStreak(allTime, today)} caption="Current Streak" />
         <StatTile icon={Trophy} value={longestStreak(allTime)} caption="Longest Streak" />
         <StatTile icon={CalendarCheck} value={countActiveDays(allTime)} caption="Total Active Days" />

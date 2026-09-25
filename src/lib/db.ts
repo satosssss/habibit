@@ -57,6 +57,10 @@ export function ensureDb(): Promise<DbStatus> {
 
 export async function resetDb(): Promise<void> {
   await ensureDb();
-  await db.habits.clear();
-  await db.entries.clear();
+  // One transaction for both clears: a failure between them must not leave
+  // 0 habits plus orphaned entries (spec §11/§12 rule out partial applies).
+  await db.transaction('rw', db.habits, db.entries, async () => {
+    await db.habits.clear();
+    await db.entries.clear();
+  });
 }

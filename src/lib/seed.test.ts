@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAll, countHabits, deleteHabit, hasSeeded, listHabits, loadDay, putHabit } from './repo';
+import { clearAll, countHabits, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, putHabit } from './repo';
 import { buildDayStats, countActiveDays, currentStreak } from './stats';
 import { addDays, todayKey, weekdayIndex } from './dates';
 import { generateSeedEntries, seedIfEmpty, SEED_HABITS } from './seed';
+import type { Entry } from './types';
 
 describe('seed habits', () => {
   it('contains 8 habits spanning 3 categories and 4 intentions', () => {
@@ -90,5 +91,45 @@ describe('seedIfEmpty', () => {
     expect(await countHabits()).toBe(1);
     expect(await loadDay(todayKey())).toHaveLength(0); // no seed entries were added
     expect(await hasSeeded()).toBe(true);
+  });
+
+  // Task 14 review issue 3 / Review Focus #4: a non-empty import must claim the
+  // marker inside its own transaction, so import → delete-all → reload can't
+  // resurrect the seed habits ("never resurrects after habits are deleted", §11).
+  it('never resurrects after a non-empty import followed by delete-all', async () => {
+    await importState({ habits: [SEED_HABITS[0]], entries: [] });
+    expect(await hasSeeded()).toBe(true); // import claimed the marker it wiped
+    for (const h of await listHabits()) await deleteHabit(h.id);
+    expect(await countHabits()).toBe(0);
+    expect(await seedIfEmpty()).toBe(false);
+    expect(await countHabits()).toBe(0);   // no seed data came back
+  });
+
+  // Mirror image (spec §11): an empty payload leaves the marker absent, so the
+  // database behaves as a fresh install and re-seeds on the next load.
+  it('treats an empty import as a fresh install', async () => {
+    expect(await seedIfEmpty()).toBe(true);
+    await importState({ habits: [], entries: [] });
+    expect(await hasSeeded()).toBe(false);
+    expect(await seedIfEmpty()).toBe(true);
+    expect(await countHabits()).toBe(8);
+  });
+
+  // Task 14 review issue 5b: Reset (clearAll → seedIfEmpty) must reproduce the
+  // exact fresh-install dataset — same PRNG, ids and values (§11 determinism).
+  it('re-seeds a byte-identical dataset after a reset', async () => {
+    expect(await seedIfEmpty()).toBe(true);
+    const first = await exportState();
+    await clearAll();                       // Reset: data + marker cleared
+    expect(await seedIfEmpty()).toBe(true);
+    const second = await exportState();
+    expect(second).toEqual(first);
+
+    const byId = (a: Entry, b: Entry) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    expect([...second.entries].sort(byId)).toEqual(
+      generateSeedEntries(SEED_HABITS, todayKey()).sort(byId),   // Task 4 generator
+    );
+    expect(second.habits.map((h) => h.id).sort())
+      .toEqual(SEED_HABITS.map((h) => h.id).sort());
   });
 });

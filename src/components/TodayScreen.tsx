@@ -140,7 +140,9 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
       ) : groups.length === 0 ? (
         <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Nothing scheduled on this day.</p>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        // Spec §10: CSS columns for category masonry (grid would leave gaps
+        // between unequal-height panels); gap-3 is the gutter between columns.
+        <div className="gap-3 md:columns-2 xl:columns-3">
           {groups.map(([category, list]) => (
             <CategorySection
               key={category}
