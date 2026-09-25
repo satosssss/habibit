@@ -114,6 +114,16 @@ describe('TodayScreen', () => {
     for (const section of sections)               // never split a panel across columns
       expect(section.className.split(/\s+/)).toContain('break-inside-avoid');
   });
+
+  // At xl the masonry runs 3 columns (~234px each inside max-w-3xl); a
+  // quantity row's fixed chrome (px-3, icon, stepper, ring ≈ 218px) would
+  // otherwise leave the truncated habit name ~16px.
+  it('widens the screen container at xl so habit names keep room (spec §10)', () => {
+    render(<TodayScreen date={todayKey()} />);
+    const container = document.querySelector<HTMLElement>('.max-w-3xl');
+    expect(container).not.toBeNull();
+    expect(container!.className.split(/\s+/)).toContain('xl:max-w-6xl');
+  });
 });
 
 // Branch review #2 — spec §5.1 header: hamburger (mobile) | centered title |

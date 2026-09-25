@@ -128,7 +128,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   const isPast = classifyDate(date, today) === 'past';
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
+    <div className="mx-auto w-full max-w-3xl px-2 sm:px-4 xl:max-w-6xl">
       {/* Spec §5.1: hamburger (mobile) | centered title | flame + streak | `+`.
           The hamburger hides at md where the rail/sidebar nav takes over, and
           the title is absolutely centered rather than justify-between aligned. */}
