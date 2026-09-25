@@ -55,4 +55,27 @@ describe('DateStrip', () => {
     expect(screen.getAllByRole('button')).toHaveLength(7);
     expect(screen.getByRole('button', { name: '2026-09-23' })).toBeInTheDocument();
   });
+
+  // Height contract: the real weekday label builds a line box (11px text on
+  // the inherited 1.5 line-height = 16.5px), while an empty blockified span is
+  // a zero-height flex item — pre-fix the placeholder strip measured 72px vs
+  // the real 88.5px, so content below shifted down on every load. The
+  // placeholder label slot must therefore carry a real line box too.
+  it('gives every placeholder label slot a real line box (no layout shift on hydration)', () => {
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(<DateStrip selected={TODAY} today={TODAY} onSelect={vi.fn()} />);
+
+    const cells = container.querySelectorAll('[aria-hidden="true"]');
+    expect(cells).toHaveLength(7); // placeholder count unchanged
+    for (const cell of cells) {
+      const dayCell = cell.querySelector(':scope > div');
+      expect(dayCell).toHaveClass('h-11', 'w-11', 'rounded-full');
+      const label = cell.querySelector(':scope > span');
+      if (!label) throw new Error('placeholder label slot lost its line box');
+      expect(label.className).toContain('text-[11px]');
+      // The line-box mechanism: a zero-width space raises the same strut line
+      // box as real weekday text at the same font-size/line-height.
+      expect(label.textContent).toBe('\u200b');
+    }
+  });
 });

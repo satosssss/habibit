@@ -20,11 +20,17 @@ export function DateStrip({
   if (!mounted) {
     // Same outer group and cell metrics as the real strip, so nothing shifts
     // when the dated cells arrive — but no date text, keys or states.
+    // The zero-width space is load-bearing: the real 11px weekday label builds
+    // a 16.5px line box (11px × inherited 1.5 line-height) while an empty
+    // blockified span is a zero-height flex item (placeholder 72px vs real
+    // 88.5px). The ZWSP raises the same strut line box at the same
+    // font-size/line-height, making the placeholder exactly as tall as the
+    // real strip — no magic height number to drift out of sync.
     return (
       <div className="flex items-center justify-between gap-1 px-4 py-3" role="group" aria-label="Choose a day">
         {PLACEHOLDERS.map((index) => (
           <div key={index} aria-hidden className="relative flex flex-1 flex-col items-center gap-1">
-            <span className="text-[11px]" />
+            <span className="text-[11px]">&#8203;</span>
             <div className="h-11 w-11 rounded-full" />
           </div>
         ))}
