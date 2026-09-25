@@ -27,13 +27,20 @@ export function useLiveQuery<T>(fn: () => Promise<T>, deps: DependencyList): T |
     // subscription never receives storagemutated notifications (fresh page
     // loads show an empty app). Subscribing after ensureDb() resolves keeps
     // that await inside the window.
-    void ensureDb().then(() => {
-      if (!alive) return;
-      sub = observable.subscribe({
-        next: (v) => { if (alive) setValue(v); },
-        error: (err) => console.error('[habibit] liveQuery error', err),
+    // ensureDb() CAN reject (its unguarded `await import('fake-indexeddb')`
+    // in db.ts), so log that first — otherwise this chain itself would leak
+    // an unhandled rejection and the hook would stay undefined forever.
+    // Subscribing either way keeps pre-fix behavior: the querier's own
+    // `await ensureDb()` rejects, so liveQuery's error handler surfaces it.
+    void ensureDb()
+      .catch((err) => console.error('[habibit] ensureDb failed', err))
+      .then(() => {
+        if (!alive) return;
+        sub = observable.subscribe({
+          next: (v) => { if (alive) setValue(v); },
+          error: (err) => console.error('[habibit] liveQuery error', err),
+        });
       });
-    });
     return () => { alive = false; sub?.unsubscribe(); };
   }, [observable]);
 
