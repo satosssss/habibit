@@ -19,11 +19,6 @@ export let db = new HabibitDexie('habibit');
 
 export type DbStatus = 'ok' | 'degraded';
 let openPromise: Promise<DbStatus> | null = null;
-let status: DbStatus | 'unknown' = 'unknown';
-
-export function persistenceStatus(): DbStatus | 'unknown' {
-  return status;
-}
 
 /**
  * Opens IndexedDB. When it is unavailable (private browsing, locked profile),
@@ -35,7 +30,6 @@ export function ensureDb(): Promise<DbStatus> {
     openPromise = (async (): Promise<DbStatus> => {
       try {
         await db.open();
-        status = 'ok';
         return 'ok';
       } catch {
         const fake = await import('fake-indexeddb');
@@ -44,9 +38,8 @@ export function ensureDb(): Promise<DbStatus> {
         db = new HabibitDexie('habibit');
         try {
           await db.open();
-          status = 'degraded';
         } catch {
-          status = 'degraded';
+          // still unusable: stay degraded, in-memory Dexie keeps the app running
         }
         return 'degraded';
       }

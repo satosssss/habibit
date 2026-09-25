@@ -8,7 +8,9 @@ import type { Habit } from '@/lib/types';
 import { HabitForm } from './HabitForm';
 import { HabitList } from './HabitList';
 
-const blank = (): Habit => ({
+// Shared draft for a brand-new habit: Settings' `+ New habit` and the Today
+// header's `+` both open the form with this.
+export const blankHabit = (): Habit => ({
   id: newId(), name: '', icon: 'target', color: '#6366f1', category: 'Morning',
   intention: '', type: 'boolean', target: 1, unit: '',
   frequency: [0, 1, 2, 3, 4, 5, 6], order: 0, createdAt: Date.now(),
@@ -36,7 +38,7 @@ export function HabitsPanel() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Habits</h2>
-        <button type="button" onClick={() => setEditing(blank())}
+        <button type="button" onClick={() => setEditing(blankHabit())}
                 className="flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white">
           <Plus size={15} /> New habit
         </button>

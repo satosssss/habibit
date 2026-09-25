@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Entry, Habit } from '@/lib/types';
@@ -175,5 +178,23 @@ describe('Heatmap', () => {
     fireEvent.mouseEnter(screen.getByTestId('hm-cell-2026-12-31'));
     expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('1 of 1 completed');
     expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('100%');
+  });
+
+  // Branch review #6: /stats is statically prerendered, so every date-derived
+  // node needs the Task-8 suppressHydrationWarning pattern. jsdom cannot
+  // observe the directive (it is a React render-time flag, not a DOM
+  // attribute), so this pins it at source level.
+  it('guards every date-derived heatmap node with suppressHydrationWarning', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(here, 'Heatmap.tsx'), 'utf8');
+    // Both branches of cells.map: the in-year button (aria-label carries the
+    // date) and the out-of-year padding div.
+    const cells = src.slice(src.indexOf('cells.map((cell) =>'), src.indexOf('data-testid="hm-legend"'));
+    expect(cells.match(/suppressHydrationWarning/g)).toHaveLength(2);
+    // Month labels are year-derived text (week columns of the viewed year).
+    const months = src.slice(src.indexOf('{months.map('), src.indexOf('{/* 7 weekday rows'));
+    expect(months).toContain('suppressHydrationWarning');
+    // The year label itself (StatsScreen renders YearNav).
+    expect(readFileSync(join(here, 'YearNav.tsx'), 'utf8')).toContain('suppressHydrationWarning');
   });
 });

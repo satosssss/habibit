@@ -95,8 +95,3 @@ export function monthLabelPositions(year: number): Array<{ month: number; column
     column: weekColumn(toKey(new Date(year, month, 1)), year),
   }));
 }
-
-export function weekCount(year: number): number {
-  const last = `${year}-12-31`;
-  return weekColumn(last, year) + 1;
-}

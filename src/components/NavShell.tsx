@@ -1,4 +1,3 @@
-// src/components/NavShell.tsx
 'use client';
 
 import { BarChart3, CalendarCheck, Flame, Settings } from 'lucide-react';

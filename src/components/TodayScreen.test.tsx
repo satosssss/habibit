@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
+import { clearAll, listHabits, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
 import { addDays, todayKey } from '@/lib/dates';
+import { getThemePref } from '@/lib/theme';
 import { TodayScreen } from './TodayScreen';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -18,7 +19,12 @@ const habit = (over: Partial<Habit> = {}): Habit => ({
   frequency: [0, 1, 2, 3, 4, 5, 6], order: 0, createdAt: 0, ...over,
 });
 
-beforeEach(async () => { push.mockClear(); await clearAll(); });
+beforeEach(async () => {
+  push.mockClear();
+  await clearAll();
+  localStorage.clear();
+  delete document.documentElement.dataset.theme;
+});
 
 describe('TodayScreen', () => {
   it('defaults the date to the current day when no date prop is passed', () => {
@@ -107,5 +113,72 @@ describe('TodayScreen', () => {
     expect(sections).toHaveLength(2);
     for (const section of sections)               // never split a panel across columns
       expect(section.className.split(/\s+/)).toContain('break-inside-avoid');
+  });
+});
+
+// Branch review #2 — spec §5.1 header: hamburger (mobile) | centered title |
+// flame + streak | `+` → new-habit form; §9: `+ New habit` also from Today.
+describe('Today header (spec §5.1)', () => {
+  it('opens the new-habit form from the header + instead of routing to /settings', async () => {
+    render(<TodayScreen date={todayKey()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('New habit')).toBeInTheDocument(); // form title, not the route
+    expect(screen.getByLabelText('Habit name')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('creates a habit from the header form that renders under its category', async () => {
+    render(<TodayScreen date={todayKey()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
+    fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Journal' } });
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    // liveQuery re-emits after putHabit: the row shows up with no manual refetch
+    const morning = (await screen.findByRole('heading', { level: 2, name: 'Morning' })).closest('section')!;
+    expect(within(morning).getByText('Journal')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect((await listHabits()).map((h) => h.name)).toContain('Journal');
+  });
+
+  it('leaves no habit behind when the header form is closed without saving', async () => {
+    render(<TodayScreen date={todayKey()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
+    fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Never saved' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Never saved')).not.toBeInTheDocument();
+    expect(await listHabits()).toHaveLength(0);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('opens a menu drawer from the hamburger, shown on mobile only via md:hidden', async () => {
+    render(<TodayScreen date={todayKey()} />);
+    const hamburger = screen.getByRole('button', { name: /open menu/i });
+    // Visibility is a Tailwind breakpoint, never a JS width check (constraint 2d)
+    expect(hamburger.className.split(/\s+/)).toContain('md:hidden');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(hamburger);
+    expect(await screen.findByRole('dialog', { name: 'Menu' })).toBeInTheDocument();
+  });
+
+  it('routes to Settings from the drawer and closes it', async () => {
+    render(<TodayScreen date={todayKey()} />);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    expect(push).toHaveBeenCalledWith('/settings');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('flips the persisted theme from the drawer toggle', async () => {
+    localStorage.setItem('habibit:theme', 'light');
+    render(<TodayScreen date={todayKey()} />);
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    // Labels are lowercase text capitalized by CSS, exactly like ThemePanel.
+    const dark = await screen.findByRole('button', { name: 'dark' });
+    expect(dark).toHaveAttribute('aria-pressed', 'false'); // hydrated pref: light
+    fireEvent.click(dark);
+    expect(getThemePref()).toBe('dark');
+    expect(localStorage.getItem('habibit:theme')).toBe('dark');
+    expect(dark).toHaveAttribute('aria-pressed', 'true');
   });
 });

@@ -96,7 +96,7 @@ export function Heatmap({
               {/* Month labels */}
               <div className="relative mb-1 h-3 text-[9px] text-[var(--color-subtle)]">
                 {months.map(({ month, column }) => (
-                  <span key={month} className="absolute"
+                  <span key={month} suppressHydrationWarning className="absolute"
                         style={{ left: column * (cellSize + GAP), visibility: column >= columnCount ? 'hidden' : 'visible' }}>
                     {MONTHS[month]}
                   </span>
@@ -111,6 +111,7 @@ export function Heatmap({
                     <button
                       key={cell.date}
                       type="button"
+                      suppressHydrationWarning
                       data-testid={`hm-cell-${cell.date}`}
                       aria-label={`${cell.date}: ${cell.completed} of ${cell.scheduled} completed`}
                       onPointerEnter={(e) => { touchPointer.current = e.pointerType === 'touch'; }}
@@ -131,6 +132,7 @@ export function Heatmap({
                     // outside the viewed year.
                     <div
                       key={cell.date}
+                      suppressHydrationWarning
                       data-testid={`hm-cell-${cell.date}`}
                       aria-hidden
                       className="rounded-[3px]"

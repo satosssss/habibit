@@ -3,9 +3,24 @@
 import { X } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 
-const SURFACE = {
-  light: { bg: '#ffffff', fg: '#0f172a', line: '#e2e8f0' },
-  dark: { bg: '#111116', fg: '#f5f5f7', line: '#2a2a33' },
+// Spec §6 pins the timer to a dark bottom sheet in every theme; every other
+// sheet follows the theme tokens so dark mode never opens a white panel
+// (branch review #3). The light literals are the `:root` fallback values.
+const TIMER_SURFACE = { bg: '#111116', fg: '#f5f5f7', line: '#2a2a33' };
+
+// Custom properties live only in globals.css, so resolve them off the theme
+// root at render (the boot script sets data-theme before first paint, and the
+// sheet itself only ever opens from client state).
+const themedSurface = () => {
+  const value = (token: string, fallback: string): string =>
+    typeof document === 'undefined'
+      ? fallback
+      : getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
+  return {
+    bg: value('--color-bg', '#ffffff'),
+    fg: value('--color-fg', '#0f172a'),
+    line: value('--color-line', '#e2e8f0'),
+  };
 };
 
 // Centered-dialog classes per breakpoint: other consumers keep the original
@@ -34,7 +49,7 @@ export function Sheet({
   }, [open, onClose]);
 
   if (!open) return null;
-  const surface = dark ? SURFACE.dark : SURFACE.light;
+  const surface = dark ? TIMER_SURFACE : themedSurface();
   const center = CENTER[centerFrom];
 
   return (

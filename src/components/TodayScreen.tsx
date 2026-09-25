@@ -1,16 +1,19 @@
 'use client';
 
-import { Flame, Plus } from 'lucide-react';
+import { Flame, Menu, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, classifyDate, formatLong, todayKey } from '@/lib/dates';
-import { loadRange, listHabits, putEntry } from '@/lib/repo';
+import { loadRange, listHabits, putEntry, putHabit } from '@/lib/repo';
 import { buildDayStats, currentStreak } from '@/lib/stats';
 import { habitStreaks } from '@/lib/streaks';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
 import { DateStrip } from './DateStrip';
+import { HabitForm } from './HabitForm';
+import { blankHabit } from './HabitsPanel';
+import { MenuDrawer } from './MenuDrawer';
 import { TimerModal } from './TimerModal';
 import { ValueSheet } from './ValueSheet';
 
@@ -25,6 +28,8 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [valueSheet, setValueSheet] = useState<Habit | null>(null);
   const [timerHabit, setTimerHabit] = useState<Habit | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [creating, setCreating] = useState<Habit | null>(null);
   const timerBeat = useRef<number | null>(null);
   const router = useRouter();
   const today = todayKey();
@@ -67,6 +72,16 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [habits, date]);
 
+  // Form suggestions for the header's `+` — same lists HabitsPanel uses in Settings.
+  const categories = useMemo(
+    () => [...new Set((habits ?? []).map((h) => h.category))].sort(),
+    [habits],
+  );
+  const intentions = useMemo(
+    () => [...new Set((habits ?? []).map((h) => h.intention).filter(Boolean))].sort(),
+    [habits],
+  );
+
   const values = useMemo(() => {
     const map: Record<string, number> = {};
     for (const entry of entries ?? []) if (entry.date === date) map[entry.habitId] = entry.value;
@@ -87,6 +102,11 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   const setValue = useCallback(async (habit: Habit, value: number) => {
     await putEntry(habit.id, date, Math.max(0, value));
   }, [date]);
+
+  const saveHabit = useCallback(async (habit: Habit) => {
+    await putHabit(habit);
+    setCreating(null);
+  }, []);
 
   const toggle = useCallback((habit: Habit) => {
     void setValue(habit, (values[habit.id] ?? 0) > 0 ? 0 : (habit.type === 'boolean' ? 1 : habit.target));
@@ -109,14 +129,24 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
-      <header className="flex items-center justify-between gap-3 px-2 py-4">
+      {/* Spec §5.1: hamburger (mobile) | centered title | flame + streak | `+`.
+          The hamburger hides at md where the rail/sidebar nav takes over, and
+          the title is absolutely centered rather than justify-between aligned. */}
+      <header className="relative flex items-center gap-3 px-2 py-4">
+        <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--color-muted)] md:hidden">
+          <Menu size={18} />
+        </button>
         {/* Date-derived text: prerendered HTML can't match the client's current day. */}
-        <h1 suppressHydrationWarning className="text-lg font-extrabold">{isPast ? formatLong(date) : 'Today'}</h1>
-        <div className="flex items-center gap-3">
+        <h1 suppressHydrationWarning
+            className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-lg font-extrabold">
+          {isPast ? formatLong(date) : 'Today'}
+        </h1>
+        <div className="ml-auto flex items-center gap-3">
           <span className="flex items-center gap-1 text-sm font-bold">
             <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}
           </span>
-          <button type="button" aria-label="Add habit" onClick={() => router.push('/settings')}
+          <button type="button" aria-label="Add habit" onClick={() => setCreating(blankHabit())}
                   className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-muted)]">
             <Plus size={18} />
           </button>
@@ -170,6 +200,16 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
           onClose={() => setValueSheet(null)}
         />
       )}
+
+      {/* Spec §9: `+ New habit` is also available from the Today header. */}
+      {creating && (
+        <HabitForm
+          habit={creating} open categories={categories} intentions={intentions}
+          onSave={(h) => void saveHabit(h)} onClose={() => setCreating(null)}
+        />
+      )}
+
+      {menuOpen && <MenuDrawer open onClose={() => setMenuOpen(false)} />}
 
       {timerHabit && (
         <TimerModal
