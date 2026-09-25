@@ -53,6 +53,10 @@ describe('StatsScreen', () => {
     expect(grid).not.toBeNull();
     expect(grid!.querySelector('[aria-label="Activity heatmap"]')).toBeInTheDocument();
     expect(within(grid!).getByText('By intention')).toBeInTheDocument();
+    // Base track: without it the implicit mobile `auto` track grows to
+    // max-content (~918px) and /stats scrolls horizontally at 390px. Token
+    // match, because 'grid-cols-1' is a substring of 'xl:grid-cols-1'.
+    expect(grid!.className.split(/\s+/)).toContain('grid-cols-1');
     expect(grid!.className).toContain('xl:grid-cols-1');
     expect(grid!.className).toContain('gap-6');
   });

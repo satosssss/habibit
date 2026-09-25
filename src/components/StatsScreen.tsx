@@ -81,7 +81,7 @@ export function StatsScreen() {
 
       {/* Spec §10: bars + heatmap side by side at tablet (md), heatmap full
           width at desktop (xl); mobile stays stacked via the grid gap. */}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-1">
         <div>
           <h2 className="mb-1 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">By intention</h2>
           <div className="rounded-2xl bg-[var(--color-panel)] px-4 py-2">
