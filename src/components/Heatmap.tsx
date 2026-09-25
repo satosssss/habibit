@@ -23,11 +23,20 @@ export function Heatmap({
   compact?: boolean;
 }) {
   const router = useRouter();
+  // Clock gate: /stats and the note view prerender, so a build-day `today`
+  // must not reach the server HTML (cell levels and the clamped
+  // `completed of scheduled` payload are both today-derived). Pre-mount the
+  // clock reads as '' — every cell is future, so prerendered markup is
+  // neutral filler that the client's first render matches; the effect then
+  // applies the real today. Interaction guards below only run post-mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const clock = mounted ? today : '';
   // Clamp to today before indexing: heatmapCells guards `level` for future
   // cells but not their `completed of scheduled` payload (Review Focus #5).
   const cells = useMemo(
-    () => heatmapCells(year, habits, entries.filter((e) => e.date <= today), today),
-    [year, habits, entries, today],
+    () => heatmapCells(year, habits, entries.filter((e) => e.date <= clock), clock),
+    [year, habits, entries, clock],
   );
   const months = useMemo(() => monthLabelPositions(year), [year]);
 

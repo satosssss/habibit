@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { Entry, Habit } from '@/lib/types';
 import { Heatmap } from './Heatmap';
@@ -178,6 +179,28 @@ describe('Heatmap', () => {
     fireEvent.mouseEnter(screen.getByTestId('hm-cell-2026-12-31'));
     expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('1 of 1 completed');
     expect(screen.getByTestId('hm-tooltip')).toHaveTextContent('100%');
+  });
+
+  // /stats and the note view prerender, so a build-day `today` must not leak
+  // into the server HTML (level-colored cells, today-clamped payloads). Cells
+  // prerender neutral and take on today's styling only after mount.
+  it('prerenders no today-derived cell output, then applies it after mount', () => {
+    const props = {
+      year: 2026, habits: [habit('a')],
+      entries: [entry('a', '2026-06-10')], today: '2026-12-31',
+    };
+    const html = renderToString(<Heatmap {...props} />);
+    // Scope to the cell grid: the legend legitimately swatches every level.
+    const cellsHtml = html.slice(
+      html.indexOf('grid-rows-7'), html.indexOf('data-testid="hm-legend"'),
+    );
+    expect(cellsHtml).toContain('hm-empty');   // the cells did render
+    expect(cellsHtml).not.toMatch(/--hm-\d/);  // no today-derived level color
+    expect(html).not.toContain(': 1 of 1 completed'); // today-clamped payload
+
+    render(<Heatmap {...props} />);
+    expect(screen.getByTestId('hm-cell-2026-06-10'))
+      .toHaveAttribute('aria-label', '2026-06-10: 1 of 1 completed');
   });
 
   // Branch review #6: /stats is statically prerendered, so every date-derived

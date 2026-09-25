@@ -1,11 +1,36 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { classifyDate, formatWeekday, stripDays } from '@/lib/dates';
+
+const PLACEHOLDERS = [0, 1, 2, 3, 4, 5, 6];
 
 export function DateStrip({
   selected, today, onSelect,
 }: { selected: string; today: string; onSelect: (key: string) => void }) {
+  // Prerendered HTML must stay clock-independent: a static /today build would
+  // otherwise freeze the build week into the DOM (labels out of sync with the
+  // click handlers, aria-current on the wrong day), so dates only render once
+  // the client has mounted.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const days = stripDays(today);
+
+  if (!mounted) {
+    // Same outer group and cell metrics as the real strip, so nothing shifts
+    // when the dated cells arrive — but no date text, keys or states.
+    return (
+      <div className="flex items-center justify-between gap-1 px-4 py-3" role="group" aria-label="Choose a day">
+        {PLACEHOLDERS.map((index) => (
+          <div key={index} aria-hidden className="relative flex flex-1 flex-col items-center gap-1">
+            <span className="text-[11px]" />
+            <div className="h-11 w-11 rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-between gap-1 px-4 py-3" role="group" aria-label="Choose a day">
@@ -22,15 +47,11 @@ export function DateStrip({
                     className="absolute top-[26px] right-1/2 left-1/2 h-0.5 -translate-x-1/2 bg-[var(--color-accent)]"
                     style={{ width: '100%' }} />
             )}
-            {/* Weekday label and day numeral are date-derived text; the prerendered
-                build week can't match the client's current week on hydration. */}
-            <span suppressHydrationWarning
-                  className={`text-[11px] ${isSelected ? 'font-bold text-[var(--color-fg)]' : 'text-[var(--color-subtle)]'}`}>
+            <span className={`text-[11px] ${isSelected ? 'font-bold text-[var(--color-fg)]' : 'text-[var(--color-subtle)]'}`}>
               {formatWeekday(key)}
             </span>
             <button
               type="button"
-              suppressHydrationWarning
               disabled={disabled}
               aria-current={isSelected ? 'date' : undefined}
               aria-label={key}

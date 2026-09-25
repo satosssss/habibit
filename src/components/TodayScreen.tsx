@@ -30,10 +30,16 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   const [timerHabit, setTimerHabit] = useState<Habit | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [creating, setCreating] = useState<Habit | null>(null);
+  // Date-derived text renders only after mount: prerendered HTML must stay
+  // clock-independent, or a static /today build freezes its build day into
+  // the DOM (React keeps the server DOM on a suppressed mismatch and later
+  // renders then diff against its own prior client output, never writing).
+  const [mounted, setMounted] = useState(false);
   const timerBeat = useRef<number | null>(null);
   const router = useRouter();
   const today = todayKey();
 
+  useEffect(() => setMounted(true), []);
   // One-time client hydration of the collapse state (localStorage is not SSR-safe).
   useEffect(() => { setCollapsed(readCollapsed()); }, []);
 
@@ -137,10 +143,10 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--color-muted)] md:hidden">
           <Menu size={18} />
         </button>
-        {/* Date-derived text: prerendered HTML can't match the client's current day. */}
-        <h1 suppressHydrationWarning
-            className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-lg font-extrabold">
-          {isPast ? formatLong(date) : 'Today'}
+        {/* Date-derived text stays empty in prerendered HTML and fills in only
+            after mount, so the build day can never freeze into the h1. */}
+        <h1 className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-lg font-extrabold">
+          {mounted ? (isPast ? formatLong(date) : 'Today') : ''}
         </h1>
         <div className="ml-auto flex items-center gap-3">
           <span className="flex items-center gap-1 text-sm font-bold">

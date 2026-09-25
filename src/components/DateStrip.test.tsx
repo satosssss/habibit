@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { DateStrip } from './DateStrip';
 
@@ -36,5 +37,22 @@ describe('DateStrip', () => {
     const buttons = screen.getAllByRole('button');
     expect(buttons[3]).toHaveAttribute('aria-current', 'date');
     expect(buttons[5]).not.toHaveAttribute('aria-current', 'date');
+  });
+
+  // A statically prerendered /today embeds the build week into the HTML; date
+  // text may therefore only appear after mount. The group itself stays so the
+  // strip never shifts when the real cells arrive.
+  it('prerenders clock-independent placeholders, then the 7 day buttons after mount', () => {
+    const html = renderToString(<DateStrip selected={TODAY} today={TODAY} onSelect={vi.fn()} />);
+    expect(html).toContain('aria-label="Choose a day"');
+    expect(html).not.toContain('aria-label="2026-');           // no day keys
+    expect(html).not.toMatch(/>(Mon|Tue|Wed|Thu|Fri|Sat|Sun)</); // no weekday labels
+    expect(html).not.toMatch(/>[1-9]\d?</);                    // no day numerals
+    expect(html).toContain('h-11 w-11 rounded-full');          // placeholder day cells
+    expect((html.match(/h-11 w-11 rounded-full/g) ?? [])).toHaveLength(7);
+
+    render(<DateStrip selected={TODAY} today={TODAY} onSelect={vi.fn()} />);
+    expect(screen.getAllByRole('button')).toHaveLength(7);
+    expect(screen.getByRole('button', { name: '2026-09-23' })).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, listHabits, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
@@ -190,5 +191,17 @@ describe('Today header (spec §5.1)', () => {
     expect(getThemePref()).toBe('dark');
     expect(localStorage.getItem('habibit:theme')).toBe('dark');
     expect(dark).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+// A statically prerendered /today embeds the build date in the HTML (the h1
+// and DateStrip), which then freezes there for every later visit. The server
+// markup must be clock-independent: date-derived text only after mount.
+describe('TodayScreen prerender (SSR)', () => {
+  it('emits clock-independent HTML with no date text', () => {
+    const html = renderToString(<TodayScreen date="2026-05-24" />);
+    expect(html).not.toContain('2026-');
+    expect(html).not.toMatch(/May 24|May/);
+    expect(html).toContain('Loading'); // the clock-independent body still renders
   });
 });
