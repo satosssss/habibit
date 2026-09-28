@@ -3,9 +3,10 @@ import { isCompleted } from './stats';
 import type { Entry, Habit } from './types';
 
 /**
- * Consecutive scheduled-and-completed days for each habit, walking back from
- * `today`. Unscheduled days are skipped (they neither count nor break); an
- * incomplete `today` does not break yesterday's streak.
+ * Consecutive days with a completion for each habit, walking back from
+ * `today`. Off-schedule completions count (spec §6); days with neither a
+ * schedule nor a log are skipped (they neither count nor break); a missed
+ * scheduled day ends the run; an incomplete `today` never breaks it.
  */
 export function habitStreaks(
   habits: Habit[],
@@ -23,13 +24,13 @@ export function habitStreaks(
     let streak = 0;
 
     // Today only extends the streak; it never breaks it.
-    if (scheduledOn(cursor) && completedOn(cursor)) streak = 1;
+    if (completedOn(cursor)) streak = 1;
     cursor = addDays(cursor, -1);
 
     for (let guard = 0; guard < 370; guard++, cursor = addDays(cursor, -1)) {
-      if (!scheduledOn(cursor)) continue;   // unscheduled: neither counts nor breaks
-      if (!completedOn(cursor)) break;      // a missed scheduled day ends the run
-      streak++;
+      if (completedOn(cursor)) { streak++; continue; }   // scheduled or bonus (spec §6)
+      if (!scheduledOn(cursor)) continue;                // neither counts nor breaks
+      break;                                             // a missed scheduled day ends the run
     }
     streaks[habit.id] = streak;
   }

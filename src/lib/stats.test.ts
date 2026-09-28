@@ -189,3 +189,109 @@ describe('heatmapCells', () => {
     expect(cells.find((c) => c.date === '2026-05-31')!.future).toBe(false);
   });
 });
+
+describe('off-schedule completions (spec §6 matrix)', () => {
+  const daily = habit();                              // Every day, createdAt 0
+  const weekdays = habit({ id: 'w', frequency: [1, 2, 3, 4, 5] });
+  // Mon + Wed only — makes Tue 2026-09-22 the off-schedule day for rows 3–4
+  // (the plan's original [1,2,3,4,5] fixture contradicted the rows' own
+  // "Mon + Wed are due" comments and assertions; corrected 2026-09-28).
+  const mwf = habit({ id: 'w', frequency: [1, 3] });
+
+  it('row 1 — scheduled day with a completion: counts everywhere', () => {
+    const stats = buildDayStats([daily], [entry('h1', '2026-09-21', 1)],
+                                { from: '2026-09-21', to: '2026-09-21' });
+    expect(stats.get('2026-09-21')).toMatchObject(
+      { scheduled: 1, completed: 1, bonus: 0, active: true, perfect: true, ratio: 1 });
+    expect(countActiveDays(stats)).toBe(1);
+    expect(sumCompletions(stats)).toBe(1);
+    expect(currentStreak(stats, '2026-09-21')).toBe(1);
+  });
+
+  it('row 2 — scheduled day, nothing done: not active, not perfect', () => {
+    const stats = buildDayStats([daily], [], { from: '2026-09-21', to: '2026-09-21' });
+    expect(stats.get('2026-09-21')).toMatchObject(
+      { scheduled: 1, completed: 0, bonus: 0, active: false, perfect: false });
+    expect(countActiveDays(stats)).toBe(0);
+    expect(sumCompletions(stats)).toBe(0);
+  });
+
+  it('row 3 — unscheduled day with a completion: counts in Completions and active days, never in the rate', () => {
+    // Mon + Wed are due; Tue was logged anyway (spec §6's bonus column).
+    const stats = buildDayStats(
+      [mwf],
+      [entry('w', '2026-09-21', 1), entry('w', '2026-09-22', 1), entry('w', '2026-09-23', 1)],
+      { from: '2026-09-21', to: '2026-09-23' },
+    );
+    expect(stats.get('2026-09-22')).toMatchObject(
+      { scheduled: 0, completed: 0, bonus: 1, active: true, perfect: false, ratio: 0 });
+    // The two families, asserted together (spec §6): the all-completions
+    // family rises with the bonus; the scheduled-slot family never sees it.
+    expect(countActiveDays(stats)).toBe(3);
+    expect(sumCompletions(stats)).toBe(3);
+    expect(completionRate(stats)).toEqual({ completed: 2, scheduled: 2, rate: 1 });
+  });
+
+  it('row 4 — unscheduled day, nothing logged: skipped everywhere', () => {
+    const stats = buildDayStats([mwf], [], { from: '2026-09-21', to: '2026-09-22' }); // window Mon + Tue
+    expect(stats.get('2026-09-22')).toMatchObject(
+      { scheduled: 0, completed: 0, bonus: 0, active: false, ratio: 0 });
+    expect(countActiveDays(stats)).toBe(0);
+    expect(sumCompletions(stats)).toBe(0);
+    expect(currentStreak(stats, '2026-09-22')).toBe(0); // skipped, not broken
+  });
+
+  it('counts a bonus day in the current streak (skips only empty days)', () => {
+    // Fri 18 done, Sat 19 logged off-schedule, Mon 21 done and referenced.
+    const stats = buildDayStats(
+      [weekdays],
+      [entry('w', '2026-09-18', 1), entry('w', '2026-09-19', 1), entry('w', '2026-09-21', 1)],
+      { from: '2026-09-15', to: '2026-09-21' },
+    );
+    expect(currentStreak(stats, '2026-09-21')).toBe(3); // Mon + Sat-bonus + Fri
+  });
+
+  it('lets a bonus day extend the longest run', () => {
+    const stats = buildDayStats(
+      [weekdays],
+      [entry('w', '2026-09-18', 1), entry('w', '2026-09-19', 1), entry('w', '2026-09-21', 1)],
+      { from: '2026-09-15', to: '2026-09-21' },
+    );
+    expect(longestStreak(stats)).toBe(3); // Fri → Sat(bonus) → Mon, Sun skipped
+  });
+
+  it('pins a frequency edit to §9.1: the edited-away day counts in Completions, never in the rate', () => {
+    // The entry was logged while the habit was daily; the owner later cut it
+    // to weekdays. History is re-read against TODAY's frequency (no schedule
+    // history is stored — spec §9.1): Sunday becomes a bonus, not a rate hit.
+    const edited = habit({ id: 'e', frequency: [1, 2, 3, 4, 5] });
+    const stats = buildDayStats([edited], [entry('e', '2026-09-20', 1)],
+                                { from: '2026-09-20', to: '2026-09-21' }); // Sun + Mon
+    expect(sumCompletions(stats)).toBe(1);
+    expect(completionRate(stats)).toEqual({ completed: 0, scheduled: 1, rate: 0 }); // Mon owed, missed
+    expect(currentStreak(stats, '2026-09-21')).toBe(1); // Sun's bonus counts; incomplete today never breaks
+  });
+});
+
+describe('heatmap levels for off-schedule days (spec §6/§7.4)', () => {
+  const weekdays = habit({ id: 'w', frequency: [1, 2, 3, 4, 5] });
+
+  it('floors a bonus-only day at level 1 and leaves an untouched day at 0', () => {
+    // Sat 13 logged off-schedule; Sun 14 untouched; Mon 15 due but not done.
+    const cells = heatmapCells(2026, [weekdays], [entry('w', '2026-06-13', 1)], '2026-06-15');
+    expect(cells.find((c) => c.date === '2026-06-13')).toMatchObject(
+      { level: 1, bonus: 1, scheduled: 0, completed: 0 });
+    expect(cells.find((c) => c.date === '2026-06-14')!.level).toBe(0);
+    expect(cells.find((c) => c.date === '2026-06-15')!.level).toBe(0);
+  });
+
+  it('floors a scheduled day with only an off-schedule completion at level 1', () => {
+    // Mon: swim is due and not done, but the weekend-only habit was logged —
+    // the completion still colors the cell (flagged decision 3).
+    const swim = habit({ id: 's', frequency: [1, 3, 5] });
+    const weekend = habit({ id: 'x', frequency: [0, 6] });
+    const cells = heatmapCells(2026, [swim, weekend], [entry('x', '2026-06-15', 1)], '2026-06-15');
+    expect(cells.find((c) => c.date === '2026-06-15')).toMatchObject(
+      { level: 1, scheduled: 1, completed: 0, bonus: 1 });
+  });
+});

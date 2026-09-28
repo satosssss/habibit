@@ -86,12 +86,20 @@ export function Heatmap({
           <div data-testid="hm-tooltip"
                className="absolute -top-2 left-1/2 z-20 w-56 -translate-x-1/2 -translate-y-full rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-2 text-xs shadow-lg">
             <p className="font-bold">{formatShort(tooltip.date)}, {tooltip.date.slice(0, 4)}</p>
-            <p className="text-[var(--color-subtle)]">
-              {tooltip.completed} of {tooltip.scheduled} completed
-            </p>
-            <p className="text-[var(--color-subtle)]">
-              {tooltip.scheduled ? Math.round((tooltip.completed / tooltip.scheduled) * 100) : 0}%
-            </p>
+            {tooltip.scheduled === 0 && tooltip.bonus > 0 ? (
+              <p className="text-[var(--color-subtle)]">
+                {tooltip.completed + tooltip.bonus} completed (off schedule)
+              </p>
+            ) : (
+              <>
+                <p className="text-[var(--color-subtle)]">
+                  {tooltip.completed} of {tooltip.scheduled} completed
+                </p>
+                <p className="text-[var(--color-subtle)]">
+                  {tooltip.scheduled ? Math.round((tooltip.completed / tooltip.scheduled) * 100) : 0}%
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -122,7 +130,9 @@ export function Heatmap({
                       type="button"
                       suppressHydrationWarning
                       data-testid={`hm-cell-${cell.date}`}
-                      aria-label={`${cell.date}: ${cell.completed} of ${cell.scheduled} completed`}
+                      aria-label={cell.scheduled === 0 && cell.bonus > 0
+                        ? `${cell.date}: ${cell.completed + cell.bonus} completed (off schedule)`
+                        : `${cell.date}: ${cell.completed} of ${cell.scheduled} completed`}
                       onPointerEnter={(e) => { touchPointer.current = e.pointerType === 'touch'; }}
                       onMouseEnter={() => { if (!touchPointer.current) setHover(cell); }}
                       onMouseLeave={() => setHover(null)}

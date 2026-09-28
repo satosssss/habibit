@@ -5,6 +5,7 @@ export interface DayStat {
   date: string;
   scheduled: number;
   completed: number;
+  bonus: number;      // completions of habits NOT scheduled that day (spec §6)
   ratio: number;
   active: boolean;
   perfect: boolean;
@@ -22,6 +23,7 @@ export interface HeatCell {
   future: boolean;
   completed: number;
   scheduled: number;
+  bonus: number;
   ratio: number;
   level: 0 | 1 | 2 | 3 | 4;
 }
@@ -42,12 +44,23 @@ function dayStat(date: string, habits: Habit[], byDate: Map<string, Entry[]>): D
   const entries = byDate.get(date) ?? [];
   const values = new Map(entries.map((e) => [e.habitId, e.value]));
   const completed = scheduled.filter((h) => isCompleted(h, values.get(h.id) ?? 0)).length;
+  // Off-schedule completions are "bonus": they join the all-completions family
+  // (Completions, active days, streaks, heatmap floor) and are excluded from the
+  // scheduled-slot family (rate, X of Y, tooltips) — spec §6.
+  const byId = new Map(habits.map((h) => [h.id, h]));
+  let bonus = 0;
+  for (const [habitId, value] of values) {
+    const habit = byId.get(habitId);
+    if (!habit || isScheduled(habit, date) || !isCompleted(habit, value)) continue;
+    bonus++;
+  }
   return {
     date,
     scheduled: scheduled.length,
     completed,
+    bonus,
     ratio: scheduled.length ? completed / scheduled.length : 0,
-    active: completed > 0,
+    active: completed > 0 || bonus > 0,
     perfect: scheduled.length > 0 && completed === scheduled.length,
   };
 }
@@ -87,7 +100,7 @@ const scheduledOnly = (stats: Map<string, DayStat>) =>
   [...stats.values()].filter((s) => s.scheduled > 0);
 
 export function countActiveDays(stats: Map<string, DayStat>): number {
-  return scheduledOnly(stats).filter((s) => s.active).length;
+  return [...stats.values()].filter((s) => s.active).length;
 }
 
 export function countPerfectDays(stats: Map<string, DayStat>): number {
@@ -95,7 +108,7 @@ export function countPerfectDays(stats: Map<string, DayStat>): number {
 }
 
 export function sumCompletions(stats: Map<string, DayStat>): number {
-  return scheduledOnly(stats).reduce((sum, s) => sum + s.completed, 0);
+  return [...stats.values()].reduce((sum, s) => sum + s.completed + s.bonus, 0);
 }
 
 export function completionRate(stats: Map<string, DayStat>): {
@@ -109,16 +122,17 @@ export function completionRate(stats: Map<string, DayStat>): {
 
 /**
  * Active-day streak walking back from `today`.
- * - Days with no scheduled habits are skipped: they neither count nor break.
- * - An incomplete `today` does not break yesterday's streak (the day isn't over).
+ * - Any completion counts, including off-schedule ones (bonus, spec §6).
+ * - Days with no scheduled habits and no completions are skipped: they neither count nor break.
+ * - A due day with no completion ends the run; an incomplete `today` never does.
  */
 export function currentStreak(stats: Map<string, DayStat>, today: string): number {
   let streak = 0;
   let cursor: string | undefined = today;
   while (cursor && stats.has(cursor)) {
     const day = stats.get(cursor)!;
+    if (day.active) { streak++; cursor = prevDay(cursor); continue; }  // scheduled or bonus (spec §6)
     if (day.scheduled === 0) { cursor = prevDay(cursor); continue; }  // neither counts nor breaks
-    if (day.active) { streak++; cursor = prevDay(cursor); continue; }
     if (cursor === today) { cursor = prevDay(cursor); continue; }     // today isn't over yet
     break;                                                            // a missed day ends the run
   }
@@ -133,9 +147,9 @@ export function longestStreak(stats: Map<string, DayStat>): number {
   let best = 0;
   let run = 0;
   for (const day of [...stats.values()].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (day.scheduled === 0) continue;
-    run = day.active ? run + 1 : 0;
-    best = Math.max(best, run);
+    if (day.active) { run++; best = Math.max(best, run); continue; }  // scheduled or bonus (spec §6)
+    if (day.scheduled === 0) continue;                                // neither counts nor breaks
+    run = 0;                                                          // a missed due day ends the run
   }
   return best;
 }
@@ -207,14 +221,20 @@ export function heatmapCells(
     const inYearDay = inYear.includes(date);
     const day = inYearDay ? dayStat(date, habits, byDate) : null;
     const future = date > today;
+    const bonus = day?.bonus ?? 0;
     cells.push({
       date,
       inYear: inYearDay,
       future,
       completed: day?.completed ?? 0,
       scheduled: day?.scheduled ?? 0,
+      bonus,
       ratio: day?.ratio ?? 0,
-      level: !day || future ? 0 : levelFor(day.ratio, day.completed),
+      // Off-schedule days floor at level 1 so a bonus still colors the cell
+      // (spec §6/§7.4); future and out-of-year days stay at 0.
+      level: !day || future
+        ? 0
+        : (Math.max(levelFor(day.ratio, day.completed), bonus > 0 ? 1 : 0) as 0 | 1 | 2 | 3 | 4),
     });
   }
   return cells;

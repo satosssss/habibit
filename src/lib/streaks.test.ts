@@ -53,4 +53,15 @@ describe('habitStreaks', () => {
   it('returns 0 for a habit with no entries', () => {
     expect(habitStreaks([habit('a')], [], '2026-09-22').a).toBe(0);
   });
+
+  it('counts a completion on a day the habit was not scheduled (spec §6)', () => {
+    const weekdayOnly = habit('w', [1, 2, 3, 4, 5]);
+    // Fri 18 done, Sat 19 logged off-schedule, Mon 21 done, today Tue 22 done
+    const streaks = habitStreaks(
+      [weekdayOnly],
+      [entry('w', '2026-09-18'), entry('w', '2026-09-19'), entry('w', '2026-09-21'), entry('w', '2026-09-22')],
+      '2026-09-22',
+    );
+    expect(streaks.w).toBe(4);
+  });
 });

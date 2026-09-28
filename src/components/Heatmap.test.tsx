@@ -220,4 +220,18 @@ describe('Heatmap', () => {
     // The year label itself (StatsScreen renders YearNav).
     expect(readFileSync(join(here, 'YearNav.tsx'), 'utf8')).toContain('suppressHydrationWarning');
   });
+
+  it('shows an off-schedule completion with no percent line (spec §6)', () => {
+    const weekdays: Habit = { ...habit('w'), frequency: [1, 2, 3, 4, 5] };
+    render(<Heatmap year={2026} habits={[weekdays]} entries={[entry('w', '2026-06-13')]} today="2026-06-15" />);
+    fireEvent.mouseEnter(screen.getByTestId('hm-cell-2026-06-13'));
+    const tip = screen.getByTestId('hm-tooltip');
+    expect(tip).toHaveTextContent('Jun 13, 2026');
+    expect(tip).toHaveTextContent('1 completed (off schedule)');
+    expect(tip).not.toHaveTextContent('%');
+    // Flagged decision 1: the cell's screen-reader name mirrors the tooltip
+    // instead of reading "0 of 0".
+    expect(screen.getByTestId('hm-cell-2026-06-13'))
+      .toHaveAttribute('aria-label', '2026-06-13: 1 completed (off schedule)');
+  });
 });
