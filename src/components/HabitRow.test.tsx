@@ -126,4 +126,11 @@ describe('HabitRow', () => {
     expect(done.querySelector('svg.lucide-check')).toBeInTheDocument();
     expect(done.querySelector('svg.lucide-plus')).toBeNull();
   });
+
+  // Spec R2: the badge overlays the row — it must never intercept taps
+  // aimed at the ring/check control beneath it.
+  it('lets taps pass through the flame badge to the control beneath', () => {
+    render(<HabitRow habit={qtyHabit} value={4} onToggle={vi.fn()} {...base} streak={7} />);
+    expect(screen.getByTestId('flame-badge').className).toContain('pointer-events-none');
+  });
 });

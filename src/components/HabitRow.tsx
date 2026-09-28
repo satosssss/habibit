@@ -52,7 +52,7 @@ export function HabitRow({
           <p className="truncate text-xs text-white/90 drop-shadow-sm">{subtext(habit, v)}</p>
         </div>
 
-        <FlameBadge count={streak} className="absolute right-3 top-1.5 text-white" />
+        <FlameBadge count={streak} className="pointer-events-none absolute right-3 top-1.5 text-white" />
 
         {habit.type === 'boolean' && (
           <button type="button"
