@@ -5,6 +5,7 @@ import { rgba } from '@/lib/colors';
 import { nameIcon } from '@/lib/icons';
 import { subtext } from '@/lib/labels';
 import type { Habit } from '@/lib/types';
+import { clampedValue } from '@/lib/values';
 import { FlameBadge } from './FlameBadge';
 import { ProgressRing } from './ProgressRing';
 
@@ -27,11 +28,12 @@ export interface HabitRowProps {
 export function HabitRow({
   habit, value, streak, onToggle, onStep, onOpenTimer, onOpenValue,
 }: HabitRowProps) {
-  const ratio = habit.target > 0 ? value / habit.target : 0;
+  const v = clampedValue(habit, value);   // display clamps like everything else (R1)
+  const ratio = habit.target > 0 ? v / habit.target : 0;
   const fill = habit.type === 'boolean'
-    ? (value > 0 ? 1 : 0)
+    ? (v > 0 ? 1 : 0)
     : Math.max(0.55, Math.min(1, ratio));
-  const done = habit.type === 'boolean' ? value > 0 : ratio >= 1;
+  const done = habit.type === 'boolean' ? v > 0 : ratio >= 1;
   const Icon = nameIcon(habit.icon);
 
   return (
@@ -47,7 +49,7 @@ export function HabitRow({
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-white drop-shadow-sm">{habit.name}</p>
-          <p className="truncate text-xs text-white/90 drop-shadow-sm">{subtext(habit, value)}</p>
+          <p className="truncate text-xs text-white/90 drop-shadow-sm">{subtext(habit, v)}</p>
         </div>
 
         <FlameBadge count={streak} className="absolute right-3 top-1.5 text-white" />
@@ -64,13 +66,15 @@ export function HabitRow({
         {habit.type === 'quantity' && (
           <div className="flex shrink-0 items-center gap-1.5">
             <button type="button" aria-label={`Remove one ${habit.unit || 'unit'}`}
+                    disabled={v <= 0}
                     onClick={() => onStep(-1)}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-white/85">
+                    className="grid h-8 w-8 place-items-center rounded-full bg-white/85 disabled:opacity-40">
               <Minus size={16} color={habit.color} />
             </button>
             <button type="button" aria-label={`Add one ${habit.unit || 'unit'}`}
+                    disabled={v >= habit.target}
                     onClick={() => onStep(1)}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-white shadow">
+                    className="grid h-10 w-10 place-items-center rounded-full bg-white shadow disabled:opacity-40">
               <Plus size={20} color={habit.color} />
             </button>
           </div>
@@ -92,7 +96,7 @@ export function HabitRow({
         {habit.type === 'quantity' && (
           <button type="button"
                   aria-label={done
-                    ? `Set exact value for ${habit.name}, ${value} of ${habit.target}${habit.unit ? ` ${habit.unit}` : ''}, completed`
+                    ? `Set exact value for ${habit.name}, ${v} of ${habit.target}${habit.unit ? ` ${habit.unit}` : ''}, completed`
                     : `Set exact value for ${habit.name}`}
                   onClick={onOpenValue}
                   className="shrink-0 rounded-full">
@@ -100,7 +104,7 @@ export function HabitRow({
               {done ? (
                 <Check size={16} color="#fff" strokeWidth={3} />
               ) : (
-                <span className="text-[10px] font-bold text-white">{Math.round(ratio * 100)}</span>
+                <span className="text-[10px] font-bold text-white">{Math.floor(ratio * 100)}</span>
               )}
             </ProgressRing>
           </button>

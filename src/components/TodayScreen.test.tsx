@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAll, listHabits, newId, putEntry, putHabit } from '@/lib/repo';
+import { clearAll, listHabits, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
 import { addDays, todayKey } from '@/lib/dates';
 import { getThemePref } from '@/lib/theme';
@@ -238,4 +238,28 @@ describe('shared all-time streak (R1)', () => {
     const tileValue = await within(tile).findByText('90');
     expect(header.textContent?.trim()).toBe(tileValue.textContent?.trim());
   });
+});
+
+// Spec R1: the quantity write path — step to the target, then the control stops.
+it('steps up to the target and then disables the stepper (R1)', async () => {
+  const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
+  await putHabit(h);
+  await putEntry(h.id, todayKey(), 7);
+  render(<TodayScreen date={todayKey()} />);
+  const add = await screen.findByRole('button', { name: /add one cups/i });
+  fireEvent.click(add);
+  await waitFor(async () => {
+    expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(8);
+  });
+  expect(await screen.findByRole('button', { name: /add one cups/i })).toBeDisabled();
+});
+
+// Spec §9: the timer row's write path — opening the modal at the full duration.
+it('opens the timer modal from a timer habit row', async () => {
+  const h = habit({ name: 'Meditate', type: 'timer', target: 900 });
+  await putHabit(h);
+  render(<TodayScreen date={todayKey()} />);
+  fireEvent.click(await screen.findByRole('button', { name: /open timer for meditate/i }));
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByText('15:00')).toBeInTheDocument();
 });

@@ -59,6 +59,23 @@ describe('entries', () => {
     expect(day[0].value).toBe(0);
   });
 
+  // Spec R1 §2.1: the write boundary is the single choke point — every screen
+  // writes through putEntry, so clamping here makes the invariant global.
+  it('clamps written values into [0, target]', async () => {
+    const h = habit({ type: 'quantity', target: 8 });
+    await putHabit(h);
+    await expect(putEntry(h.id, '2026-09-20', 11)).resolves.toMatchObject({ value: 8 });
+    await putEntry(h.id, '2026-09-20', -3);
+    expect((await loadDay('2026-09-20'))[0].value).toBe(0);
+    await putEntry(h.id, '2026-09-20', Number.NaN);
+    expect((await loadDay('2026-09-20'))[0].value).toBe(0);
+  });
+
+  it('floors only the value for entries whose habit is gone (prune removes them later)', async () => {
+    await putEntry('ghost-habit', '2026-09-20', 5);
+    expect((await loadDay('2026-09-20'))[0].value).toBe(5);
+  });
+
   it('loadRange covers the inclusive bounds only', async () => {
     const h = habit();
     await putHabit(h);

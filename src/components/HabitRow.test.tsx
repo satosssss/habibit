@@ -76,7 +76,7 @@ describe('HabitRow', () => {
     const spanish = { ...qtyHabit, name: 'Learn Spanish', target: 45, unit: 'minutes' };
     const { rerender } = render(<HabitRow habit={spanish} value={44} onToggle={vi.fn()} {...base} />);
     const notDone = screen.getByRole('button', { name: 'Set exact value for Learn Spanish' });
-    expect(notDone).toHaveTextContent('98'); // percent center below target (44/45)
+    expect(notDone).toHaveTextContent('97'); // floors (spec R1.2.2): 44/45 = 97.78%
 
     rerender(<HabitRow habit={spanish} value={45} onToggle={vi.fn()} {...base} />);
     const done = screen.getByRole('button', {
@@ -84,19 +84,34 @@ describe('HabitRow', () => {
     });
     expect(done).not.toHaveTextContent(/\d/); // check replaces the percent
     expect(done.querySelector('svg.lucide-check')).toBeInTheDocument();
-
-    // Over target stays done (spec §4).
-    rerender(<HabitRow habit={spanish} value={50} onToggle={vi.fn()} {...base} />);
-    expect(screen.getByRole('button', {
-      name: 'Set exact value for Learn Spanish, 50 of 45 minutes, completed',
-    })).toBeInTheDocument();
   });
 
-  it('keeps the quantity steppers while done (R2)', () => {
+  // Cap invariant (spec §1/R1 §2.4): the row never renders an over-target
+  // value, even if a caller passes one — display clamps like everything else.
+  it('never displays a value above the target (R1)', () => {
     const spanish = { ...qtyHabit, name: 'Learn Spanish', target: 45, unit: 'minutes' };
-    render(<HabitRow habit={spanish} value={45} onToggle={vi.fn()} {...base} onStep={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /add one minutes/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /remove one minutes/i })).toBeInTheDocument();
+    const { rerender } = render(<HabitRow habit={spanish} value={44} onToggle={vi.fn()} {...base} />);
+    rerender(<HabitRow habit={spanish} value={50} onToggle={vi.fn()} {...base} />);
+    expect(screen.getByRole('button', {
+      name: 'Set exact value for Learn Spanish, 45 of 45 minutes, completed',
+    })).toBeInTheDocument();
+    expect(screen.getByText('Every day, 45/45 minutes')).toBeInTheDocument();
+  });
+
+  it('disables the steppers at the cap and at zero (R1)', () => {
+    const spanish = { ...qtyHabit, name: 'Learn Spanish', target: 45, unit: 'minutes' };
+    const onStep = vi.fn();
+    const { rerender } = render(
+      <HabitRow habit={spanish} value={45} onToggle={vi.fn()} {...base} onStep={onStep} />
+    );
+    const add = screen.getByRole('button', { name: /add one minutes/i });
+    expect(add).toBeDisabled();                       // at the cap
+    expect(screen.getByRole('button', { name: /remove one minutes/i })).toBeEnabled();
+    fireEvent.click(add);                             // disabled → handler never runs
+    expect(onStep).not.toHaveBeenCalled();
+    rerender(<HabitRow habit={spanish} value={0} onToggle={vi.fn()} {...base} onStep={onStep} />);
+    expect(screen.getByRole('button', { name: /remove one minutes/i })).toBeDisabled(); // at zero
+    expect(screen.getByRole('button', { name: /add one minutes/i })).toBeEnabled();
   });
 
   it('swaps the timer plus for a check and announces completion (R2)', () => {

@@ -1,5 +1,6 @@
 import { db, ensureDb, resetDb } from './db';
 import type { Entry, Habit } from './types';
+import { clampedValue } from './values';
 
 export function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -46,7 +47,15 @@ export async function setMany(entries: Entry[]): Promise<void> {
 
 export async function putEntry(habitId: string, date: string, value: number): Promise<Entry> {
   await ensureDb();
-  const entry: Entry = { id: `${habitId}_${date}`, habitId, date, value, timestamp: Date.now() };
+  const habit = await db.habits.get(habitId);
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+  const entry: Entry = {
+    id: `${habitId}_${date}`,
+    habitId,
+    date,
+    value: habit ? clampedValue(habit, value) : safe,   // orphans: floor only
+    timestamp: Date.now(),
+  };
   await db.entries.put(entry);
   return entry;
 }
