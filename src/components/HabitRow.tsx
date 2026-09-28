@@ -77,19 +77,31 @@ export function HabitRow({
         )}
 
         {habit.type === 'timer' && (
-          <button type="button" aria-label={`Open timer for ${habit.name}`} onClick={onOpenTimer}
+          <button type="button"
+                  aria-label={done
+                    ? `Open timer for ${habit.name}, ${Math.round(habit.target / 60)} of ${Math.round(habit.target / 60)} minutes, completed`
+                    : `Open timer for ${habit.name}`}
+                  onClick={onOpenTimer}
                   className="shrink-0 rounded-full">
             <ProgressRing size={40} stroke={4} progress={ratio} color={habit.color}>
-              <Plus size={18} color="#fff" />
+              {done ? <Check size={18} color="#fff" strokeWidth={3} /> : <Plus size={18} color="#fff" />}
             </ProgressRing>
           </button>
         )}
 
         {habit.type === 'quantity' && (
-          <button type="button" aria-label={`Set exact value for ${habit.name}`} onClick={onOpenValue}
+          <button type="button"
+                  aria-label={done
+                    ? `Set exact value for ${habit.name}, ${value} of ${habit.target}${habit.unit ? ` ${habit.unit}` : ''}, completed`
+                    : `Set exact value for ${habit.name}`}
+                  onClick={onOpenValue}
                   className="shrink-0 rounded-full">
             <ProgressRing size={40} stroke={4} progress={ratio} color={habit.color}>
-              <span className="text-[10px] font-bold text-white">{Math.round(ratio * 100)}</span>
+              {done ? (
+                <Check size={16} color="#fff" strokeWidth={3} />
+              ) : (
+                <span className="text-[10px] font-bold text-white">{Math.round(ratio * 100)}</span>
+              )}
             </ProgressRing>
           </button>
         )}

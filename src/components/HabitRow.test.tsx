@@ -70,4 +70,45 @@ describe('HabitRow', () => {
     rerender(<HabitRow habit={boolHabit} value={0} onToggle={vi.fn()} {...base} streak={7} />);
     expect(screen.getByText('7')).toBeInTheDocument();
   });
+
+  // Spec §4 (R2): quantity and timer rows must show a completed state.
+  it('uses the normative done and not-done names on the quantity ring (R2)', () => {
+    const spanish = { ...qtyHabit, name: 'Learn Spanish', target: 45, unit: 'minutes' };
+    const { rerender } = render(<HabitRow habit={spanish} value={44} onToggle={vi.fn()} {...base} />);
+    const notDone = screen.getByRole('button', { name: 'Set exact value for Learn Spanish' });
+    expect(notDone).toHaveTextContent('98'); // percent center below target (44/45)
+
+    rerender(<HabitRow habit={spanish} value={45} onToggle={vi.fn()} {...base} />);
+    const done = screen.getByRole('button', {
+      name: 'Set exact value for Learn Spanish, 45 of 45 minutes, completed',
+    });
+    expect(done).not.toHaveTextContent(/\d/); // check replaces the percent
+    expect(done.querySelector('svg.lucide-check')).toBeInTheDocument();
+
+    // Over target stays done (spec §4).
+    rerender(<HabitRow habit={spanish} value={50} onToggle={vi.fn()} {...base} />);
+    expect(screen.getByRole('button', {
+      name: 'Set exact value for Learn Spanish, 50 of 45 minutes, completed',
+    })).toBeInTheDocument();
+  });
+
+  it('keeps the quantity steppers while done (R2)', () => {
+    const spanish = { ...qtyHabit, name: 'Learn Spanish', target: 45, unit: 'minutes' };
+    render(<HabitRow habit={spanish} value={45} onToggle={vi.fn()} {...base} onStep={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /add one minutes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /remove one minutes/i })).toBeInTheDocument();
+  });
+
+  it('swaps the timer plus for a check and announces completion (R2)', () => {
+    const { rerender } = render(<HabitRow habit={timerHabit} value={300} onToggle={vi.fn()} {...base} />);
+    const notDone = screen.getByRole('button', { name: 'Open timer for Meditate' });
+    expect(notDone.querySelector('svg.lucide-plus')).toBeInTheDocument(); // not-done name + plus unchanged
+
+    rerender(<HabitRow habit={timerHabit} value={900} onToggle={vi.fn()} {...base} />);
+    const done = screen.getByRole('button', {
+      name: 'Open timer for Meditate, 15 of 15 minutes, completed',
+    });
+    expect(done.querySelector('svg.lucide-check')).toBeInTheDocument();
+    expect(done.querySelector('svg.lucide-plus')).toBeNull();
+  });
 });
