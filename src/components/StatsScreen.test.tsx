@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
@@ -225,5 +225,24 @@ describe('weekly trend tile (R6)', () => {
     // Rate family: Mon+Wed since createdAt = 4 slots, 2 done → 50%. A leaked
     // bonus would read 75%, so this pins the exclusion (spec §6).
     expect(await screen.findByText(/All year: 50%/)).toBeInTheDocument();
+  });
+});
+
+// Spec §5 / §11 spot-check: a past year opens at January even when the
+// current-year view was scrolled to the current week (only observable on
+// scrollable widths — mobile, her actual device; desktop fits the whole year).
+describe('heatmap year switch (R3 §5)', () => {
+  it('opens a past year at January after the current year was scrolled', async () => {
+    await putHabit(habit({ id: 'old-habit', name: 'Old Habit', frequency: [1],
+                           createdAt: Date.parse('2025-12-01T09:00:00') }));
+    const { StatsScreen } = await import('./StatsScreen');
+    const { container } = render(<StatsScreen />);
+    const prev = () => screen.getByRole('button', { name: 'Previous year' }) as HTMLButtonElement;
+    await waitFor(() => expect(prev().disabled).toBe(false)); // minYear picked up the old habit
+    const sc = () => container.querySelector('[data-testid="hm-scroll"]') as HTMLElement;
+    sc().scrollLeft = 270;                                    // current-year auto-scrolled position
+    fireEvent.click(prev());
+    expect(await screen.findByText('Completed in 2025')).toBeInTheDocument();
+    expect(sc().scrollLeft).toBe(0);                          // January, not the carried-over 270
   });
 });

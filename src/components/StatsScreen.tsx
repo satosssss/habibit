@@ -114,7 +114,9 @@ export function StatsScreen() {
           </div>
         </div>
 
-        <Heatmap year={year} habits={habits ?? []} entries={entries ?? []} today={today} />
+        {/* key: remount per year so a past year opens at its natural January
+            position instead of inheriting the current-year scroll offset (spec §5). */}
+        <Heatmap key={year} year={year} habits={habits ?? []} entries={entries ?? []} today={today} />
       </div>
 
       <h2 className="mb-2 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">All time</h2>
