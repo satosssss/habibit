@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { classifyDate, formatLong, todayKey } from '@/lib/dates';
 import { loadRange, listHabits, putEntry, putHabit } from '@/lib/repo';
 import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
+import { reportWriteError } from '@/lib/writeError';
 import { habitStreaks } from '@/lib/streaks';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
@@ -107,12 +108,13 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   }, [habits, entries, date, rangeStart]);
 
   const setValue = useCallback(async (habit: Habit, value: number) => {
-    await putEntry(habit.id, date, Math.max(0, value));
+    try { await putEntry(habit.id, date, value); }   // putEntry owns the clamp (R1)
+    catch (err) { reportWriteError(err); }
   }, [date]);
 
   const saveHabit = useCallback(async (habit: Habit) => {
-    await putHabit(habit);
-    setCreating(null);
+    try { await putHabit(habit); setCreating(null); }
+    catch (err) { reportWriteError(err); }           // stays open — never strand half a save
   }, []);
 
   const toggle = useCallback((habit: Habit) => {
@@ -163,7 +165,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
       <DateStrip selected={date} today={today}
                  onSelect={(key) => router.push(key === today ? '/today' : `/today/${key}`)} />
 
-      {habits === undefined ? (
+      {habits === undefined || entries === undefined ? (
         <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
       ) : habits.length === 0 ? (
         <div className="p-10 text-center">

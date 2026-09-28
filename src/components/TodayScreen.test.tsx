@@ -13,6 +13,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
   usePathname: () => '/today',
 }));
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>{children}</a>
+  ),
+}));
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
   id: newId(), name: 'Meditate', icon: 'flower2', color: '#c026d3', category: 'Morning',
@@ -277,4 +282,33 @@ it('renders a hostile import without crashing (R6)', async () => {
   render(<TodayScreen date={todayKey()} />);
   expect(await screen.findByText('Untitled habit')).toBeInTheDocument();      // repaired name
   expect(await screen.findByText('Every day, 11/11 cups')).toBeInTheDocument(); // target 11 survives, value 99 → clamped 11
+});
+
+// Spec R3.1: first paint gates on BOTH queries — no flash of 0/8.
+it('shows Loading… until habits and entries both resolve (R3)', async () => {
+  const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
+  await putHabit(h);
+  await putEntry(h.id, todayKey(), 0);
+  render(<TodayScreen date={todayKey()} />);
+  expect(screen.getByText('Loading…')).toBeInTheDocument();
+  expect(screen.queryByText(/0\/8/)).not.toBeInTheDocument();
+  expect(await screen.findByText('Every day, 0/8 cups')).toBeInTheDocument();
+});
+
+// Spec R3.3: a failed write surfaces on the shared banner (mounted by NavShell).
+it('surfaces a failed toggle write on the shared banner (R3)', async () => {
+  const h = habit({ name: 'Take a Cold Shower' });
+  await putHabit(h);
+  const repo = await import('@/lib/repo');
+  vi.spyOn(repo, 'putEntry').mockImplementationOnce(
+    () => Promise.reject(new Error('quota exceeded')),
+  );
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const { NavShell } = await import('./NavShell');
+  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  const button = await screen.findByRole('button', { name: /mark take a cold shower done/i });
+  button.click();
+  expect(await screen.findByTestId('write-error'))
+    .toHaveTextContent(/couldn't save that change/i);
+  vi.restoreAllMocks();
 });

@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
 import { weekColumn } from '@/lib/dates';
 import type { Habit } from '@/lib/types';
@@ -86,5 +86,43 @@ describe('NoteScreen', () => {
       if (saved) Object.defineProperty(Element.prototype, 'scrollTo', saved);
       else delete (Element.prototype as { scrollTo?: unknown }).scrollTo;
     }
+  });
+
+  it('shows Loading… on first paint, not an empty checklist (R3)', () => {
+    render(<NoteScreen date="2026-05-24" />);
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('says nothing is scheduled when the day has no habits (R3)', async () => {
+    render(<NoteScreen date="2026-05-24" />);
+    expect(await screen.findByText('Nothing scheduled this day.')).toBeInTheDocument();
+  });
+
+  describe('share status (R3.4)', () => {
+    const setClipboard = (value: unknown) =>
+      Object.defineProperty(navigator, 'clipboard', { value, configurable: true });
+    afterEach(() => { setClipboard(undefined); vi.restoreAllMocks(); });
+
+    it('reports a copied link', async () => {
+      setClipboard({ writeText: vi.fn().mockResolvedValue(undefined) });
+      render(<NoteScreen date="2026-05-24" />);
+      fireEvent.click(await screen.findByRole('button', { name: /share this day/i }));
+      expect(await screen.findByText('Link copied')).toBeInTheDocument();
+    });
+
+    it('reports failure when the clipboard write rejects', async () => {
+      setClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denied')) });
+      render(<NoteScreen date="2026-05-24" />);
+      fireEvent.click(await screen.findByRole('button', { name: /share this day/i }));
+      expect(await screen.findByText("Couldn't copy the link")).toBeInTheDocument();
+    });
+
+    it('reports failure when no clipboard exists at all', async () => {
+      setClipboard(undefined);
+      render(<NoteScreen date="2026-05-24" />);
+      fireEvent.click(await screen.findByRole('button', { name: /share this day/i }));
+      expect(await screen.findByText("Couldn't copy the link")).toBeInTheDocument();
+    });
   });
 });

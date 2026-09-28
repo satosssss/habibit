@@ -1,10 +1,11 @@
 'use client';
 
 import { Share2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { formatLong, todayKey, weekdayIndex } from '@/lib/dates';
 import { listHabits, loadRange, putEntry } from '@/lib/repo';
 import { isCompleted } from '@/lib/stats';
+import { reportWriteError } from '@/lib/writeError';
 import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
 import { quoteFor } from '@/lib/quotes';
@@ -24,6 +25,7 @@ export function NoteScreen({ date }: { date: string }) {
   );
   const quote = useMemo(() => quoteFor(date), [date]);
   const today = todayKey();
+  const [shareMsg, setShareMsg] = useState<'copied' | 'failed' | null>(null);
 
   const values = useMemo(() => {
     const map: Record<string, number> = {};
@@ -47,8 +49,17 @@ export function NoteScreen({ date }: { date: string }) {
 
   const share = async () => {
     const url = `${window.location.origin}/today/${date}`;
-    if (navigator.share) { try { await navigator.share({ title: 'Habibit', url }); return; } catch { /* dismissed */ } }
-    await navigator.clipboard?.writeText(url);
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Habibit', url }); return; } catch { /* dismissed — no status */ }
+    }
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(url);
+      setShareMsg('copied');
+    } catch {
+      setShareMsg('failed');
+    }
+    window.setTimeout(() => setShareMsg(null), 2500);
   };
 
   return (
@@ -64,6 +75,8 @@ export function NoteScreen({ date }: { date: string }) {
         </button>
       </header>
 
+      <p role="status" aria-live="polite" className="min-h-4 text-xs text-[var(--color-subtle)]">{shareMsg === 'copied' ? 'Link copied' : shareMsg === 'failed' ? "Couldn't copy the link" : ''}</p>
+
       <blockquote className="mb-5 rounded-2xl bg-[var(--color-panel)] px-4 py-3 text-sm italic">
         “{quote.text}” <span className="not-italic text-[var(--color-subtle)]">— {quote.author}</span>
       </blockquote>
@@ -71,7 +84,11 @@ export function NoteScreen({ date }: { date: string }) {
       <Heatmap year={year} habits={habits ?? []} entries={entries ?? []} today={today} focusDate={date} compact />
 
       <div className="mt-5 flex flex-col gap-3">
-        {groups.map(([intention, list]) => {
+        {habits === undefined || entries === undefined ? (
+          <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
+        ) : groups.length === 0 ? (
+          <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Nothing scheduled this day.</p>
+        ) : groups.map(([intention, list]) => {
           const color = intentionColor(intention);
           const Icon = intentionIcon(list, intention);
           return (
@@ -89,7 +106,7 @@ export function NoteScreen({ date }: { date: string }) {
                         type="checkbox"
                         aria-label={habit.name}
                         checked={done}
-                        onChange={() => void putEntry(habit.id, date, done ? 0 : (habit.type === 'boolean' ? 1 : habit.target))}
+                        onChange={() => void putEntry(habit.id, date, done ? 0 : (habit.type === 'boolean' ? 1 : habit.target)).catch(reportWriteError)}
                         className="h-4 w-4 accent-white"
                       />
                       <span className={done ? 'line-through opacity-80' : ''}>{habit.name}</span>

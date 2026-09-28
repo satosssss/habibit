@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db';
-import { clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit } from './repo';
+import { clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit, putHabits } from './repo';
 import type { Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -45,6 +45,17 @@ describe('habits', () => {
     await putEntry(h.id, '2026-09-20', 1);
     expect(await pruneOrphans()).toBe(1);
     expect(await loadDay('2026-09-20')).toHaveLength(1);   // the real habit's entry survives
+  });
+
+  it('writes a whole reorder as one bulk put (R3 — all or nothing)', async () => {
+    const a = habit({ id: 'a', order: 0 });
+    const b = habit({ id: 'b', order: 1 });
+    await putHabit(a);
+    await putHabit(b);
+    const spy = vi.spyOn(db.habits, 'bulkPut');
+    await putHabits([{ ...a, order: 1 }, { ...b, order: 0 }]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect((await listHabits()).find((h) => h.id === 'a')?.order).toBe(1);
   });
 });
 

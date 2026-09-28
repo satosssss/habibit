@@ -23,6 +23,12 @@ export async function putHabit(habit: Habit): Promise<Habit> {
   return habit;
 }
 
+/** Bulk write — Dexie's bulkPut runs in one transaction, so a reorder is atomic (R3). */
+export async function putHabits(habits: Habit[]): Promise<void> {
+  await ensureDb();
+  await db.habits.bulkPut(habits);
+}
+
 export async function deleteHabit(id: string): Promise<void> {
   await ensureDb();
   await db.transaction('rw', db.habits, db.entries, async () => {

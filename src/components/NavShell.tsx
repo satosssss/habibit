@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ensureDb } from '@/lib/db';
-import { pruneOrphans } from '@/lib/repo';
+import { clampLegacyEntries, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
+import { reportWriteError } from '@/lib/writeError';
+import { WriteErrorBanner } from './WriteErrorBanner';
 
 const TABS = [
   { href: '/today', label: 'Today', Icon: CalendarCheck },
@@ -28,11 +30,12 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
-    void seedIfEmpty(); // idempotent: returns immediately once habits exist
+    void seedIfEmpty().catch(reportWriteError);   // idempotent: returns immediately once habits exist
     void ensureDb().then((s) => {
       setDegraded(s === 'degraded');
-      void pruneOrphans(); // stray entries from an interrupted delete never reach stats
-    });
+      void pruneOrphans().catch(reportWriteError);   // stray entries never reach stats
+      void clampLegacyEntries().catch(reportWriteError);   // spec R1 §2.3 boot migration
+    }).catch(reportWriteError);
   }, []);
 
   return (
@@ -60,6 +63,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="min-w-0 flex-1 pb-24 md:pb-0">
+        <WriteErrorBanner />
         {degraded && (
           <p role="alert"
              className="m-3 rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">

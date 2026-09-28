@@ -1,7 +1,7 @@
 'use client';
 
 import { CalendarCheck, CheckSquare, Flame, Star, TrendingUp, Trophy, Zap } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
 import { listHabits, loadRange } from '@/lib/repo';
@@ -20,9 +20,14 @@ export function StatsScreen() {
   const today = todayKey();
   const maxYear = Number(today.slice(0, 4));
   const [year, setYear] = useState(maxYear);
-  const [minYear, setMinYear] = useState(maxYear - 1);
 
   const habits = useLiveQuery(() => listHabits(), []);
+  const minYear = useMemo(
+    // Empty/loading keeps the old `maxYear - 1` default: allTimeStart([]) is
+    // '2000-01-01', which would offer year 2000 with no habits (out-of-range).
+    () => (habits?.length ? Math.min(Number(allTimeStart(habits).slice(0, 4)), maxYear) : maxYear - 1),
+    [habits, maxYear],
+  );
   const entries = useLiveQuery(
     () => loadRange(`${year}-01-01`, `${year}-12-31`),
     [year],
@@ -33,11 +38,6 @@ export function StatsScreen() {
     () => loadRange(`${minYear}-01-01`, today),
     [minYear, today],
   );
-
-  useEffect(() => {
-    if (!habits?.length) return;
-    setMinYear(Math.min(Number(allTimeStart(habits).slice(0, 4)), maxYear));
-  }, [habits, maxYear]);
 
   const stats = useMemo(
     () => buildDayStats(habits ?? [], entries ?? [], {
@@ -73,6 +73,14 @@ export function StatsScreen() {
     () => perIntentionTotals(orderedHabits, entries ?? [], year, today),
     [orderedHabits, entries, year, today],
   );
+
+  if (habits === undefined || entries === undefined || allEntries === undefined) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 pb-10">
+        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-10">

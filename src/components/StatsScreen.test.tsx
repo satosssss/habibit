@@ -47,6 +47,7 @@ describe('StatsScreen', () => {
   it('lays the intention bars beside the heatmap on tablet, full width on desktop (spec §10)', async () => {
     const { StatsScreen } = await import('./StatsScreen');
     const { container } = render(<StatsScreen />);
+    await screen.findByText('By intention');
     // gap-6 (not md:grid-cols-2) selects this grid: once tiles also break at md
     // they would otherwise match first in document order.
     const grid = container.querySelector<HTMLElement>('div[class*="gap-6"]');
@@ -66,6 +67,7 @@ describe('StatsScreen', () => {
   it('stacks tiles one-across on mobile, 2×2 on tablet, 4-across on desktop (spec §10)', async () => {
     const { StatsScreen } = await import('./StatsScreen');
     const { container } = render(<StatsScreen />);
+    await screen.findByText('Active Days');
     const grids = container.querySelectorAll<HTMLElement>('div[class*="xl:grid-cols-4"]');
     expect(grids).toHaveLength(2); // year tiles + all-time tiles
     for (const grid of grids) {
@@ -89,6 +91,15 @@ describe('StatsScreen', () => {
     expect(
       grateful.compareDocumentPosition(study) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it('shows Loading… on first paint — never 0 tiles or a false "No habits yet." (R3)', async () => {
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('Active Days')).not.toBeInTheDocument();
+    expect(screen.queryByText('No habits yet.')).not.toBeInTheDocument();
+    expect(await screen.findByText('Active Days')).toBeInTheDocument(); // empty DB resolves → true zeros
   });
 });
 

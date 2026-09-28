@@ -2,8 +2,9 @@
 
 import { Plus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { deleteHabit, listHabits, newId, putHabit } from '@/lib/repo';
+import { deleteHabit, listHabits, newId, putHabit, putHabits } from '@/lib/repo';
 import { useLiveQuery } from '@/lib/useLiveQuery';
+import { reportWriteError } from '@/lib/writeError';
 import type { Habit } from '@/lib/types';
 import { HabitForm } from './HabitForm';
 import { HabitList } from './HabitList';
@@ -30,8 +31,10 @@ export function HabitsPanel() {
   );
 
   const save = useCallback(async (habit: Habit) => {
-    await putHabit(habit);
-    setEditing(null);
+    try {
+      await putHabit(habit);
+      setEditing(null);
+    } catch (err) { reportWriteError(err); }         // form stays open on failure
   }, []);
 
   return (
@@ -44,12 +47,18 @@ export function HabitsPanel() {
         </button>
       </div>
 
-      <HabitList
-        habits={habits ?? []}
-        onEdit={(id) => setEditing((habits ?? []).find((h) => h.id === id) ?? null)}
-        onDelete={(id) => void deleteHabit(id)}
-        onReorder={(next) => { for (const habit of next) void putHabit(habit); }}
-      />
+      {habits === undefined ? (
+        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
+      ) : habits.length === 0 ? (
+        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">No habits yet — create one.</p>
+      ) : (
+        <HabitList
+          habits={habits}
+          onEdit={(id) => setEditing(habits.find((h) => h.id === id) ?? null)}
+          onDelete={(id) => void deleteHabit(id).catch(reportWriteError)}
+          onReorder={(next) => { void putHabits(next).catch(reportWriteError); }}
+        />
+      )}
 
       {editing && (
         <HabitForm
