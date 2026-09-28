@@ -50,4 +50,31 @@ describe('HabitList', () => {
     const [reordered] = onReorder.mock.calls[0];
     expect(reordered.map((x: Habit) => x.id)).toEqual(['b', 'a']);
   });
+
+  it('moves a habit within its category via keyboard buttons (R5)', () => {
+    const onReorder = vi.fn();
+    render(
+      <HabitList
+        habits={[h('a', 'Meditate', 'Morning', 0), h('b', 'Read', 'Morning', 1)]}
+        onEdit={vi.fn()} onDelete={vi.fn()} onReorder={onReorder} />
+    );
+    expect(screen.getByRole('button', { name: 'Move Meditate up' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Read up' }));
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    const [reordered] = onReorder.mock.calls[0];
+    expect(reordered.map((x: Habit) => x.id)).toEqual(['b', 'a']);
+    expect(reordered.map((x: Habit) => x.order)).toEqual([0, 1]);
+  });
+
+  it('disables moves past the category edge and announces the move (R5)', () => {
+    const onReorder = vi.fn();
+    render(
+      <HabitList
+        habits={[h('a', 'Meditate', 'Morning', 0), h('b', 'Read', 'Morning', 1)]}
+        onEdit={vi.fn()} onDelete={vi.fn()} onReorder={onReorder} />
+    );
+    expect(screen.getByRole('button', { name: 'Move Read down' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Read up' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Read moved up');
+  });
 });

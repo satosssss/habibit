@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 // Spec §6 pins the timer to a dark bottom sheet in every theme; every other
 // sheet follows the theme tokens so dark mode never opens a white panel
@@ -41,12 +41,48 @@ export function Sheet({
   centerFrom?: 'md' | 'lg';
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  // Spec R5.2: focus enters the panel on open, Tab cycles within it, and focus
+  // returns to the opener on close. onClose lives in a ref so this effect runs
+  // once per open transition — re-running would re-capture the panel itself as
+  // the "opener". The overlay is not portaled, so background exclusion is
+  // delivered by aria-modal + this trap rather than a native `inert` sibling
+  // (which would inert the sheet itself — plan decision 4).
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onCloseRef.current(); return; }
+      if (e.key !== 'Tab') return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (items.length === 0) { e.preventDefault(); panel.focus(); return; }
+      const active = document.activeElement;
+      const within = active instanceof Node && panel.contains(active);
+      if (e.shiftKey) {
+        if (!within || active === items[0] || active === panel) { e.preventDefault(); items[items.length - 1].focus(); }
+      } else if (!within || active === items[items.length - 1] || active === panel) {
+        e.preventDefault();
+        items[0].focus();
+      }
+    };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      opener?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open-transition only; onClose via ref
+  }, [open]);
 
   if (!open) return null;
   const surface = dark ? TIMER_SURFACE : themedSurface();
@@ -55,7 +91,7 @@ export function Sheet({
   return (
     <div className={`fixed inset-0 z-50 flex items-end justify-center ${center.wrap}`}>
       <div data-sheet-backdrop className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label={title}
+      <div role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={panelRef}
            className={`relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl p-5 ${center.panel}`}
            style={{ background: surface.bg, color: surface.fg, border: `1px solid ${surface.line}` }}>
         <div className="mb-3 flex items-center justify-between">

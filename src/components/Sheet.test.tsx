@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Sheet } from './Sheet';
@@ -92,6 +93,59 @@ describe('Sheet', () => {
       const panel = screen.getByRole('dialog');
       expect(panel.style.background).toBe('rgb(17, 17, 22)');
       expect(panel.style.color).toBe('rgb(245, 245, 247)');
+    });
+  });
+
+  describe('focus management (spec R5.2)', () => {
+    it('moves focus into the panel on open and restores the opener on close', () => {
+      function Harness() {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>open</button>
+            <Sheet open={open} onClose={() => setOpen(false)} title="Menu">
+              <button type="button">inside</button>
+            </Sheet>
+          </>
+        );
+      }
+      render(<Harness />);
+      const opener = screen.getByRole('button', { name: 'open' });
+      opener.focus();
+      fireEvent.click(opener);
+      const panel = screen.getByRole('dialog');
+      expect(document.activeElement).toBe(panel);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(document.activeElement).toBe(opener);    // focus restored
+    });
+
+    it('traps Tab inside the panel, wrapping in both directions', () => {
+      render(
+        <Sheet open onClose={vi.fn()} title="Menu">
+          <button type="button">first</button>
+          <button type="button">last</button>
+        </Sheet>,
+      );
+      const panel = screen.getByRole('dialog');
+      expect(document.activeElement).toBe(panel);                 // initial: the panel
+      // The header Close button precedes the children in DOM order, so it is
+      // the panel's first focusable — correct dialog tab order, still inside.
+      const close = screen.getByRole('button', { name: 'Close' });
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(document.activeElement).toBe(close);
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'last' })); // wraps up
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(document.activeElement).toBe(close);                  // wraps down
+    });
+
+    it('locks body scroll while open and restores it on close', () => {
+      const { unmount } = render(
+        <Sheet open onClose={vi.fn()} title="Menu"><span>body</span></Sheet>,
+      );
+      expect(document.body.style.overflow).toBe('hidden');
+      unmount();
+      expect(document.body.style.overflow).toBe('');
     });
   });
 });

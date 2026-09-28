@@ -73,6 +73,10 @@ describe('TimerModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /start timer/i }));
     expect(vi.getTimerCount()).toBeGreaterThan(0);
     unmount();
+    // jsdom schedules a 0 ms selection-bookkeeping timeout whenever focus()
+    // runs (Sheet's R5.2 focus-in on open); let it drain so only the app's
+    // own timers are counted — the interval itself must be cleared above.
+    act(() => { vi.advanceTimersByTime(10); });
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -153,6 +157,9 @@ describe('TimerModal', () => {
     fireEvent.pointerDown(screen.getByRole('button', { name: /decrease duration/i }));
     expect(vi.getTimerCount()).toBeGreaterThan(0);
     unmount();
+    // Drain jsdom's focus/selection bookkeeping timeout (see the interval
+    // test) — the hold-repeat chain itself must be cleared by unmount.
+    act(() => { vi.advanceTimersByTime(10); });
     expect(vi.getTimerCount()).toBe(0);
   });
 

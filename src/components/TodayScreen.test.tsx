@@ -148,6 +148,9 @@ describe('Today header (spec §5.1)', () => {
     render(<TodayScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
     fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Journal' } });
+    // R5 makes the intention required — blankHabit starts it empty, so the
+    // flow now includes choosing one (the form stays open otherwise).
+    fireEvent.change(screen.getByLabelText('Intention'), { target: { value: 'Do Hard Things' } });
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
     // liveQuery re-emits after putHabit: the row shows up with no manual refetch
     const morning = (await screen.findByRole('heading', { level: 2, name: 'Morning' })).closest('section')!;

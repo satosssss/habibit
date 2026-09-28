@@ -44,4 +44,18 @@ describe('CategorySection', () => {
     const names = screen.getAllByText(/First|Second/).map((n) => n.textContent);
     expect(names).toEqual(['First', 'Second']);
   });
+
+  it('wires aria-controls to the list it reveals, only while expanded (R5)', () => {
+    const base = {
+      category: 'Morning', habits: [habit('a', 'Meditate')], onToggleCollapse: vi.fn(), ...handlers,
+    };
+    const { rerender } = render(<CategorySection {...base} collapsed />);
+    const button = screen.getByRole('button', { name: /expand morning/i });
+    expect(button).not.toHaveAttribute('aria-controls');   // no dangling idref when collapsed
+    rerender(<CategorySection {...base} collapsed={false} />);
+    const open = screen.getByRole('button', { name: /collapse morning/i });
+    const id = open.getAttribute('aria-controls');
+    expect(id).toBeTruthy();
+    expect(document.getElementById(id!)).toBe(screen.getByRole('list'));
+  });
 });

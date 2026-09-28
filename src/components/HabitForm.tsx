@@ -29,31 +29,68 @@ export function HabitForm({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState(habit);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => { setDraft(habit); }, [habit]);
 
-  const set = <K extends keyof Habit>(key: K, value: Habit[K]) =>
+  const set = <K extends keyof Habit>(key: K, value: Habit[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+    setErrors({});
+  };
+
+  // Spec R5: a type switch converts timer↔quantity targets and never
+  // otherwise destroys the draft number (boolean coercion happens at save).
+  const switchType = (next: HabitType) => {
+    if (next === draft.type) return;
+    let target = draft.target;
+    if (draft.type === 'timer' && next === 'quantity') target = Math.max(1, Math.round(draft.target / 60));
+    else if (draft.type === 'quantity' && next === 'timer') target = Math.max(60, Math.round(draft.target * 60));
+    setDraft((prev) => ({ ...prev, type: next, target }));
+    setErrors({});
+  };
 
   // The timer target edits in minutes (spec §9) but stores seconds (§4.2):
   // the input round-trips `minutes × 60`, so typing never gets clobbered by
   // the seconds value re-rendering underneath it.
   const save = () => {
+    // Validate what the field SHOWS: the timer input edits minutes
+    // (round-trip), the quantity input edits the raw number. A timer whose
+    // draft is 30 s displays "1" → valid, saved through the existing 60 s
+    // floor (spec §4 "empty/invalid": only an empty/zero display blocks —
+    // the old silent 600 fallback is what dies, not the sub-minute floor).
+    const shown = draft.type === 'timer' ? Math.round(draft.target / 60) : Number(draft.target);
+    const next: Record<string, string> = {};
+    if (!draft.category.trim()) next.category = 'Choose a category.';
+    if (!draft.intention.trim()) next.intention = 'Choose an intention.';
+    if (draft.frequency.length === 0) next.frequency = 'Pick at least one day.';
+    if (draft.type !== 'boolean' && !(shown >= 1)) next.target = 'Enter a target.';
+    if (Object.values(next).some(Boolean)) { setErrors(next); return; }   // stay open, nothing saved
+    setErrors({});
     const target =
       draft.type === 'boolean' ? 1
-      : draft.type === 'timer' ? Math.max(60, Math.round(Number(draft.target) || 600))
-      : Math.max(1, Math.round(Number(draft.target) || 1));
-    onSave({ ...draft, name: draft.name.trim() || 'Untitled habit', target });
+      : draft.type === 'timer' ? Math.max(60, Math.round(Number(draft.target)))
+      : Math.max(1, Math.round(Number(draft.target)));
+    onSave({
+      ...draft,
+      name: draft.name.trim() || 'Untitled habit',
+      category: draft.category.trim(),
+      intention: draft.intention.trim(),
+      target,
+    });
     onClose();
   };
 
   return (
     <Sheet open={open} onClose={onClose} title={habit.name ? 'Edit habit' : 'New habit'}>
-      <div className="flex flex-col gap-3">
+      {/* noValidate: R5 owns validation with inline role=alert copy — native
+          bubbles would block the submit (value 0 < min 1) before save() could
+          show them (same jsdom/browser fact as the ValueSheet ruling, T2). */}
+      <form noValidate onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-3">
         <label data-field="name" className="block text-sm">
           <span className="mb-1 block font-semibold">Habit name</span>
           <input id="habit-name" value={draft.name}
                  onChange={(e) => set('name', e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
                  className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]" />
         </label>
 
@@ -62,6 +99,7 @@ export function HabitForm({
           <Combobox label="Category" value={draft.category} options={categories}
                     listId="habit-category-list" onChange={(v) => set('category', v)} />
         </div>
+        {errors.category && <p role="alert" className="text-xs text-red-500">{errors.category}</p>}
         <div data-field="intention">
           <Combobox label="Intention" value={draft.intention} options={intentions}
                     listId="habit-intention-list" placeholder="Type your own…"
@@ -88,6 +126,7 @@ export function HabitForm({
             Color is derived from the intention name, so it stays consistent everywhere.
           </p>
         </div>
+        {errors.intention && <p role="alert" className="text-xs text-red-500">{errors.intention}</p>}
 
         <fieldset data-field="icon" className="block border-0 p-0 text-sm">
           <legend className="mb-1 block font-semibold">Icon</legend>
@@ -128,7 +167,7 @@ export function HabitForm({
             {TYPES.map((type) => (
               <button key={type} type="button" aria-label={`Type ${type}`}
                       aria-pressed={draft.type === type}
-                      onClick={() => set('type', type)}
+                      onClick={() => switchType(type)}
                       className={`flex-1 rounded-xl border px-3 py-2 text-sm capitalize ${
                         draft.type === type
                           ? 'border-[var(--color-accent)] bg-[var(--color-muted)]'
@@ -141,18 +180,21 @@ export function HabitForm({
         </fieldset>
 
         {draft.type !== 'boolean' && (
-          <label data-field="target" className="block text-sm">
-            <span className="mb-1 block font-semibold">
-              Target {draft.type === 'timer' ? '(minutes)' : draft.unit ? `(${draft.unit})` : ''}
-            </span>
-            <input id="habit-target" type="number" min={1}
-                   value={draft.type === 'timer' ? Math.round(draft.target / 60) : draft.target}
-                   onChange={(e) => set('target',
-                     draft.type === 'timer'
-                       ? Math.round(Number(e.target.value)) * 60
-                       : Number(e.target.value))}
-                   className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]" />
-          </label>
+          <>
+            <label data-field="target" className="block text-sm">
+              <span className="mb-1 block font-semibold">
+                Target {draft.type === 'timer' ? '(minutes)' : draft.unit ? `(${draft.unit})` : ''}
+              </span>
+              <input id="habit-target" type="number" min={1}
+                     value={draft.type === 'timer' ? Math.round(draft.target / 60) : draft.target}
+                     onChange={(e) => set('target',
+                       draft.type === 'timer'
+                         ? Math.round(Number(e.target.value)) * 60
+                         : Number(e.target.value))}
+                     className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]" />
+            </label>
+            {errors.target && <p role="alert" className="text-xs text-red-500">{errors.target}</p>}
+          </>
         )}
 
         {draft.type === 'quantity' && (
@@ -202,13 +244,14 @@ export function HabitForm({
               );
             })}
           </div>
+          {errors.frequency && <p role="alert" className="text-xs text-red-500">{errors.frequency}</p>}
         </fieldset>
 
-        <button type="button" onClick={save}
+        <button type="submit"
                 className="mt-1 rounded-2xl bg-[var(--color-accent)] px-4 py-3 font-semibold text-white">
           Save habit
         </button>
-      </div>
+      </form>
     </Sheet>
   );
 }

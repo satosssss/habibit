@@ -157,13 +157,18 @@ describe('HabitForm', () => {
     rerender(<HabitForm habit={onSave.mock.calls[0][0]} open onSave={onSave} onClose={vi.fn()} />);
     expect(target()).toHaveValue(45);
 
+    // Spec R5: an empty target is a validation error, never a silent 600.
     fireEvent.change(target(), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
-    expect(onSave.mock.calls[1][0].target).toBe(600);
+    expect(onSave).toHaveBeenCalledTimes(1);                       // the earlier valid save only
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a target.');
 
+    // A valid value clears the error and saves normally.
     rerender(<HabitForm habit={{ ...habit, type: 'timer', target: 30 }} open onSave={onSave} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
-    expect(onSave.mock.calls[2][0].target).toBe(60);
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave.mock.calls[1][0].target).toBe(60);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   // Spec §7 (R5): intention chips under the intention field.
@@ -208,5 +213,65 @@ describe('HabitForm', () => {
       expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
     expect(onSave.mock.calls[0][0].intention).toBe('Deep focus');
+  });
+
+  // Spec R5: Enter in the name field submits (jsdom has no implicit submission).
+  it('submits from the name field on Enter', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+    render(<HabitForm habit={habit} open onSave={onSave} onClose={onClose} />);
+    fireEvent.keyDown(screen.getByLabelText('Habit name'), { key: 'Enter' });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks an empty category with an inline message (R5)', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+    render(<HabitForm habit={{ ...habit, category: '   ' }} open onSave={onSave} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();            // stays open
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose a category.');
+  });
+
+  it('blocks an empty intention with an inline message (R5)', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, intention: '' }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose an intention.');
+  });
+
+  it('blocks saving with zero weekdays (R5)', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, frequency: [] }} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Pick at least one day.');
+  });
+
+  it('converts targets across type switches without destroying the draft (R5)', () => {
+    render(<HabitForm habit={{ ...habit, type: 'timer', target: 900 }} open
+                      onSave={vi.fn()} onClose={vi.fn()} />);
+    const target = () => screen.getByLabelText(/^Target/);
+    fireEvent.click(screen.getByRole('button', { name: 'Type quantity' }));
+    expect(target()).toHaveValue(15);                  // 900 s → 15 minutes
+    fireEvent.click(screen.getByRole('button', { name: 'Type timer' }));
+    expect(target()).toHaveValue(15);                  // 15 → 900 s (shown in minutes)
+    fireEvent.click(screen.getByRole('button', { name: 'Type quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Type boolean' }));
+    expect(screen.queryByLabelText(/^Target/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Type quantity' }));
+    expect(target()).toHaveValue(15);                  // round trip keeps the number
+  });
+
+  it('coerces the target to 1 when the save is boolean (R5)', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, type: 'quantity', target: 15, unit: 'minutes' }} open
+                      onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Type boolean' }));
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0]).toMatchObject({ type: 'boolean', target: 1 });
   });
 });

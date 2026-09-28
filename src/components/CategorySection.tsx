@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useId } from 'react';
 import { categoryIcon } from '@/lib/icons';
 import type { Habit } from '@/lib/types';
 import { HabitRow } from './HabitRow';
@@ -23,6 +24,7 @@ export function CategorySection({
   onToggle, onStep, onOpenTimer, onOpenValue,
 }: CategorySectionProps) {
   const Icon = categoryIcon(category);
+  const listId = useId();
   const ordered = [...habits].sort((a, b) => a.order - b.order);
 
   return (
@@ -37,6 +39,9 @@ export function CategorySection({
           type="button"
           aria-expanded={!collapsed}
           aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${category}`}
+          // Only while expanded: the <ul> exists only then — a dangling
+          // idref would fail axe (spec R5).
+          aria-controls={collapsed ? undefined : listId}
           onClick={onToggleCollapse}
           className="grid h-8 w-8 place-items-center rounded-full border-2 border-[var(--color-accent)] text-[var(--color-accent)]"
         >
@@ -45,7 +50,7 @@ export function CategorySection({
       </div>
 
       {!collapsed && (
-        <ul className="flex flex-col gap-2">
+        <ul id={listId} className="flex flex-col gap-2">
           {ordered.map((habit) => (
             <HabitRow
               key={habit.id}

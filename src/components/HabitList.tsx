@@ -1,6 +1,6 @@
 'use client';
 
-import { GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { categoryIcon, nameIcon } from '@/lib/icons';
 import { frequencyLabel } from '@/lib/labels';
@@ -16,6 +16,7 @@ export function HabitList({
 }) {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState('');
 
   const categories = [...new Set(habits.map((h) => h.category))].sort();
 
@@ -37,8 +38,26 @@ export function HabitList({
     setDragId(null);
   };
 
+  // Spec R5: keyboard move — same within-category rule as drag, persisted
+  // through the same onReorder (atomic bulk put since Task 5).
+  const move = (habit: Habit, dir: -1 | 1) => {
+    const siblings = habits.filter((h) => h.category === habit.category)
+      .sort((a, b) => a.order - b.order);
+    const from = siblings.findIndex((h) => h.id === habit.id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= siblings.length) return;
+    const next = [...siblings];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    onReorder([
+      ...habits.filter((h) => h.category !== habit.category),
+      ...next.map((h, index) => ({ ...h, order: index })),
+    ]);
+    setAnnounce(`${habit.name} moved ${dir === -1 ? 'up' : 'down'}`);
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      <p role="status" aria-live="polite" className="sr-only">{announce}</p>
       {categories.map((category) => {
         const Icon = categoryIcon(category);
         const list = habits.filter((h) => h.category === category).sort((a, b) => a.order - b.order);
@@ -48,7 +67,7 @@ export function HabitList({
               <Icon size={14} /> {category}
             </h3>
             <ul className="flex flex-col gap-2">
-              {list.map((habit) => {
+              {list.map((habit, index) => {
                 const HabitIcon = nameIcon(habit.icon);
                 return (
                   <li key={habit.id} data-testid={`habit-row-${habit.id}`} draggable
@@ -66,6 +85,16 @@ export function HabitList({
                         {habit.intention} · {frequencyLabel(habit.frequency)}
                       </p>
                     </div>
+                    <button type="button" aria-label={`Move ${habit.name} up`} disabled={index === 0}
+                            onClick={() => move(habit, -1)}
+                            className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
+                      <ChevronUp size={15} />
+                    </button>
+                    <button type="button" aria-label={`Move ${habit.name} down`} disabled={index === list.length - 1}
+                            onClick={() => move(habit, 1)}
+                            className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
+                      <ChevronDown size={15} />
+                    </button>
                     <button type="button" aria-label={`Edit ${habit.name}`} onClick={() => onEdit(habit.id)}
                             className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--color-muted)]">
                       <Pencil size={15} />
