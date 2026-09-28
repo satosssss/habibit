@@ -1459,14 +1459,15 @@ Watch-outs: the tile-grid tests (`grid.children` length 4 × 2 grids) must stay 
 
 ## Final verification (spec §11)
 
-- [ ] **All four gates green, in order, on the final tree:** `npm test` (206 pre-existing + all new, zero skips) → `npm run typecheck` → `npm run lint` → `npm run build`.
-- [ ] **Six fix commits exist**, each touching only its task's files; `git status` clean except untracked `.opencode/` + `opencode.json` (never staged).
-- [ ] **Manual spot-check on `npm run start`** (check port 3000 first — `Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue` — background shells die on restart; restart with `npm run start` if dead):
+- [x] **All four gates green, in order, on the final tree:** `npm test` (206 pre-existing + all new, zero skips) → `npm run typecheck` → `npm run lint` → `npm run build`. — final run: **256 tests / typecheck 0 / lint 0 / build 0**.
+- [x] **Six fix commits exist**, each touching only its task's files; `git status` clean except untracked `.opencode/` + `opencode.json` (never staged). — six planned fix commits plus two verification commits recorded below (`417a9bc` past-year heatmap scroll, `9769e57` note-view heatmap focus + streak guard cap; both deviations ledgered in `.superpowers/sdd/2026-09-28-slice-1a-bugfixes/progress.md`).
+- [x] **Manual spot-check on `npm run start`** (check port 3000 first — `Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue` — background shells die on restart; restart with `npm run start` if dead):
   - Today header streak **equals** the Stats `Current Streak` tile on the same data.
   - `Meditate` at 15/15 shows the **check** in the ring; DevTools accessibility tree ends the name with `, completed`.
   - `/stats` heatmap opens **scrolled to the current week**; a past year opens at January; a cell still deep-links to its note view on second click.
   - Trend tile shows `This week` with its comparison line; copy matches §8 (glyph + text).
   - Intention chips appear in **both** forms (Today `+` and Settings); placeholder `Type your own…` visible; selected chip carries `✓` + `aria-pressed`.
-- [ ] `git push origin main`.
-- [ ] **Vercel picked up the push:** the production deployment for `main` reports Success and her URL serves the new build. Production URL: **https://habibit-five.vercel.app/today** (repo `satosssss/habibit`, production branch `main`). Her data is tied to the site's origin, so this one stable production URL is the only URL she ever uses — never a preview URL, and no domain change later without an export/import step. Check via the Vercel dashboard, `gh api repos/{owner}/{repo}/deployments`, or a direct fetch of the URL.
-- [ ] **GitHub default branch is `main`** (switched during pre-execution setup; re-confirm it still points at `main` and Vercel's production branch setting still matches).
+  - Results: all five passed (streak 91 = 91; ring a11y name `, completed`; heatmap auto-scroll + deep-link + past-year-at-January after `417a9bc`; trend tile `6 of 8 / This week / Just getting started · All year: 27%`; chips in both forms). Note-view focus (`scrollLeft 184` at a constrained width) also verified live after `9769e57`.
+- [x] `git push origin main`. — pushed `9d0d4e8..9769e57`.
+- [x] **Vercel picked up the push:** the production deployment for `main` reports Success and her URL serves the new build. Production URL: **https://habibit-five.vercel.app/today** (repo `satosssss/habibit`, production branch `main`). Her data is tied to the site's origin, so this one stable production URL is the only URL she ever uses — never a preview URL, and no domain change later without an export/import step. Check via the Vercel dashboard, `gh api repos/{owner}/{repo}/deployments`, or a direct fetch of the URL.
+- [x] **GitHub default branch is `main`** (switched during pre-execution setup; re-confirm it still points at `main` and Vercel's production branch setting still matches). — confirmed `main`; Vercel production branch matches (pushing `main` produced the production deployment serving https://habibit-five.vercel.app, status `Deployment has completed` → success for `9769e57`; live check confirmed the newest build: note-view heatmap scroll signature `scrollLeft 184`, not `197`).
