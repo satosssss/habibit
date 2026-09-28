@@ -1,3 +1,4 @@
+import { isCompleted } from './stats';
 import type { Habit } from './types';
 
 /**
@@ -8,4 +9,14 @@ import type { Habit } from './types';
 export function clampedValue(habit: Habit, value: number): number {
   const safe = Number.isFinite(value) ? value : 0;
   return Math.min(Math.max(0, safe), habit.target);
+}
+
+/**
+ * One shared completion toggle (spec R2): done → 0, not-done → the full
+ * target (boolean habits: 1). TodayScreen's row toggles and NoteScreen's
+ * checkboxes now behave identically — a partial quantity completes to its
+ * target instead of being zeroed.
+ */
+export function toggleValue(habit: Habit, value: number): number {
+  return isCompleted(habit, value) ? 0 : (habit.type === 'boolean' ? 1 : habit.target);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Habit } from './types';
-import { clampedValue } from './values';
+import { clampedValue, toggleValue } from './values';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
   id: 'h1', name: 'Drink Water', icon: 'droplet', color: '#6366f1', category: 'Health',
@@ -27,5 +27,19 @@ describe('clampedValue (spec R1 — the cap invariant)', () => {
 
   it('caps boolean habits at 1', () => {
     expect(clampedValue(habit({ type: 'boolean', target: 1 }), 5)).toBe(1);
+  });
+});
+
+describe('toggleValue (spec R2 — one shared completion toggle)', () => {
+  it('completes a not-done habit to its full target and back to zero', () => {
+    expect(toggleValue(habit(), 0)).toBe(8);
+    expect(toggleValue(habit(), 3)).toBe(8);    // checkbox completes a partial (NoteScreen semantics)
+    expect(toggleValue(habit(), 8)).toBe(0);
+    expect(toggleValue(habit(), 11)).toBe(0);   // over target still reads as done
+  });
+
+  it('uses 0/1 for boolean habits', () => {
+    expect(toggleValue(habit({ type: 'boolean', target: 1 }), 0)).toBe(1);
+    expect(toggleValue(habit({ type: 'boolean', target: 1 }), 1)).toBe(0);
   });
 });

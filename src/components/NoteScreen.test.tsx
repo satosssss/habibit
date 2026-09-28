@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
+import { clearAll, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
 import { weekColumn } from '@/lib/dates';
 import type { Habit } from '@/lib/types';
 import { quoteFor } from '@/lib/quotes';
@@ -124,5 +124,42 @@ describe('NoteScreen', () => {
       fireEvent.click(await screen.findByRole('button', { name: /share this day/i }));
       expect(await screen.findByText("Couldn't copy the link")).toBeInTheDocument();
     });
+  });
+
+  it('shows the value of a quantity habit in the checklist (R2)', async () => {
+    const w = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups', intention: 'Be Grateful' });
+    await putHabit(w);
+    await putEntry(w.id, '2026-05-24', 3);
+    render(<NoteScreen date="2026-05-24" />);
+    expect(await screen.findByText('3/8 cups')).toBeInTheDocument();
+  });
+
+  it('toggles a quantity row to the full target and back to zero (R2)', async () => {
+    const w = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups', intention: 'Be Grateful' });
+    await putHabit(w);
+    render(<NoteScreen date="2026-05-24" />);
+    const box = await screen.findByRole('checkbox', { name: /drink water/i });
+    fireEvent.click(box);
+    // Wait for the write AND the live re-render, so the second click reads 8
+    // (stale values would toggle from 0 again and write 8 twice).
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: /drink water/i })).toBeChecked()
+    );
+    expect((await loadDay('2026-05-24')).find((e) => e.habitId === w.id)?.value).toBe(8);
+    fireEvent.click(screen.getByRole('checkbox', { name: /drink water/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: /drink water/i })).not.toBeChecked()
+    );
+    expect((await loadDay('2026-05-24')).find((e) => e.habitId === w.id)?.value).toBe(0);
+  });
+
+  it('orders habits within an intention by their order field (R2)', async () => {
+    // Explicit ids: primary-key retrieval is a-read, z-water — deliberately
+    // the OPPOSITE of the order field, so sorting by `order` is observable.
+    await putHabit(habit({ id: 'a-read', name: 'Read', intention: 'Be Grateful', order: 5 }));
+    await putHabit(habit({ id: 'z-water', name: 'Drink Water', intention: 'Be Grateful', order: 1 }));
+    render(<NoteScreen date="2026-05-24" />);
+    const boxes = await screen.findAllByRole('checkbox');
+    expect(boxes[0]).toHaveAccessibleName(/drink water/i);   // order 1 first, not insertion order
   });
 });

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { formatLong, todayKey, weekdayIndex } from '@/lib/dates';
 import { listHabits, loadRange, putEntry } from '@/lib/repo';
 import { isCompleted } from '@/lib/stats';
+import { clampedValue, toggleValue } from '@/lib/values';
 import { reportWriteError } from '@/lib/writeError';
 import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
@@ -44,6 +45,9 @@ export function NoteScreen({ date }: { date: string }) {
       bucket.push(habit);
       map.set(habit.intention, bucket);
     }
+    // Spec §7.3 / R2: habits within an intention follow their order field
+    // (matching Stats), not retrieval/insertion order.
+    for (const bucket of map.values()) bucket.sort((a, b) => a.order - b.order);
     return [...map.entries()];
   }, [habits, date]);
 
@@ -98,7 +102,8 @@ export function NoteScreen({ date }: { date: string }) {
               </h2>
               <ul className="flex flex-col gap-2">
                 {list.map((habit) => {
-                  const done = isCompleted(habit, values[habit.id] ?? 0);
+                  const v = clampedValue(habit, values[habit.id] ?? 0);
+                  const done = isCompleted(habit, v);
                   return (
                     <li key={habit.id}
                         className="flex items-center gap-3 rounded-2xl bg-white/15 px-3 py-2 text-white">
@@ -106,10 +111,17 @@ export function NoteScreen({ date }: { date: string }) {
                         type="checkbox"
                         aria-label={habit.name}
                         checked={done}
-                        onChange={() => void putEntry(habit.id, date, done ? 0 : (habit.type === 'boolean' ? 1 : habit.target)).catch(reportWriteError)}
+                        onChange={() => void putEntry(habit.id, date, toggleValue(habit, v)).catch(reportWriteError)}
                         className="h-4 w-4 accent-white"
                       />
                       <span className={done ? 'line-through opacity-80' : ''}>{habit.name}</span>
+                      {habit.type !== 'boolean' && (
+                        <span className="ml-auto text-xs text-white/70">
+                          {habit.type === 'quantity'
+                            ? `${v}/${habit.target}${habit.unit ? ` ${habit.unit}` : ''}`
+                            : `${Math.round(v / 60)}/${Math.round(habit.target / 60)} minutes`}
+                        </span>
+                      )}
                     </li>
                   );
                 })}

@@ -14,8 +14,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/today',
 }));
 vi.mock('next/link', () => ({
+  // data-next-link marks router-rendered anchors so tests can tell a real
+  // next/link apart from a hand-written <a> (both render <a> in jsdom).
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...rest}>{children}</a>
+    <a href={href} data-next-link="" {...rest}>{children}</a>
   ),
 }));
 
@@ -314,4 +316,20 @@ it('surfaces a failed toggle write on the shared banner (R3)', async () => {
   expect(await screen.findByTestId('write-error'))
     .toHaveTextContent(/couldn't save that change/i);
   vi.restoreAllMocks();
+});
+
+// Spec R2: the future-day branch is dead (routes redirect) — remove it, and
+// a directly-passed future date renders normally with no ghost message.
+it('renders a directly-passed future date without the dead branch (R2)', async () => {
+  await putHabit(habit({ name: 'Daily Stretch' }));
+  render(<TodayScreen date="2026-12-31" />);
+  expect(await screen.findByText('Daily Stretch')).toBeInTheDocument();
+  expect(screen.queryByText(/hasn’t happened yet/i)).not.toBeInTheDocument();
+});
+
+it('routes the empty-state CTA through the client router (R2)', async () => {
+  render(<TodayScreen date={todayKey()} />);
+  const cta = await screen.findByRole('link', { name: /add a habit/i });
+  expect(cta).toHaveAttribute('href', '/settings');
+  expect(cta).toHaveAttribute('data-next-link');   // next/link, not a bare <a>
 });

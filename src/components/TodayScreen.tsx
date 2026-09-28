@@ -1,13 +1,15 @@
 'use client';
 
 import { Flame, Menu, Plus } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { classifyDate, formatLong, todayKey } from '@/lib/dates';
+import { todayKey } from '@/lib/dates';
 import { loadRange, listHabits, putEntry, putHabit } from '@/lib/repo';
 import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
 import { reportWriteError } from '@/lib/writeError';
 import { habitStreaks } from '@/lib/streaks';
+import { toggleValue } from '@/lib/values';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
@@ -117,8 +119,10 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
     catch (err) { reportWriteError(err); }           // stays open — never strand half a save
   }, []);
 
+  // Spec R2: one shared completion toggle — done → 0, not-done → full target,
+  // identical to NoteScreen's checkbox (toggleValue in lib/values).
   const toggle = useCallback((habit: Habit) => {
-    void setValue(habit, (values[habit.id] ?? 0) > 0 ? 0 : (habit.type === 'boolean' ? 1 : habit.target));
+    void setValue(habit, toggleValue(habit, values[habit.id] ?? 0));
   }, [setValue, values]);
 
   const step = useCallback((habit: Habit, delta: number) => {
@@ -133,9 +137,6 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
     });
   }, []);
 
-  const isFuture = classifyDate(date, today) === 'future';
-  const isPast = classifyDate(date, today) === 'past';
-
   return (
     <div className="mx-auto w-full max-w-3xl px-2 sm:px-4 xl:max-w-6xl">
       {/* Spec §5.1: hamburger (mobile) | centered title | flame + streak | `+`.
@@ -149,7 +150,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
         {/* Date-derived text stays empty in prerendered HTML and fills in only
             after mount, so the build day can never freeze into the h1. */}
         <h1 className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-lg font-extrabold">
-          {mounted ? (isPast ? formatLong(date) : 'Today') : ''}
+          {mounted ? 'Today' : ''}
         </h1>
         <div className="ml-auto flex items-center gap-3">
           <span data-testid="header-streak" className="flex items-center gap-1 text-sm font-bold">
@@ -170,12 +171,11 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
       ) : habits.length === 0 ? (
         <div className="p-10 text-center">
           <p className="mb-3 text-base font-semibold">Create your first habit</p>
-          <a href="/settings" className="rounded-2xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white">
+          {/* Spec R2: client-side route, not a full page load. */}
+          <Link href="/settings" className="rounded-2xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white">
             Add a habit
-          </a>
+          </Link>
         </div>
-      ) : isFuture ? (
-        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">That day hasn’t happened yet.</p>
       ) : groups.length === 0 ? (
         <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Nothing scheduled on this day.</p>
       ) : (
