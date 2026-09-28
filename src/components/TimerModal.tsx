@@ -31,7 +31,11 @@ export function TimerModal({
   onClose: () => void;
   onComplete: () => void;
 }) {
-  const [duration, setDuration] = useState(habit.target || 600);
+  // Spec R1 §2.2: the session can never run longer than the habit's target.
+  // max(60, …) keeps a corrupt legacy target of 0 from collapsing the floor.
+  const cap = Math.max(60, habit.target);
+  const clampDuration = useCallback((d: number) => Math.min(cap, Math.max(60, d)), [cap]);
+  const [duration, setDuration] = useState(() => clampDuration(habit.target || 600));
   const [elapsed, setElapsed] = useState(initialSeconds);
   const [stage, setStage] = useState<Stage>('idle');
   const running = stage === 'running';
@@ -58,9 +62,11 @@ export function TimerModal({
     if (!running || completed.current || elapsed < duration) return;
     completed.current = true;
     setStage('idle');
-    void putEntry(habit.id, date, habit.target);   // spec §6: value = target
+    // Spec R1.2.2: honest accounting — log the session actually run
+    // (a 14-minute session on a 15-minute habit writes 840, not the target).
+    void putEntry(habit.id, date, Math.min(elapsed, duration));
     onComplete();
-  }, [elapsed, duration, running, habit.id, habit.target, date, onComplete]);
+  }, [elapsed, duration, running, habit.id, date, onComplete]);
 
   // Spec §6: closing mid-run keeps the elapsed seconds in the entry, so
   // reopening the modal resumes where it left off.
@@ -74,7 +80,7 @@ export function TimerModal({
 
   // Spec §6: a route change unmounts the modal without close(); the session's
   // seconds still land in the entry — unless close/Stop already wrote them or
-  // the session completed (which wrote `target`, not `elapsed`).
+  // the session completed (which already wrote min(elapsed, duration)).
   useEffect(() => () => {
     if (completed.current) return;
     const value = elapsedRef.current;
@@ -96,11 +102,11 @@ export function TimerModal({
   const startRepeat = useCallback((dir: 1 | -1) => {
     stopRepeat();
     const step = () => {
-      setDuration((d) => Math.max(60, d + dir * 300));
+      setDuration((d) => clampDuration(d + dir * 300));
       repeatRef.current = window.setTimeout(step, HOLD_REPEAT_MS);
     };
     repeatRef.current = window.setTimeout(step, HOLD_DELAY_MS);
-  }, [stopRepeat]);
+  }, [stopRepeat, clampDuration]);
 
   const pressedRef = useRef(false);
   // Handlers for the ± steppers: pointerdown steps ±1 immediately and arms
@@ -109,7 +115,7 @@ export function TimerModal({
   const stepper = (dir: 1 | -1) => ({
     onPointerDown: () => {
       pressedRef.current = true;
-      setDuration((d) => Math.max(60, d + dir * 60));
+      setDuration((d) => clampDuration(d + dir * 60));
       startRepeat(dir);
     },
     onPointerUp: stopRepeat,
@@ -118,12 +124,14 @@ export function TimerModal({
     onBlur: stopRepeat,
     onClick: () => {
       if (pressedRef.current) { pressedRef.current = false; return; }
-      setDuration((d) => Math.max(60, d + dir * 60));
+      setDuration((d) => clampDuration(d + dir * 60));
     },
   });
 
   const remaining = Math.max(0, duration - elapsed);
-  const ratio = duration > 0 ? elapsed / duration : 0;
+  // Spec R1.2.2: an over-target entry (legacy data) sweeps at most a full
+  // circle — never beyond 360deg.
+  const ratio = duration > 0 ? Math.min(1, elapsed / duration) : 0;
   // Spec §6: the countdown ring is tick-marked — one tick per minute of the
   // session; each tick depletes (fades out) once the elapsed sweep passes it.
   const tickCount = Math.max(1, Math.round(duration / 60));
@@ -157,11 +165,13 @@ export function TimerModal({
 
       <div className="mt-4 flex items-center justify-center gap-6">
         <button type="button" aria-label="Decrease duration" {...stepper(-1)}
-                className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white">
+                disabled={duration <= 60}
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white disabled:opacity-40">
           <Minus size={18} />
         </button>
         <button type="button" aria-label="Increase duration" {...stepper(1)}
-                className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white">
+                disabled={duration >= cap}
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white disabled:opacity-40">
           <Plus size={18} />
         </button>
       </div>
@@ -180,8 +190,10 @@ export function TimerModal({
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white">
           <RotateCcw size={16} />
         </button>
-        <button type="button" aria-label="+5 minutes" onClick={() => setDuration((d) => d + 300)}
-                className="flex-1 rounded-full px-4 py-2.5 text-sm font-bold text-white"
+        <button type="button" aria-label="+5 minutes"
+                disabled={duration >= cap}
+                onClick={() => setDuration((d) => clampDuration(d + 300))}
+                className="flex-1 rounded-full px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
                 style={{ background: habit.color }}>
           +5 minutes
         </button>
