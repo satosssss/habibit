@@ -165,4 +165,48 @@ describe('HabitForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
     expect(onSave.mock.calls[2][0].target).toBe(60);
   });
+
+  // Spec §7 (R5): intention chips under the intention field.
+  it('shows in-use intentions then presets as chips, deduped case-insensitively (R5)', () => {
+    const { container } = render(
+      <HabitForm habit={{ ...habit, intention: 'study' }} open onSave={vi.fn()} onClose={vi.fn()}
+                 intentions={['Study', 'study', 'Be Grateful']} />
+    );
+    const chips = container.querySelectorAll('[data-field="intention"] button');
+    expect([...chips].map((c) => c.getAttribute('aria-label'))).toEqual(
+      ['Study', 'Be Grateful', 'Health', 'Calm', 'Growth', 'Joy'] // deduped, presets last
+    );
+    expect(chips[0]).toHaveAttribute('aria-pressed', 'true');     // draft 'study' ≡ chip 'Study'
+    expect(chips[1]).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('taps a chip into the intention with a non-color selected cue (R5)', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, intention: '' }} open onSave={onSave} onClose={vi.fn()}
+                     intentions={['Study']} />);
+    const chip = screen.getByRole('button', { name: 'Health' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    expect(chip).not.toHaveTextContent('✓');
+    fireEvent.click(chip);
+    expect(screen.getByLabelText('Intention')).toHaveValue('Health');
+    const pressed = screen.getByRole('button', { name: 'Health' });
+    expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    expect(pressed).toHaveTextContent('✓'); // glyph + state, never color alone
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].intention).toBe('Health');
+  });
+
+  it('points the custom path at the input: placeholder + free typing still win (R5)', () => {
+    const onSave = vi.fn();
+    render(<HabitForm habit={{ ...habit, intention: '' }} open onSave={onSave} onClose={vi.fn()}
+                     intentions={['Study']} />);
+    expect(screen.getByLabelText('Intention')).toHaveAttribute('placeholder', 'Type your own…');
+    expect(screen.getByLabelText('Category')).toHaveAttribute('placeholder', 'Choose or type category'); // untouched
+
+    fireEvent.change(screen.getByLabelText('Intention'), { target: { value: 'Deep focus' } });
+    for (const name of ['Study', 'Health'])
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
+    expect(onSave.mock.calls[0][0].intention).toBe('Deep focus');
+  });
 });

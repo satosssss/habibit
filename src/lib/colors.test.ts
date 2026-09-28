@@ -21,6 +21,10 @@ describe('intentionColor', () => {
     expect(intentionColor('Study')).toBe(intentionColor('Study'));
   });
 
+  it('is case-insensitive across spellings (spec R5 pin)', () => {
+    expect(intentionColor('study')).toBe(intentionColor('Study'));
+  });
+
   it('always lands in the subtle palette', () => {
     for (const name of ['Study', 'Fix Bed', 'Take a Bath', 'Do Hard Things', 'z']) {
       expect(INTENTION_PALETTE).toContain(intentionColor(name));

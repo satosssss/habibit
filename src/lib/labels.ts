@@ -22,3 +22,23 @@ export function subtext(habit: Habit, value: number): string {
   if (habit.type === 'timer') return `${freq}, ${minutes(value)}/${minutes(habit.target)}`;
   return freq;
 }
+
+const INTENTION_PRESETS = ['Health', 'Calm', 'Growth', 'Joy'];
+
+/**
+ * Chip row for the intention field (spec §7/R5): in-use intentions first —
+ * trimmed, deduped case-insensitively, shown in first-seen casing — then the
+ * presets the user hasn't used yet. Free text stays the input's job.
+ */
+export function intentionSuggestions(inUse: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [...inUse, ...INTENTION_PRESETS]) {
+    const value = raw.trim();
+    const key = value.toLowerCase();
+    if (!value || seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}

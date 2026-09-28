@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { HABIT_COLORS, intentionColor } from '@/lib/colors';
 import { ICON_CHOICES, nameIcon } from '@/lib/icons';
+import { intentionSuggestions } from '@/lib/labels';
 import type { Habit, HabitType } from '@/lib/types';
 import { Combobox } from './Combobox';
 import { Sheet } from './Sheet';
@@ -63,7 +64,24 @@ export function HabitForm({
         </div>
         <div data-field="intention">
           <Combobox label="Intention" value={draft.intention} options={intentions}
-                    listId="habit-intention-list" onChange={(v) => set('intention', v)} />
+                    listId="habit-intention-list" placeholder="Type your own…"
+                    onChange={(v) => set('intention', v)} />
+          {/* Spec §7/R5: suggestion chips — the input above remains the custom path. */}
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {intentionSuggestions(intentions).map((suggestion) => {
+              const active = draft.intention.trim().toLowerCase() === suggestion.toLowerCase();
+              return (
+                <button key={suggestion} type="button" aria-label={suggestion}
+                        aria-pressed={active} onClick={() => set('intention', suggestion)}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                                 : 'border-[var(--color-line)]'
+                        }`}>
+                  {active ? '✓ ' : ''}{suggestion}
+                </button>
+              );
+            })}
+          </div>
           <p className="mt-1 flex items-center gap-2 text-xs text-[var(--color-subtle)]">
             <span data-testid="intention-swatch" className="inline-block h-3 w-3 rounded-full"
                   style={{ background: intentionColor(draft.intention) }} />
