@@ -1464,5 +1464,5 @@ Watch-outs: the tile-grid tests (`grid.children` length 4 × 2 grids) must stay 
   - Trend tile shows `This week` with its comparison line; copy matches §8 (glyph + text).
   - Intention chips appear in **both** forms (Today `+` and Settings); placeholder `Type your own…` visible; selected chip carries `✓` + `aria-pressed`.
 - [ ] `git push origin main`.
-- [ ] **Vercel picked up the push:** the production deployment for `main` reports Success and her URL serves the new build (Vercel production branch = `main`; a push to `main` is what triggers it). Check via the Vercel dashboard or `gh api repos/{owner}/{repo}/deployments`.
+- [ ] **Vercel picked up the push:** the production deployment for `main` reports Success and her URL serves the new build. Production URL: **https://habibit-five.vercel.app/today** (repo `satosssss/habibit`, production branch `main`). Her data is tied to the site's origin, so this one stable production URL is the only URL she ever uses — never a preview URL, and no domain change later without an export/import step. Check via the Vercel dashboard, `gh api repos/{owner}/{repo}/deployments`, or a direct fetch of the URL.
 - [ ] **GitHub default branch is `main`** (switched during pre-execution setup; re-confirm it still points at `main` and Vercel's production branch setting still matches).
