@@ -1,6 +1,6 @@
 # Habibit — Slice 1a: Bug Fixes (Design Spec)
 
-**Date:** 2026-09-28 · **Status:** Draft for review · **Size:** S (one sitting)
+**Date:** 2026-09-28 · **Status:** Approved 2026-09-28 (incl. §7/§8 amendments) · **Size:** S (one sitting)
 
 Amends the parent spec [`2026-09-23-habibit-design.md`](./2026-09-23-habibit-design.md) at
 **§5.4** (habit-row controls), **§7.2** (year-stats tiles), **§7.4** (heatmap cells/tooltip),
@@ -158,16 +158,21 @@ not the rate (asserted together in one test); a bonus-only heatmap cell renders 
      displayed in first-seen casing);
   2. then presets **Health, Calm, Growth, Joy** (skipping any already in-use).
 - Free text stays in the existing combobox input — **the input is the custom path**, so there is
-  no separate "Custom…" chip (it would only focus the field above it).
+  no separate "Custom…" chip (it would only focus the field above it). The intention input gets
+  a placeholder that makes this obvious: **`Type your own…`** (added as a prop on the shared
+  Combobox; the category input is untouched this slice).
 - Chips are buttons with `aria-pressed` when normalized-equal to the draft intention; tapping
   sets the intention to the chip's exact string. Typed custom values save trimmed (unchanged).
+- **Selected-chip state is never color-only:** a selected chip additionally renders a leading
+  `✓` glyph; the accent fill/border only reinforces it.
 - **Color hashing: no change — verified already normalized** (`intentionColor` does
   `trim().toLowerCase()` before hashing, `colors.ts:29`). Pinned with a case-insensitive test.
 - Grouping (Stats bars, Today's intention list) stays exact-match until existing data is
   re-tagged by hand later — **no migration in this slice** (owner's decision).
 
 **Tests:** habits with `Study` + `study` → one chip shown as `Study`; presets follow in-use and
-are deduped; chip tap sets the value and toggles `aria-pressed`; custom typing unaffected;
+are deduped; chip tap sets the value and toggles `aria-pressed`; selected chip renders the `✓`
+non-color cue; intention input shows the `Type your own…` placeholder; custom typing unaffected;
 `intentionColor('study') === intentionColor('Study')` pinned.
 
 ---
@@ -185,12 +190,18 @@ Amends parent **§7.2** — the `Year stats` row's fourth tile.
 - **Comparison line — rate over identical elapsed windows:** this week Monday → today vs last
   week Monday → the same weekday. Rates (not raw counts) are compared **because the denominators
   can differ when a habit is created or deleted mid-week** — counts would then show a lying
-  arrow. Differences under one percentage point read as same.
-  - `↑ Stronger than last week`
-  - `≈ Same as last week`
-  - `↓ Quieter than last week, that’s okay`
-  - last window had no scheduled slots → `First week`
-  - this window has no scheduled slots → `A quiet week`
+  arrow.
+- **Decision rule, in order** (first match wins; `Δ` = this week's rate − last week's rate):
+  1. this window has **0 scheduled slots** → `A quiet week`
+  2. last window has **0 scheduled slots** → `First week`
+  3. this window has **fewer than 10 scheduled slots** → `Just getting started`
+     (**N = 10** — early Monday with 8 daily habits yields 8 slots, where one miss swings the
+     rate by 12.5pp; below N the arrow is noise, so it stays hidden.)
+  4. **|Δ| < 4.0 percentage points** → `≈ Same as last week`
+     (**tolerance = 4pp** — at a full week of ~56 slots one flipped habit is ~1.8pp; small
+     churn must not read as Stronger/Quieter. 83% vs 82% reads as Same.)
+  5. Δ ≥ +4.0pp → `↑ Stronger than last week`
+  6. Δ ≤ −4.0pp → `↓ Quieter than last week, that’s okay`
   - Glyph + text, never color alone.
 - **Secondary line (`sub`):** `{comparison} · All year: {rate}%` — the all-time percentage is
   preserved here, demoted from headline (it exists nowhere else; heatmap tooltips are per-day).
@@ -210,12 +221,16 @@ caption. All lines are plain text nodes (screen-reader readable).
    (equal elapsed days).
 2. Mid-week habit creation: denominators differ between windows; a fixture where raw counts rise
    but the rate falls must render the `↓` copy (pins rate-based comparison — your case).
-3. All five copy variants (`↑`, `≈`, `↓`, `First week`, `A quiet week`).
+3. All six copy variants (`↑`, `≈`, `↓`, `First week`, `Just getting started`, `A quiet week`).
 4. Past year: counts value, `Completed in {year}` caption, **no** `All year`, **no** comparison.
 5. Scheduled-slots only: an off-day bonus completion raises the Completions tile but **not** the
    weekly `X of Y` — both asserted in one test (your case).
 6. Days after today never enter either window's denominator.
 7. Existing `Completion Rate` tile assertions are replaced by the above.
+8. **Tolerance boundary:** |Δ| = 3.99pp → `≈ Same as last week`; |Δ| = 4.00pp → arrow.
+9. **Minimum-data boundary & precedence:** this-window denominator 9 → `Just getting started`;
+   10 → comparison proceeds; 0 → `A quiet week`; this > 0 with last-window 0 → `First week`
+   (rule order pinned: quiet → first week → just getting started → tolerance).
 
 ---
 
