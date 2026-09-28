@@ -912,7 +912,7 @@ import { intentionSuggestions } from './labels';
 describe('intentionSuggestions', () => {
   it('lists in-use intentions first, deduped case-insensitively in first-seen casing', () => {
     expect(intentionSuggestions(['Study', 'study', ' Be Grateful ']))
-      .toEqual(['Study', 'Be Grateful']);
+      .toEqual(['Study', 'Be Grateful', 'Health', 'Calm', 'Growth', 'Joy']); // in-use first, then presets (fixture correction: the original expectation omitted them, contradicting this task's interface line, test 2 below, and the HabitForm chip test)
   });
 
   it('appends presets the user has not used yet, skipping already-used ones', () => {
