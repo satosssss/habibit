@@ -205,3 +205,37 @@ describe('TodayScreen prerender (SSR)', () => {
     expect(html).toContain('Loading'); // the clock-independent body still renders
   });
 });
+
+// Spec §3 (R1): one shared, uncapped streak window for Today and Stats.
+describe('shared all-time streak (R1)', () => {
+  const longFixture = async () => {
+    const h = habit({ name: 'Meditate' });
+    h.createdAt = Date.parse(`${addDays(todayKey(), -89)}T09:00:00`);
+    await putHabit(h);
+    for (let i = 0; i < 90; i++) await putEntry(h.id, addDays(todayKey(), -i), 1);
+    return h;
+  };
+
+  it('shows an uncapped 90-day streak in the header and on the habit badge', async () => {
+    await longFixture();
+    render(<TodayScreen />);
+    // The header span renders immediately with 0; wait for the live queries to
+    // fill (findByTestId alone would resolve on the first, empty paint).
+    // Old code capped both at 41 (a 40-day window + today).
+    await waitFor(() => expect(screen.getByTestId('header-streak')).toHaveTextContent('90'));
+    expect(screen.getByTestId('flame-badge')).toHaveTextContent('90');
+  });
+
+  it('matches the Stats Current Streak tile on the same data', async () => {
+    await longFixture();
+    render(<TodayScreen />);
+    await waitFor(() => expect(screen.getByTestId('header-streak')).toHaveTextContent('90'));
+    const header = screen.getByTestId('header-streak');
+
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    const tile = (await screen.findByText('Current Streak')).closest('div')!;
+    const tileValue = await within(tile).findByText('90');
+    expect(header.textContent?.trim()).toBe(tileValue.textContent?.trim());
+  });
+});

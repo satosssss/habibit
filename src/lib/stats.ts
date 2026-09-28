@@ -202,6 +202,19 @@ export function levelFor(ratio: number, completed: number): 0 | 1 | 2 | 3 | 4 {
   return Math.min(LEVEL_STEPS, Math.ceil(ratio * LEVEL_STEPS)) as 1 | 2 | 3 | 4;
 }
 
+const EARLIEST_KEY = '2000-01-01';
+
+/**
+ * The one window both screens share (spec §3/R1): Jan 1 of the earliest
+ * habit's creation year. Empty list → a fixed early constant, so Today's
+ * entry query can subscribe before habits have loaded, then refine.
+ */
+export function allTimeStart(habits: Habit[]): string {
+  if (habits.length === 0) return EARLIEST_KEY;
+  const earliest = Math.min(...habits.map((h) => h.createdAt));
+  return `${new Date(earliest).getFullYear()}-01-01`;
+}
+
 export function heatmapCells(
   year: number,
   habits: Habit[],

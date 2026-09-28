@@ -3,9 +3,9 @@
 import { Flame, Menu, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { addDays, classifyDate, formatLong, todayKey } from '@/lib/dates';
+import { classifyDate, formatLong, todayKey } from '@/lib/dates';
 import { loadRange, listHabits, putEntry, putHabit } from '@/lib/repo';
-import { buildDayStats, currentStreak } from '@/lib/stats';
+import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
 import { habitStreaks } from '@/lib/streaks';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
@@ -62,9 +62,10 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   }, []);
 
   const habits = useLiveQuery(() => listHabits(), []);
-  // A 40-day window so per-habit streaks and the header flame come from real
-  // history; the visible day's values are filtered out of it below.
-  const rangeStart = addDays(date, -40);
+  // Spec §3/R1: full history — the same window Stats uses. Before habits
+  // load this is the fixed early constant; liveQuery re-subscribes when the
+  // earliest createdAt year refines it.
+  const rangeStart = allTimeStart(habits ?? []);
   const entries = useLiveQuery(() => loadRange(rangeStart, date), [rangeStart, date]);
   const groups = useMemo(() => {
     const list = habits ?? [];
@@ -101,9 +102,9 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
 
   const overallStreak = useMemo(() => {
     if (!habits || !entries) return 0;
-    const stats = buildDayStats(habits, entries, { from: addDays(date, -40), to: date });
+    const stats = buildDayStats(habits, entries, { from: rangeStart, to: date });
     return currentStreak(stats, date);
-  }, [habits, entries, date]);
+  }, [habits, entries, date, rangeStart]);
 
   const setValue = useCallback(async (habit: Habit, value: number) => {
     await putEntry(habit.id, date, Math.max(0, value));
@@ -149,7 +150,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
           {mounted ? (isPast ? formatLong(date) : 'Today') : ''}
         </h1>
         <div className="ml-auto flex items-center gap-3">
-          <span className="flex items-center gap-1 text-sm font-bold">
+          <span data-testid="header-streak" className="flex items-center gap-1 text-sm font-bold">
             <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}
           </span>
           <button type="button" aria-label="Add habit" onClick={() => setCreating(blankHabit())}

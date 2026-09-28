@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Entry, Habit } from './types';
 import {
-  buildDayStats, completionRate, countActiveDays, countPerfectDays, currentStreak,
+  allTimeStart, buildDayStats, completionRate, countActiveDays, countPerfectDays, currentStreak,
   heatmapCells, isCompleted, longestStreak, perIntentionTotals, sumCompletions,
 } from './stats';
 
@@ -293,5 +293,18 @@ describe('heatmap levels for off-schedule days (spec §6/§7.4)', () => {
     const cells = heatmapCells(2026, [swim, weekend], [entry('x', '2026-06-15', 1)], '2026-06-15');
     expect(cells.find((c) => c.date === '2026-06-15')).toMatchObject(
       { level: 1, scheduled: 1, completed: 0, bonus: 1 });
+  });
+});
+
+describe('allTimeStart', () => {
+  it('is Jan 1 of the earliest habit creation year (shared by Today and Stats)', () => {
+    expect(allTimeStart([
+      habit({ createdAt: Date.parse('2024-05-06T10:00:00') }),
+      habit({ createdAt: Date.parse('2026-01-02T00:00:00') }),
+    ])).toBe('2024-01-01');
+  });
+
+  it('falls back to the fixed early constant before habits exist', () => {
+    expect(allTimeStart([])).toBe('2000-01-01');
   });
 });

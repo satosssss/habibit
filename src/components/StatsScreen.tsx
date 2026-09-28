@@ -6,7 +6,7 @@ import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
 import { listHabits, loadRange } from '@/lib/repo';
 import {
-  buildDayStats, completionRate, countActiveDays, countPerfectDays,
+  allTimeStart, buildDayStats, completionRate, countActiveDays, countPerfectDays,
   currentStreak, longestStreak, perIntentionTotals, sumCompletions,
 } from '@/lib/stats';
 import { todayKey } from '@/lib/dates';
@@ -36,8 +36,7 @@ export function StatsScreen() {
 
   useEffect(() => {
     if (!habits?.length) return;
-    const earliest = new Date(Math.min(...habits.map((h) => h.createdAt))).getFullYear();
-    setMinYear(Math.min(earliest, maxYear));
+    setMinYear(Math.min(Number(allTimeStart(habits).slice(0, 4)), maxYear));
   }, [habits, maxYear]);
 
   const stats = useMemo(
