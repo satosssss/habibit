@@ -95,3 +95,8 @@ export function monthLabelPositions(year: number): Array<{ month: number; column
     column: weekColumn(toKey(new Date(year, month, 1)), year),
   }));
 }
+
+/** Monday of the week containing `key` (weeks start Monday — spec §8/R6). */
+export function mondayOf(key: string): string {
+  return addDays(key, -((weekdayIndex(key) + 6) % 7)); // Sun → -6, Mon → 0
+}

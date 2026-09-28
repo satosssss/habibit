@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, Habit } from './types';
+import { addDays, todayKey } from './dates';
 import {
   allTimeStart, buildDayStats, completionRate, countActiveDays, countPerfectDays, currentStreak,
   heatmapCells, isCompleted, longestStreak, perIntentionTotals, sumCompletions,
+  trendCopy, weekWindows,
 } from './stats';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -306,5 +308,79 @@ describe('allTimeStart', () => {
 
   it('falls back to the fixed early constant before habits exist', () => {
     expect(allTimeStart([])).toBe('2000-01-01');
+  });
+});
+
+describe('weekWindows (spec §8: equal elapsed windows, Monday start)', () => {
+  it('spans Mon→today against Mon→the same weekday', () => {
+    expect(weekWindows('2026-09-30')).toEqual({          // a Wednesday
+      thisFrom: '2026-09-28', thisTo: '2026-09-30',      // 3 days
+      lastFrom: '2026-09-21', lastTo: '2026-09-23',      // 3 days
+    });
+  });
+});
+
+describe('trendCopy (spec §8 decision rule)', () => {
+  it('renders all six copy variants exactly', () => {
+    expect(trendCopy(0, 0, 0, 0)).toBe('A quiet week');
+    expect(trendCopy(0.5, 12, 0, 0)).toBe('First week');
+    expect(trendCopy(0.5, 9, 0.5, 9)).toBe('Just getting started');
+    expect(trendCopy(0.83, 56, 0.82, 56)).toBe('≈ Same as last week');
+    expect(trendCopy(1, 12, 0.5, 12)).toBe('↑ Stronger than last week');
+    expect(trendCopy(0.5, 12, 1, 12)).toBe('↓ Quieter than last week, that’s okay');
+  });
+
+  it('pins the 4pp tolerance boundary', () => {
+    expect(trendCopy(0.8399, 100, 0.8, 100)).toBe('≈ Same as last week');     // 3.99pp
+    expect(trendCopy(0.84, 100, 0.8, 100)).toBe('↑ Stronger than last week'); // exactly 4.00pp
+    expect(trendCopy(0.8, 100, 0.84, 100)).toBe('↓ Quieter than last week, that’s okay');
+    expect(trendCopy(0.87, 100, 0.83, 100)).toBe('↑ Stronger than last week'); // 0.87−0.83 is 3.9999… in floats → rounds to 4.00
+  });
+
+  it('pins precedence: quiet → first week → just getting started → tolerance', () => {
+    expect(trendCopy(1, 0, 1, 10)).toBe('A quiet week');            // no slots this week wins
+    expect(trendCopy(1, 5, 0, 0)).toBe('First week');               // no baseline beats N
+    expect(trendCopy(1, 9, 1, 56)).toBe('Just getting started');    // baseline exists, too little data
+    expect(trendCopy(1, 10, 0.5, 56)).toBe('↑ Stronger than last week'); // N = 10 proceeds
+  });
+});
+
+describe('timezone independence (Asia/Manila, second-tz pin)', () => {
+  const withTZ = <T>(tz: string, fn: () => T): T => {
+    const prev = process.env.TZ;
+    process.env.TZ = tz;
+    try { return fn(); } finally { process.env.TZ = prev; }
+  };
+
+  it('keeps a streak fixture on the same calendar days', () => {
+    withTZ('Asia/Manila', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2026-09-28T03:00:00Z')); // Mon 11:00 Manila / Sun 20:00 LA
+        // Guard: prove the override is live — under the LA pin this instant is Sep 27.
+        expect(new Date('2026-09-28T03:00:00Z').getDate()).toBe(28);
+        const today = todayKey();
+        expect(today).toBe('2026-09-28');
+        const stats = buildDayStats(
+          [habit()],
+          [entry('h1', today, 1), entry('h1', addDays(today, -1), 1), entry('h1', addDays(today, -2), 1)],
+          { from: addDays(today, -6), to: today },
+        );
+        expect(currentStreak(stats, today)).toBe(3);
+      } finally { vi.useRealTimers(); }
+    });
+  });
+
+  it('opens the Monday week window on the same dates', () => {
+    withTZ('Asia/Manila', () => {
+      expect(weekWindows('2026-09-30')).toEqual({          // Wednesday
+        thisFrom: '2026-09-28', thisTo: '2026-09-30',
+        lastFrom: '2026-09-21', lastTo: '2026-09-23',
+      });
+      expect(weekWindows('2026-09-27')).toEqual({          // Sunday closes its own week
+        thisFrom: '2026-09-21', thisTo: '2026-09-27',
+        lastFrom: '2026-09-14', lastTo: '2026-09-20',
+      });
+    });
   });
 });

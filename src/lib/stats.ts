@@ -1,4 +1,4 @@
-import { addDays, gridStart, todayKey, weekColumn, weekdayIndex, yearDays } from './dates';
+import { addDays, gridStart, mondayOf, todayKey, weekColumn, weekdayIndex, yearDays } from './dates';
 import type { Entry, Habit } from './types';
 
 export interface DayStat {
@@ -251,4 +251,46 @@ export function heatmapCells(
     });
   }
   return cells;
+}
+
+export interface WeekWindows {
+  thisFrom: string; thisTo: string; lastFrom: string; lastTo: string;
+}
+
+/**
+ * Identical-length windows (spec §8/R6): this week Monday → today, against
+ * last week Monday → the same weekday. Rates, not counts, are then compared,
+ * so a mid-week habit creation cannot show a lying arrow.
+ */
+export function weekWindows(today: string): WeekWindows {
+  const thisFrom = mondayOf(today);
+  return { thisFrom, thisTo: today, lastFrom: addDays(thisFrom, -7), lastTo: addDays(today, -7) };
+}
+
+/**
+ * The §8 copy rule. Rates are fractions; slots are scheduled-slot counts.
+ * Order: quiet → first week → just getting started → ±4.00pp tolerance.
+ */
+export function trendCopy(rateThis: number, slotsThis: number, rateLast: number, slotsLast: number): string {
+  if (slotsThis === 0) return 'A quiet week';
+  if (slotsLast === 0) return 'First week';
+  if (slotsThis < 10) return 'Just getting started';           // N = 10 (§8 rule 3)
+  // Round to whole hundredths of a percentage point first: binary floats make
+  // 0.87 − 0.83 = 3.9999…, but in decimal it is exactly 4.00 (§8 rule 4–6).
+  const delta = Math.round((rateThis - rateLast) * 10_000) / 100;
+  if (Math.abs(delta) < 4) return '≈ Same as last week';
+  return delta > 0 ? '↑ Stronger than last week' : '↓ Quieter than last week, that’s okay';
+}
+
+export interface WeekTrend { completed: number; slots: number; copy: string; }
+
+export function weekTrend(habits: Habit[], entries: Entry[], today: string): WeekTrend {
+  const { thisFrom, thisTo, lastFrom, lastTo } = weekWindows(today);
+  const now = completionRate(buildDayStats(habits, entries, { from: thisFrom, to: thisTo }));
+  const prev = completionRate(buildDayStats(habits, entries, { from: lastFrom, to: lastTo }));
+  return {
+    completed: now.completed,
+    slots: now.scheduled,
+    copy: trendCopy(now.rate, now.scheduled, prev.rate, prev.scheduled),
+  };
 }

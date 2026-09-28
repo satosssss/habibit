@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays, classifyDate, dayOfYear, formatLong, fromKey, isValidDateKey,
-  monthLabelPositions, stripDays, toKey, weekdayIndex, yearDays,
+  mondayOf, monthLabelPositions, stripDays, toKey, weekdayIndex, yearDays,
 } from './dates';
 
 describe('date keys', () => {
@@ -84,5 +84,13 @@ describe('date keys', () => {
     const columns = labels.map((l) => l.column);
     expect([...columns].sort((a, b) => a - b)).toEqual(columns);
     expect(columns.at(-1)).toBeLessThanOrEqual(52);
+  });
+});
+
+describe('mondayOf', () => {
+  it('returns the Monday of the key’s week (Mon→itself, mid-week→back, Sun→back 6)', () => {
+    expect(mondayOf('2026-09-28')).toBe('2026-09-28'); // Monday
+    expect(mondayOf('2026-09-30')).toBe('2026-09-28'); // Wednesday
+    expect(mondayOf('2026-10-04')).toBe('2026-09-28'); // Sunday
   });
 });

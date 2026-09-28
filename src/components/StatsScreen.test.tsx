@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
 import { todayKey, addDays } from '@/lib/dates';
@@ -19,7 +19,7 @@ describe('StatsScreen', () => {
     await putHabit(habit());
     const { StatsScreen } = await import('./StatsScreen');
     render(<StatsScreen />);
-    for (const caption of ['Active Days', 'Perfect Days', 'Completion Rate', 'Completions',
+    for (const caption of ['Active Days', 'Perfect Days', 'This week', 'Completions',
                            'Current Streak', 'Longest Streak', 'Total Active Days', 'Total Perfect Days']) {
       expect(await screen.findByText(caption)).toBeInTheDocument();
     }
@@ -89,5 +89,141 @@ describe('StatsScreen', () => {
     expect(
       grateful.compareDocumentPosition(study) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+});
+
+// Spec §8 (R6): the fourth year tile. Only Date is faked (toFake: ['Date']),
+// so liveQuery/findBy keep real timers; the pinned Wednesday makes every
+// Monday-start window fixture weekday-independent.
+describe('weekly trend tile (R6)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-30T12:00:00'));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('compares identical elapsed windows, not whole weeks (R6.1)', async () => {
+    // 4 daily habits → 12 slots per window (≥ N = 10, so rule 3 doesn't fire).
+    const habits = [habit({ name: 'A' }), habit({ name: 'B' }), habit({ name: 'C' }), habit({ name: 'D' })];
+    for (const h of habits) await putHabit(h);
+    // Last week: all 12 elapsed slots done (100%); Thu–Sun deliberately untouched.
+    for (const d of ['2026-09-21', '2026-09-22', '2026-09-23'])
+      for (const h of habits) await putEntry(h.id, d, 1);
+    // This week: Mon+Tue done, Wed missed → 8/12 = 67%. A whole-week reading
+    // would score last week 12/28 = 43% and claim "Stronger"; elapsed says ↓.
+    for (const d of ['2026-09-28', '2026-09-29'])
+      for (const h of habits) await putEntry(h.id, d, 1);
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('8 of 12')).toBeInTheDocument();
+    expect(await screen.findByText(/↓ Quieter than last week, that’s okay/)).toBeInTheDocument();
+  });
+
+  it('compares rates, not counts, when a habit starts mid-week (R6.2)', async () => {
+    const habits = [habit({ name: 'A' }), habit({ name: 'B' }), habit({ name: 'C' }), habit({ name: 'D' })];
+    for (const h of habits) await putHabit(h);
+    // A fifth habit joins on Monday: this window gains slots (+3), last one doesn't.
+    const fresh = await putHabit(habit({ name: 'Start small', createdAt: Date.parse('2026-09-28T00:00:00') }));
+    for (const d of ['2026-09-21', '2026-09-22', '2026-09-23'])
+      for (const h of habits) await putEntry(h.id, d, 1);   // last: 12/12 = 100%, counts 12
+    for (const d of ['2026-09-28', '2026-09-29', '2026-09-30'])
+      for (const h of habits) await putEntry(h.id, d, 1);
+    await putEntry(fresh.id, '2026-09-28', 1);              // this: 13/15 = 87% — counts rose 12→13, rate fell
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('13 of 15')).toBeInTheDocument();  // denominators differ (12 vs 15)
+    expect(await screen.findByText(/↓ Quieter than last week/)).toBeInTheDocument();
+  });
+
+  it('renders "A quiet week" when nothing is scheduled this window (R6.3)', async () => {
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('0 of 0')).toBeInTheDocument();
+    expect(await screen.findByText('A quiet week · All year: 0%')).toBeInTheDocument(); // sub format pinned
+  });
+
+  it('renders "First week" without a baseline (R6.3)', async () => {
+    const fresh = await putHabit(habit({ createdAt: Date.parse('2026-09-28T09:00:00') })); // Monday of this week
+    await putEntry(fresh.id, '2026-09-29', 1);
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText(/First week · All year/)).toBeInTheDocument();
+  });
+
+  it('renders "Just getting started" below ten slots (R6.3/§8 rule 3)', async () => {
+    const daily = habit({});
+    await putHabit(daily);
+    await putEntry(daily.id, '2026-09-30', 1);
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('1 of 3')).toBeInTheDocument(); // Mon+Tue+Wed, one done
+    expect(await screen.findByText(/Just getting started · All year/)).toBeInTheDocument();
+  });
+
+  it('renders "≈ Same as last week" when both windows are untouched and ≥ 10 slots (R6.3)', async () => {
+    for (const name of ['A', 'B', 'C', 'D']) await putHabit(habit({ name })); // 4 daily habits → 12 slots
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('0 of 12')).toBeInTheDocument();
+    expect(await screen.findByText(/≈ Same as last week · All year/)).toBeInTheDocument();
+  });
+
+  it('renders "↑ Stronger than last week" when the rate jumps (R6.3/§8 rule 5)', async () => {
+    const habits = [habit({ name: 'A' }), habit({ name: 'B' }), habit({ name: 'C' }), habit({ name: 'D' })];
+    for (const h of habits) await putHabit(h);
+    for (const d of ['2026-09-28', '2026-09-29', '2026-09-30'])
+      for (const h of habits) await putEntry(h.id, d, 1); // this: 12/12; last: 0/12 → ↑
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('12 of 12')).toBeInTheDocument();
+    expect(await screen.findByText(/↑ Stronger than last week · All year/)).toBeInTheDocument();
+  });
+
+  it('keeps days after today out of the windows (R6.6)', async () => {
+    const daily = habit({});
+    await putHabit(daily);
+    for (const d of ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'])
+      await putEntry(daily.id, d, 1);
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('3 of 3')).toBeInTheDocument(); // Mon–Wed only
+    expect(screen.queryByText('5 of 5')).not.toBeInTheDocument();
+  });
+
+  it('shows a past year as counts with no All year and no comparison (R6.4)', async () => {
+    const old = await putHabit(habit({
+      frequency: [1],                                            // Mondays only
+      createdAt: Date.parse('2025-12-01T09:00:00'),              // Dec 1 2025 is a Monday
+    }));
+    await putEntry(old.id, '2025-12-01', 1);
+    await putEntry(old.id, '2025-12-08', 1);
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Previous year' }));
+    expect(await screen.findByText('Completed in 2025')).toBeInTheDocument();
+    // findBy, not get: the caption flips with the `year` state while the
+    // year-scoped entries liveQuery re-emits a tick later.
+    expect(await screen.findByText('2 of 5')).toBeInTheDocument();       // Dec 1, 8, 15, 22, 29 — two done
+    expect(screen.queryByText('All year')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Stronger|Quieter|Same as last|First week|Just getting|quiet week/i))
+      .not.toBeInTheDocument();
+  });
+
+  it('rises in the tiles but not in the weekly slots or All year (R6.5 + R4 tiles)', async () => {
+    const mwf = habit({ frequency: [1, 3], createdAt: Date.parse('2026-09-21T00:00:00') }); // Mon + Wed only
+    await putHabit(mwf);
+    await putEntry(mwf.id, '2026-09-28', 1);  // Mon — scheduled
+    await putEntry(mwf.id, '2026-09-29', 1);  // Tue — OFF schedule (bonus)
+    await putEntry(mwf.id, '2026-09-30', 1);  // Wed — scheduled
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(await screen.findByText('2 of 2')).toBeInTheDocument();          // weekly tile: slots only
+    const activeDays = (await screen.findByText('Active Days')).closest('div')!;
+    expect(within(activeDays).getByText('3')).toBeInTheDocument();          // Mon + Tue-bonus + Wed
+    const completions = (await screen.findByText('Completions')).closest('div')!;
+    expect(within(completions).getByText('3')).toBeInTheDocument();         // all three logged
+    // Rate family: Mon+Wed since createdAt = 4 slots, 2 done → 50%. A leaked
+    // bonus would read 75%, so this pins the exclusion (spec §6).
+    expect(await screen.findByText(/All year: 50%/)).toBeInTheDocument();
   });
 });

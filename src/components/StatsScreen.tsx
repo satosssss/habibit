@@ -1,13 +1,13 @@
 'use client';
 
-import { CalendarCheck, CheckSquare, Flame, Star, Trophy, Zap } from 'lucide-react';
+import { CalendarCheck, CheckSquare, Flame, Star, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
 import { listHabits, loadRange } from '@/lib/repo';
 import {
   allTimeStart, buildDayStats, completionRate, countActiveDays, countPerfectDays,
-  currentStreak, longestStreak, perIntentionTotals, sumCompletions,
+  currentStreak, longestStreak, perIntentionTotals, sumCompletions, weekTrend,
 } from '@/lib/stats';
 import { todayKey } from '@/lib/dates';
 import { useLiveQuery } from '@/lib/useLiveQuery';
@@ -54,6 +54,14 @@ export function StatsScreen() {
 
   const rate = useMemo(() => completionRate(stats), [stats]);
 
+  // Spec §8/R6: current-year comparison lives in the tile; past years only
+  // aggregate. allEntries is year-independent, so January-crossing windows
+  // always have data (flagged decision 5).
+  const trend = useMemo(
+    () => (year === maxYear ? weekTrend(habits ?? [], allEntries ?? [], today) : null),
+    [habits, allEntries, year, maxYear, today],
+  );
+
   // Spec §7.3: rows follow habit `order`. That field restarts per category, so
   // equal orders fall back to retrieval order (stable sort).
   const orderedHabits = useMemo(
@@ -74,7 +82,12 @@ export function StatsScreen() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={CalendarCheck} value={countActiveDays(stats)} caption="Active Days" />
         <StatTile icon={Star} value={countPerfectDays(stats)} caption="Perfect Days" />
-        <StatTile icon={Zap} value={`${Math.round(rate.rate * 100)}%`} caption="Completion Rate" />
+        {trend ? (
+          <StatTile icon={TrendingUp} value={`${trend.completed} of ${trend.slots}`} caption="This week"
+                    sub={`${trend.copy} · All year: ${Math.round(rate.rate * 100)}%`} />
+        ) : (
+          <StatTile icon={Zap} value={`${rate.completed} of ${rate.scheduled}`} caption={`Completed in ${year}`} />
+        )}
         <StatTile icon={CheckSquare} value={sumCompletions(stats)} caption="Completions" />
       </div>
 
