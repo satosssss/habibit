@@ -112,6 +112,10 @@ Append to `src/lib/stats.test.ts` (existing imports of `buildDayStats`, `countAc
 describe('off-schedule completions (spec §6 matrix)', () => {
   const daily = habit();                              // Every day, createdAt 0
   const weekdays = habit({ id: 'w', frequency: [1, 2, 3, 4, 5] });
+  // Mon + Wed only — the off-schedule Tuesday for rows 3–4 (fixture correction:
+  // the original [1,2,3,4,5] contradicted the rows' "Mon + Wed are due" comments
+  // and their `scheduled: 0` / `{completed: 2, scheduled: 2}` assertions).
+  const mwf = habit({ id: 'w', frequency: [1, 3] });
 
   it('row 1 — scheduled day with a completion: counts everywhere', () => {
     const stats = buildDayStats([daily], [entry('h1', '2026-09-21', 1)],
@@ -134,7 +138,7 @@ describe('off-schedule completions (spec §6 matrix)', () => {
   it('row 3 — unscheduled day with a completion: counts in Completions and active days, never in the rate', () => {
     // Mon + Wed are due; Tue was logged anyway (spec §6's bonus column).
     const stats = buildDayStats(
-      [weekdays],
+      [mwf],
       [entry('w', '2026-09-21', 1), entry('w', '2026-09-22', 1), entry('w', '2026-09-23', 1)],
       { from: '2026-09-21', to: '2026-09-23' },
     );
@@ -148,7 +152,7 @@ describe('off-schedule completions (spec §6 matrix)', () => {
   });
 
   it('row 4 — unscheduled day, nothing logged: skipped everywhere', () => {
-    const stats = buildDayStats([weekdays], [], { from: '2026-09-21', to: '2026-09-22' }); // Mon + Tue
+    const stats = buildDayStats([mwf], [], { from: '2026-09-21', to: '2026-09-22' }); // window Mon + Tue
     expect(stats.get('2026-09-22')).toMatchObject(
       { scheduled: 0, completed: 0, bonus: 0, active: false, ratio: 0 });
     expect(countActiveDays(stats)).toBe(0);
