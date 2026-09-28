@@ -6,7 +6,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-28-slice-1a-bugfixes-design.md` — this plan argues from the spec; executors must read both. Copy strings in spec §4/§8 are normative (character-exact: `’`, `↑ ≈ ↓`, `…`, `·`).
 
-**Where:** directly on `main` (the spec commits `50dc4be` + `4996e0b` already live there; no worktree). Six fix commits land on top, then this plan doc.
+**Where:** directly on `main` (the spec commits `50dc4be` + `4996e0b` already live there; no worktree). The spec commits and this plan doc are already on `main`; the six fix commits land on top of it.
 
 **Scope check:** one subsystem (the existing Habibit app), six small independent fixes → one plan. No new files beyond one test file (`src/lib/labels.test.ts`).
 
@@ -62,6 +62,10 @@ Inputs/conditions the spec implies that no single happy-path test exercises. Eac
 9. **SSR must never scroll or leak today-derived payloads** → Task 4 `does not scroll during server render` + Task 1's existing heatmap prerender tests stay green.
 10. **Data arrival must not re-scroll the user's viewport**; returning to the current year must re-apply → Task 4, `scrolls on mount, ignores data arrivals, and re-applies when returning…`.
 11. **Seed numbers must not move** (every seed day is scheduled → `bonus` is always 0) → Task 1's full-suite gate runs `seed.test.ts` untouched.
+
+## Known edges flagged for later slices (reviewer addition)
+
+- **N = 10 reads as "Just getting started" most mornings for a small habit set.** With 2–3 daily habits a Monday-start window holds only 6–9 scheduled slots, so the trend tile shows `Just getting started · All year: X%` every week until Wednesday-ish crosses ten slots — the spec §8 rule is working as written, but for her likely habit count the comparison copy will rarely appear early in the week. Flagged for **slice 3 (retention)** to revisit the N threshold or the copy ladder for small sets. Not a slice-1a defect; no test or code change here.
 
 ## File structure
 
@@ -427,9 +431,23 @@ npm run build
 
 Full-suite watch-outs: `src/lib/seed.test.ts` must pass **untouched** (Review Focus 11 — every seed day is scheduled, so `bonus` is always 0). Existing `stats.test` streak/level/summary tests and `Heatmap.test` scheduled-tooltip/SSR tests are matrix-compatible and must stay green as written.
 
+#### Before/after record (R4) — reviewer addition
+
+Recorded here and carried into the commit message. Values are read off the fixtures the new matrix tests use; the red run displays the "before" numbers as `Received:` values.
+
+| Fixture | Metric | Before T1 | After T1 |
+|---|---|---|---|
+| Row 3: Mon+Wed due, Tue logged anyway (Sep 21–23) | Completions tile | 2 | **3** |
+| Row 3 | Active Days tile | 2 | **3** |
+| Row 3 | Completion Rate | 100% (2/2) | **100% (2/2) — unchanged by design** |
+| Fri done + Sat off-schedule + Mon done, today Mon | Current Streak | 2 | **3** |
+| same fixture | Longest Streak | 2 | **3** |
+| habitStreaks: Fri, Sat(off), Mon, today Tue | Per-habit badge | 3 | **4** |
+| Seed data (13 weeks, `seed.test.ts`) | Completions / all streaks | — | **unchanged** — seed never logs an unscheduled day, so `bonus ≡ 0` and the file stays green untouched |
+
 ```
 git add src/lib/stats.ts src/lib/streaks.ts src/lib/stats.test.ts src/lib/streaks.test.ts src/components/Heatmap.tsx src/components/Heatmap.test.tsx
-git commit -m "fix(stats): off-schedule completions count in streaks, tiles and cells — never in the rate (R4)"
+git commit -m "fix(stats): off-schedule completions count in streaks, tiles and cells — never in the rate (R4)" -m "before/after: Row-3 Completions 2→3, Active 2→3, rate pinned 2/2; Current+Longest streak 2→3; habit badge 3→4; seed unchanged (bonus=0)"
 ```
 
 ---
@@ -1069,7 +1087,7 @@ describe('mondayOf', () => {
 });
 ```
 
-`src/lib/stats.test.ts` — add `trendCopy` and `weekWindows` to the existing `./stats` import (lines 3–6) and append:
+`src/lib/stats.test.ts` — import updates first: add `trendCopy` and `weekWindows` to the existing `./stats` import (lines 3–6); add `vi` (and `beforeEach`, `afterEach`) to the `vitest` import (line 1) for the fake-timer block; add `import { addDays, todayKey } from './dates';` for the timezone cross-check. Then append:
 
 ```ts
 describe('weekWindows (spec §8: equal elapsed windows, Monday start)', () => {
@@ -1251,6 +1269,52 @@ describe('weekly trend tile (R6)', () => {
 
 Note: `putHabit` returns the stored habit (`repo.ts:18`), so tests hold the id directly — no extra repo imports needed.
 
+Second-timezone cross-check (reviewer addition) — append as a **top-level** `describe` in `src/lib/stats.test.ts` (outside the R6 describe, so no fake-timer `beforeEach` leaks in):
+
+```ts
+describe('timezone independence (Asia/Manila, second-tz pin)', () => {
+  const withTZ = <T>(tz: string, fn: () => T): T => {
+    const prev = process.env.TZ;
+    process.env.TZ = tz;
+    try { return fn(); } finally { process.env.TZ = prev; }
+  };
+
+  it('keeps a streak fixture on the same calendar days', () => {
+    withTZ('Asia/Manila', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2026-09-28T03:00:00Z')); // Mon 11:00 Manila / Sun 20:00 LA
+        // Guard: prove the override is live — under the LA pin this instant is Sep 27.
+        expect(new Date('2026-09-28T03:00:00Z').getDate()).toBe(28);
+        const today = todayKey();
+        expect(today).toBe('2026-09-28');
+        const stats = buildDayStats(
+          [habit()],
+          [entry('h1', today, 1), entry('h1', addDays(today, -1), 1), entry('h1', addDays(today, -2), 1)],
+          { from: addDays(today, -6), to: today },
+        );
+        expect(currentStreak(stats, today)).toBe(3);
+      } finally { vi.useRealTimers(); }
+    });
+  });
+
+  it('opens the Monday week window on the same dates', () => {
+    withTZ('Asia/Manila', () => {
+      expect(weekWindows('2026-09-30')).toEqual({          // Wednesday
+        thisFrom: '2026-09-28', thisTo: '2026-09-30',
+        lastFrom: '2026-09-21', lastTo: '2026-09-23',
+      });
+      expect(weekWindows('2026-09-27')).toEqual({          // Sunday closes its own week
+        thisFrom: '2026-09-21', thisTo: '2026-09-27',
+        lastFrom: '2026-09-14', lastTo: '2026-09-20',
+      });
+    });
+  });
+});
+```
+
+Mechanism: a runtime `process.env.TZ` change does alter Date's local calendar inside vitest workers (verified by probe run on this machine, 2026-09-28); `withTZ` restores the `America/Los_Angeles` pin in `finally`, so no other test sees Manila. The guard assertion fails loudly if a future runtime stops honoring mid-process TZ changes instead of silently testing nothing. The streak-tz case pins behavior that already exists (it passes as soon as `stats.test` compiles); the weekWindows-tz case goes red with the rest of Task 6's imports.
+
 - [ ] **Step 2: Run the tests — confirm red**
 
 ```
@@ -1400,3 +1464,5 @@ Watch-outs: the tile-grid tests (`grid.children` length 4 × 2 grids) must stay 
   - Trend tile shows `This week` with its comparison line; copy matches §8 (glyph + text).
   - Intention chips appear in **both** forms (Today `+` and Settings); placeholder `Type your own…` visible; selected chip carries `✓` + `aria-pressed`.
 - [ ] `git push origin main`.
+- [ ] **Vercel picked up the push:** the production deployment for `main` reports Success and her URL serves the new build (Vercel production branch = `main`; a push to `main` is what triggers it). Check via the Vercel dashboard or `gh api repos/{owner}/{repo}/deployments`.
+- [ ] **GitHub default branch is `main`** (switched during pre-execution setup; re-confirm it still points at `main` and Vercel's production branch setting still matches).
