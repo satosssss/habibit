@@ -3,7 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { weekColumn } from '@/lib/dates';
 import type { Entry, Habit } from '@/lib/types';
 import { Heatmap } from './Heatmap';
 
@@ -233,5 +234,77 @@ describe('Heatmap', () => {
     // instead of reading "0 of 0".
     expect(screen.getByTestId('hm-cell-2026-06-13'))
       .toHaveAttribute('aria-label', '2026-06-13: 1 completed (off schedule)');
+  });
+
+  // Spec §5 (R3): bring today's column into view — current year only,
+  // post-mount only, instant under prefers-reduced-motion.
+  describe('auto-scroll', () => {
+    const scrollTo = vi.fn();
+    let savedScrollTo: PropertyDescriptor | undefined;
+    let savedMatchMedia: typeof window.matchMedia;
+    let clientWidthSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+    beforeEach(() => {
+      scrollTo.mockClear();
+      savedScrollTo = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTo');
+      savedMatchMedia = window.matchMedia;
+      Object.defineProperty(Element.prototype, 'scrollTo',
+        { value: scrollTo, configurable: true, writable: true });
+      // jsdom has no layout: stub the container width (Element owns clientWidth).
+      clientWidthSpy = vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(100);
+    });
+
+    afterEach(() => {
+      clientWidthSpy?.mockRestore();
+      window.matchMedia = savedMatchMedia;
+      if (savedScrollTo) Object.defineProperty(Element.prototype, 'scrollTo', savedScrollTo);
+      else delete (Element.prototype as { scrollTo?: unknown }).scrollTo;
+    });
+
+    const expectedLeft = (today: string, year: number) =>
+      Math.max(0, weekColumn(today, year) * (13 + 3) + 13 - 100); // CELL 13 + GAP 3, clientWidth 100
+
+    it("scrolls today's column to the edge on mount (current year)", () => {
+      render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-09-30" />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: expectedLeft('2026-09-30', 2026), behavior: 'smooth' });
+    });
+
+    it('sets scrollLeft directly under prefers-reduced-motion and never calls scrollTo', () => {
+      window.matchMedia = ((query: string) => ({
+        matches: query.includes('reduce'), media: query, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })) as typeof window.matchMedia;
+      render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-09-30" />);
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(screen.getByTestId('hm-scroll').scrollLeft).toBe(expectedLeft('2026-09-30', 2026));
+    });
+
+    it('never scrolls a past-year view (it opens at January)', () => {
+      render(<Heatmap year={2025} habits={[habit('a')]} entries={[]} today="2026-09-30" />);
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('does not scroll during server render', () => {
+      renderToString(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-09-30" />);
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('scrolls on mount, ignores data arrivals, and re-applies when returning to the current year', () => {
+      const props = { year: 2026, habits: [habit('a')], entries: [] as Entry[], today: '2026-09-30' };
+      const { rerender } = render(<Heatmap {...props} />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+
+      rerender(<Heatmap {...props} entries={[entry('a', '2026-09-29')]} />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);   // data arrival must not re-scroll
+
+      const el = screen.getByTestId('hm-scroll');
+      el.scrollLeft = 0;                            // pretend the viewport sits at January
+      rerender(<Heatmap {...props} year={2025} />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);    // past year: gated
+      rerender(<Heatmap {...props} year={2026} />);
+      expect(scrollTo).toHaveBeenCalledTimes(2);    // back to the current year: re-applies (spec §5)
+    });
   });
 });

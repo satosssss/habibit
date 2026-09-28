@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatShort } from '@/lib/dates';
-import { monthLabelPositions } from '@/lib/dates';
+import { monthLabelPositions, weekColumn } from '@/lib/dates';
 import { heatmapCells, type HeatCell } from '@/lib/stats';
 import type { Entry, Habit } from '@/lib/types';
 
@@ -41,6 +41,7 @@ export function Heatmap({
   const months = useMemo(() => monthLabelPositions(year), [year]);
 
   const sectionRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   // Touch taps emit compatibility mouse events without a usable pointerType;
   // remember the last real pointer so touch never sets hover (tap must pin).
   const touchPointer = useRef(false);
@@ -68,6 +69,22 @@ export function Heatmap({
   // the viewed date can never be sliced out of its own heatmap.
   const cellSize = compact ? COMPACT_CELL : CELL;
   const columnCount = cells.length / 7;
+
+  // Spec §5/R3: bring the column containing today fully into view — current
+  // year only, post-mount only, instant under prefers-reduced-motion. Deps
+  // exclude entries/cells so data arrivals never re-scroll the viewport.
+  useEffect(() => {
+    if (!mounted || year !== Number(today.slice(0, 4))) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const left = Math.max(0, weekColumn(today, year) * (cellSize + GAP) + cellSize - el.clientWidth);
+    if (el.scrollLeft >= left) return; // already visible — leave the user's position alone
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.scrollLeft = left;
+    } else {
+      el.scrollTo({ left, behavior: 'smooth' });
+    }
+  }, [mounted, today, year, cellSize]);
 
   const open = (cell: HeatCell) => {
     if (hover?.date === cell.date || pinned?.date === cell.date) {
@@ -108,7 +125,7 @@ export function Heatmap({
             {WEEKDAYS.map((d) => <span key={d}>{d}</span>)}
           </div>
 
-          <div className="min-w-0 flex-1 overflow-x-auto pb-1">
+          <div ref={scrollRef} data-testid="hm-scroll" className="min-w-0 flex-1 overflow-x-auto pb-1">
             <div style={{ width: columnCount * (cellSize + GAP) }}>
               {/* Month labels */}
               <div className="relative mb-1 h-3 text-[9px] text-[var(--color-subtle)]">

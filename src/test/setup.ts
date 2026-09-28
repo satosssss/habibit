@@ -24,3 +24,9 @@ if (!window.matchMedia) {
     dispatchEvent: vi.fn(),
   })) as unknown as typeof window.matchMedia;
 }
+
+// jsdom ships no Element.scrollTo; the heatmap's auto-scroll effect calls it.
+// (Tests that assert on it override this per-test and restore it.)
+if (!Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = function scrollTo() { /* no-op in jsdom */ };
+}
