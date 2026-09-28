@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db';
-import { clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit } from './repo';
+import { clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit } from './repo';
 import type { Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -145,7 +145,102 @@ describe('entries', () => {
     await putHabit(h);
     await expect(importState({ habits: 'nope', entries: [] })).rejects.toThrow(/Habibit export/);
     await expect(importState(null)).rejects.toThrow(/Habibit export/);
-    await expect(importState({ habits: [{ bad: true }], entries: [] })).rejects.toThrow(/Habibit export/);
+    // Habit-level structure failure now routes to the §8 "values" message
+    // (spec R6, decision 7); payload/entry-row shape keeps the original one.
+    await expect(importState({ habits: [{ bad: true }], entries: [] })).rejects.toThrow(/values we can't import/);
     expect(await listHabits()).toHaveLength(1); // untouched
+  });
+});
+
+describe('import repair and rejection (spec R6)', () => {
+  const rawHabit = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id: 'x1', name: 'Drink Water', icon: 'droplet', color: '#6366f1', category: 'Health',
+    intention: 'Be Grateful', type: 'quantity', target: 8, unit: 'cups',
+    frequency: [0, 1, 2, 3, 4, 5, 6], order: 0, createdAt: 0, ...over,
+  });
+  const rawEntry = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id: `x1_2026-09-20`, habitId: 'x1', date: '2026-09-20', value: 4, timestamp: 0, ...over,
+  });
+
+  it('repairs cosmetic damage and clamps entries to the repaired target', async () => {
+    await importState({
+      habits: [rawHabit({
+        name: '', icon: 'nope', color: 'red', category: '', intention: '',
+        target: -5, frequency: [1, 9, 1, 'x'],
+      })],
+      entries: [
+        rawEntry({ value: 99 }),                                            // over repaired target (1)
+        rawEntry({ id: 'x1_2026-09-21', date: '2026-09-21', value: -3 }),
+        rawEntry({ id: 'x1_2026-09-22', date: '2026-09-22', value: Number.NaN }),
+        rawEntry({ id: 'x1_2026-09-23', date: '2026-09-23', value: Number.POSITIVE_INFINITY }),
+        rawEntry({ id: 'x1_2026-09-24', date: '2026-09-24', value: '4' }), // non-number value → 0, never rejects (R6.2)
+      ],
+    });
+    const [h] = await listHabits();
+    expect(h).toMatchObject({
+      name: 'Untitled habit', icon: 'target', color: '#6366f1',
+      category: 'Other', intention: 'Other', target: 1,
+    });
+    expect(h.frequency).toEqual([1]);                      // ints 0–6, deduped, sorted
+    expect((await loadDay('2026-09-20'))[0].value).toBe(1); // 99 → 1
+    expect((await loadDay('2026-09-21'))[0].value).toBe(0);
+    expect((await loadDay('2026-09-22'))[0].value).toBe(0);
+    expect((await loadDay('2026-09-23'))[0].value).toBe(0);
+    expect((await loadDay('2026-09-24'))[0].value).toBe(0); // '4' → 0
+  });
+
+  it('repairs targets per type (boolean → 1, quantity ≥ 1, timer ≥ 60)', async () => {
+    await importState({
+      habits: [
+        rawHabit({ id: 'b', type: 'boolean', target: 99 }),
+        rawHabit({ id: 'q', type: 'quantity', target: 0 }),
+        rawHabit({ id: 't', type: 'timer', target: 5 }),
+      ],
+      entries: [],
+    });
+    const byId = Object.fromEntries((await listHabits()).map((h) => [h.id, h.target]));
+    expect(byId).toEqual({ b: 1, q: 1, t: 60 });
+  });
+
+  it('rejects structurally unusable files without touching existing data', async () => {
+    await putHabit(habit());
+    const values = /values we can't import/;             // spec §8 copy (toThrow substring match)
+    await expect(importState({ habits: [rawHabit({ frequency: [] })], entries: [] })).rejects.toThrow(values);
+    await expect(importState({ habits: [rawHabit({ target: '8' })], entries: [] })).rejects.toThrow(values);
+    await expect(importState({ habits: [rawHabit({ id: 42 })], entries: [] })).rejects.toThrow(values);
+    expect(await listHabits()).toHaveLength(1);
+  });
+
+  it('keeps the original message for shape-broken payloads and rows', async () => {
+    await expect(importState({ habits: 'nope', entries: [] })).rejects.toThrow(/Habibit export/);
+    await expect(importState(null)).rejects.toThrow(/Habibit export/);
+    // entry-row shape — DataPanel's pinned half-bad payload (habitId not a string)
+    await expect(importState({
+      habits: [rawHabit()],
+      entries: [rawEntry({ habitId: 42 })],
+    })).rejects.toThrow(/Habibit export/);
+  });
+});
+
+describe('boot migration clampLegacyEntries (spec R1 §2.3)', () => {
+  it('rewrites over-target, negative, and non-finite stored values once', async () => {
+    const h = habit({ type: 'quantity', target: 8 });
+    await putHabit(h);
+    await db.entries.put({ id: `${h.id}_2026-09-20`, habitId: h.id, date: '2026-09-20', value: 11, timestamp: 0 });
+    await db.entries.put({ id: `${h.id}_2026-09-21`, habitId: h.id, date: '2026-09-21', value: -4, timestamp: 0 });
+    await db.entries.put({ id: `${h.id}_2026-09-22`, habitId: h.id, date: '2026-09-22', value: Number.NaN, timestamp: 0 });
+    expect(await clampLegacyEntries()).toBe(3);
+    expect((await loadDay('2026-09-20'))[0].value).toBe(8);
+    expect((await loadDay('2026-09-21'))[0].value).toBe(0);
+    expect((await loadDay('2026-09-22'))[0].value).toBe(0);
+    expect(await clampLegacyEntries()).toBe(0);            // idempotent
+  });
+
+  it('never touches the seed marker or orphan entries', async () => {
+    await markSeeded();
+    await putEntry('ghost-habit', '2026-09-20', 5);
+    expect(await clampLegacyEntries()).toBe(0);
+    expect((await loadDay('2026-09-20'))[0].value).toBe(5);
+    expect(await hasSeeded()).toBe(true);
   });
 });

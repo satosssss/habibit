@@ -263,3 +263,18 @@ it('opens the timer modal from a timer habit row', async () => {
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   expect(screen.getByText('15:00')).toBeInTheDocument();
 });
+
+// Spec R6: a hostile export imports AND renders — no error boundary, no throw.
+it('renders a hostile import without crashing (R6)', async () => {
+  const { importState } = await import('@/lib/repo');
+  await importState({
+    habits: [{
+      id: 'x1', name: '', icon: 'nope', color: 'red', category: '', intention: '',
+      type: 'quantity', target: 11, unit: 'cups', frequency: [0, 1, 2, 3, 4, 5, 6, 9], order: 0, createdAt: 0,
+    }],
+    entries: [{ id: 'x1_2026-09-22', habitId: 'x1', date: todayKey(), value: 99, timestamp: 0 }],
+  });
+  render(<TodayScreen date={todayKey()} />);
+  expect(await screen.findByText('Untitled habit')).toBeInTheDocument();      // repaired name
+  expect(await screen.findByText('Every day, 11/11 cups')).toBeInTheDocument(); // target 11 survives, value 99 → clamped 11
+});
