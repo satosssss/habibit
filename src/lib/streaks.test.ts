@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { addDays } from './dates';
 import type { Entry, Habit } from './types';
 import { habitStreaks } from './streaks';
 
@@ -63,5 +64,13 @@ describe('habitStreaks', () => {
       '2026-09-22',
     );
     expect(streaks.w).toBe(4);
+  });
+
+  it('counts streaks beyond 371 days — the loop guard is a safety net, not a cap (R1)', () => {
+    // 400 consecutive completions ending today: the header (currentStreak) has
+    // no bound, so the badge must not cap either or the two disagree (R1).
+    const today = '2026-09-28';
+    const entries = Array.from({ length: 400 }, (_, i) => entry('a', addDays(today, -i)));
+    expect(habitStreaks([habit('a')], entries, today).a).toBe(400);
   });
 });

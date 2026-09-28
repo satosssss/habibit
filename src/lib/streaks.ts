@@ -27,7 +27,11 @@ export function habitStreaks(
     if (completedOn(cursor)) streak = 1;
     cursor = addDays(cursor, -1);
 
-    for (let guard = 0; guard < 370; guard++, cursor = addDays(cursor, -1)) {
+    // Safety bound only: the walk terminates at the first missed due day, so
+    // the cap is unreachable for any real history — it exists solely so a
+    // never-scheduled habit (frequency: []) can't loop forever. 100 years of
+    // days: the guard must never be what truncates a streak (spec §R1).
+    for (let guard = 0; guard < 36500; guard++, cursor = addDays(cursor, -1)) {
       if (completedOn(cursor)) { streak++; continue; }   // scheduled or bonus (spec §6)
       if (!scheduledOn(cursor)) continue;                // neither counts nor breaks
       break;                                             // a missed scheduled day ends the run

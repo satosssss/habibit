@@ -68,7 +68,7 @@ export function NoteScreen({ date }: { date: string }) {
         “{quote.text}” <span className="not-italic text-[var(--color-subtle)]">— {quote.author}</span>
       </blockquote>
 
-      <Heatmap year={year} habits={habits ?? []} entries={entries ?? []} today={today} compact />
+      <Heatmap year={year} habits={habits ?? []} entries={entries ?? []} today={today} focusDate={date} compact />
 
       <div className="mt-5 flex flex-col gap-3">
         {groups.map(([intention, list]) => {

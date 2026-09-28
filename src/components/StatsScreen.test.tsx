@@ -204,7 +204,7 @@ describe('weekly trend tile (R6)', () => {
     // findBy, not get: the caption flips with the `year` state while the
     // year-scoped entries liveQuery re-emits a tick later.
     expect(await screen.findByText('2 of 5')).toBeInTheDocument();       // Dec 1, 8, 15, 22, 29 — two done
-    expect(screen.queryByText('All year')).not.toBeInTheDocument();
+    expect(screen.queryByText(/All year/)).not.toBeInTheDocument(); // substring: would catch a leaked sub line
     expect(screen.queryByText(/Stronger|Quieter|Same as last|First week|Just getting|quiet week/i))
       .not.toBeInTheDocument();
   });

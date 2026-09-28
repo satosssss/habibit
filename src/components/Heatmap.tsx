@@ -14,13 +14,16 @@ const COMPACT_CELL = 10; // px — spec §8's "smaller cells" for the compact va
 const GAP = 3;
 
 export function Heatmap({
-  year, habits, entries, today, compact = false,
+  year, habits, entries, today, compact = false, focusDate,
 }: {
   year: number;
   habits: Habit[];
   entries: Entry[];
   today: string;
   compact?: boolean;
+  /** Day whose column the auto-scroll brings into view (defaults to `today`).
+      The note view passes its viewed date so the grid shows that day. */
+  focusDate?: string;
 }) {
   const router = useRouter();
   // Clock gate: /stats and the note view prerender, so a build-day `today`
@@ -70,21 +73,23 @@ export function Heatmap({
   const cellSize = compact ? COMPACT_CELL : CELL;
   const columnCount = cells.length / 7;
 
-  // Spec §5/R3: bring the column containing today fully into view — current
-  // year only, post-mount only, instant under prefers-reduced-motion. Deps
-  // exclude entries/cells so data arrivals never re-scroll the viewport.
+  // Spec §5/R3: bring the column containing the focus day fully into view —
+  // today by default, the note view's viewed date when pinned to a day;
+  // current year only, post-mount only, instant under prefers-reduced-motion.
+  // Deps exclude entries/cells so data arrivals never re-scroll the viewport.
   useEffect(() => {
     if (!mounted || year !== Number(today.slice(0, 4))) return;
     const el = scrollRef.current;
     if (!el) return;
-    const left = Math.max(0, weekColumn(today, year) * (cellSize + GAP) + cellSize - el.clientWidth);
+    const focus = focusDate ?? today;
+    const left = Math.max(0, weekColumn(focus, year) * (cellSize + GAP) + cellSize - el.clientWidth);
     if (el.scrollLeft >= left) return; // already visible — leave the user's position alone
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       el.scrollLeft = left;
     } else {
       el.scrollTo({ left, behavior: 'smooth' });
     }
-  }, [mounted, today, year, cellSize]);
+  }, [mounted, today, focusDate, year, cellSize]);
 
   const open = (cell: HeatCell) => {
     if (hover?.date === cell.date || pinned?.date === cell.date) {

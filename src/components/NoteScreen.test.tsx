@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, newId, putEntry, putHabit } from '@/lib/repo';
+import { weekColumn } from '@/lib/dates';
 import type { Habit } from '@/lib/types';
 import { quoteFor } from '@/lib/quotes';
 import { NoteScreen } from './NoteScreen';
@@ -60,5 +61,30 @@ describe('NoteScreen', () => {
     const cell = screen.getByTestId('hm-cell-2026-05-24');
     expect(cell).toBeInTheDocument();
     expect(cell.tagName).toBe('BUTTON'); // an in-year, in-window cell — not an inert spacer
+  });
+
+  it("scrolls the compact heatmap to the viewed date's column, not today's", async () => {
+    // Regression guard for the R3 effect: the note view's scroller must show
+    // the day it exists to show (spec §5 is silent here; the screen's own
+    // contract is "its own cell always in-window").
+    await putHabit(habit());
+    const scrollTo = vi.fn();
+    const saved = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTo');
+    const widthSpy = vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(100);
+    Object.defineProperty(Element.prototype, 'scrollTo', { value: scrollTo, configurable: true, writable: true });
+    try {
+      render(<NoteScreen date="2026-08-10" />);
+      await screen.findByText('DO HARD THINGS');
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+      // COMPACT_CELL 10 + GAP 3, clientWidth 100 (jsdom has no layout).
+      expect(scrollTo).toHaveBeenCalledWith({
+        left: Math.max(0, weekColumn('2026-08-10', 2026) * (10 + 3) + 10 - 100),
+        behavior: 'smooth',
+      });
+    } finally {
+      widthSpy.mockRestore();
+      if (saved) Object.defineProperty(Element.prototype, 'scrollTo', saved);
+      else delete (Element.prototype as { scrollTo?: unknown }).scrollTo;
+    }
   });
 });

@@ -270,6 +270,14 @@ describe('Heatmap', () => {
       expect(scrollTo).toHaveBeenCalledWith({ left: expectedLeft('2026-09-30', 2026), behavior: 'smooth' });
     });
 
+    it("scrolls to focusDate's column when the view is pinned to a specific day", () => {
+      // The note view shows a past day of the current year: its heatmap must
+      // show THAT day, not today.
+      render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-09-30" focusDate="2026-08-10" />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: expectedLeft('2026-08-10', 2026), behavior: 'smooth' });
+    });
+
     it('sets scrollLeft directly under prefers-reduced-motion and never calls scrollTo', () => {
       window.matchMedia = ((query: string) => ({
         matches: query.includes('reduce'), media: query, onchange: null,
