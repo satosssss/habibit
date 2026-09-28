@@ -8,30 +8,49 @@ export function ValueSheet({
   habit, value, open, onSave, onClose,
 }: { habit: Habit; value: number; open: boolean; onSave: (v: number) => void; onClose: () => void }) {
   const [draft, setDraft] = useState(String(value));
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { if (open) setDraft(String(value)); }, [open, value]);
+  useEffect(() => { if (open) { setDraft(String(value)); setError(null); } }, [open, value]);
+
+  // `Number('')` is 0 — the empty string is checked explicitly so an empty
+  // field can never read as a legitimate zero (spec R4: no silent wipes).
+  const unit = habit.unit ? ` ${habit.unit}` : '';
+  const parsed = Number(draft.trim());
+  const valid = draft.trim() !== '' && Number.isFinite(parsed)
+    && parsed >= 0 && parsed <= habit.target;
 
   const save = () => {
-    const parsed = Number(draft);
-    if (Number.isFinite(parsed) && parsed >= 0) onSave(Math.floor(parsed));
+    if (!valid) {
+      setError(`Enter a number from 0 to ${habit.target}${unit}.`);
+      return;                                        // stay open — never discard silently
+    }
+    onSave(Math.floor(parsed));
     onClose();
   };
 
   return (
     <Sheet open={open} onClose={onClose} title={habit.name}>
-      <label className="mb-3 block text-sm text-[var(--color-subtle)]">
-        {habit.unit ? `Amount (${habit.unit})` : 'Amount'}
-        <input
-          type="number" inputMode="numeric" min={0} value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-          className="mt-1 w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 text-base outline-none focus:border-[var(--color-accent)]"
-        />
-      </label>
-      <button type="button" onClick={save}
-              className="w-full rounded-2xl bg-[var(--color-accent)] px-4 py-3 font-semibold text-white">
-        Save
-      </button>
+      {/* noValidate: native range validation would block submit (and show a
+          browser bubble we can't style or announce); our inline role="alert"
+          validation below owns every rejection case (spec R4). */}
+      <form noValidate onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <label className="mb-1 block text-sm text-[var(--color-subtle)]">
+          {habit.unit ? `Amount (${habit.unit})` : 'Amount'}
+          <input
+            type="number" inputMode="numeric" min={0} max={habit.target} value={draft}
+            onChange={(e) => { setDraft(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
+            aria-invalid={error ? true : undefined}
+            className="mt-1 w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 text-base outline-none focus:border-[var(--color-accent)]"
+          />
+        </label>
+        <p className="mb-3 text-xs text-[var(--color-subtle)]">{`Maximum ${habit.target}${unit}.`}</p>
+        {error && <p role="alert" className="mb-3 text-xs text-red-500">{error}</p>}
+        <button type="submit"
+                className="w-full rounded-2xl bg-[var(--color-accent)] px-4 py-3 font-semibold text-white">
+          Save
+        </button>
+      </form>
     </Sheet>
   );
 }
