@@ -126,7 +126,9 @@ describe('weekly trend tile (R6)', () => {
       for (const h of habits) await putEntry(h.id, d, 1);
     const { StatsScreen } = await import('./StatsScreen');
     render(<StatsScreen />);
-    expect(await screen.findByText('8 of 12')).toBeInTheDocument();
+    // 5s: the default 1s waitFor misses under full-parallel suite contention
+    // (A2 env hardening — same data, same assertions, wider window).
+    expect(await screen.findByText('8 of 12', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(await screen.findByText(/↓ Quieter than last week, that’s okay/)).toBeInTheDocument();
   });
 

@@ -82,7 +82,9 @@ describe('seedIfEmpty', () => {
     for (const h of await listHabits()) await deleteHabit(h.id);
     expect(await seedIfEmpty()).toBe(false);
     expect(await countHabits()).toBe(0);
-  });
+  }, 15_000);   // A2 env hardening: the seed + cascade-delete + recheck chain
+                // misses the 5s default under full-parallel suite contention
+                // (passes in isolation/serial; assertions unchanged).
 
   it('claims marker-less existing habits without adding seed data', async () => {
     await putHabit({ ...SEED_HABITS[0] });   // e.g. an imported payload with no marker row
