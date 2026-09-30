@@ -56,7 +56,7 @@ describe('slice D glass token system (spec R1)', () => {
     const cs = getComputedStyle(document.documentElement);
     expect(cs.getPropertyValue('--color-bg').trim()).toBe('#f0ebe3');
     expect(cs.getPropertyValue('--color-fg').trim()).toBe('rgba(20, 16, 12, 0.90)');
-    expect(cs.getPropertyValue('--color-accent-ink').trim()).toBe('#b45309');
+    expect(cs.getPropertyValue('--color-accent-ink').trim()).toBe('#92400e');
     expect(cs.getPropertyValue('--color-on-accent').trim()).toBe('#0f0e0c');
     expect(cs.getPropertyValue('--blob-1').trim()).toBe('#a78bfa');
     expect(cs.getPropertyValue('--hm-4').trim()).toBe('#d97706');
@@ -64,6 +64,83 @@ describe('slice D glass token system (spec R1)', () => {
 
   it('defaults to the light palette before any theme is applied', () => {
     expect(getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim()).toBe('#f0ebe3');
+  });
+});
+
+describe('slice D contrast — WCAG AA sampling (spec R10, V6)', () => {
+  // WCAG 2.1 relative luminance + contrast over composited translucent layers,
+  // mirroring how V6 samples text against the brightest region glass can show.
+  const parseColor = (value: string) => {
+    const raw = value.trim();
+    const rgb = raw.match(/^rgba?\(([^)]+)\)$/);
+    if (rgb) {
+      const [r, g, b, a] = rgb[1].split(',').map(Number);
+      return { r, g, b, a: a === undefined ? 1 : a };
+    }
+    const hex = raw.match(/^#([0-9a-f]{6})$/i);
+    if (hex) {
+      const n = parseInt(hex[1], 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 1 };
+    }
+    return null;
+  };
+  type RGBA = NonNullable<ReturnType<typeof parseColor>>;
+  const over = (src: RGBA, dst: RGBA): RGBA => {
+    const a = src.a + dst.a * (1 - src.a);
+    return {
+      r: (src.r * src.a + dst.r * dst.a * (1 - src.a)) / a,
+      g: (src.g * src.a + dst.g * dst.a * (1 - src.a)) / a,
+      b: (src.b * src.a + dst.b * dst.a * (1 - src.a)) / a,
+      a,
+    };
+  };
+  const luminance = ({ r, g, b }: RGBA): number => {
+    const f = (v: number) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const contrast = (fg: RGBA, bg: RGBA): number => {
+    const l1 = luminance(fg);
+    const l2 = luminance(bg);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  };
+  const token = (name: string): RGBA => {
+    const parsed = parseColor(getComputedStyle(document.documentElement).getPropertyValue(name));
+    if (!parsed) throw new Error(`unparseable token ${name}`);
+    return parsed;
+  };
+  const textOn = (fg: RGBA, bg: RGBA): RGBA => (fg.a < 1 ? over(fg, bg) : fg);
+
+  it('light: fg and subtle clear 4.5:1 on glass over the brightest region', () => {
+    document.documentElement.dataset.theme = 'light';
+    // Light blobs only darken the #f0ebe3 canvas, so the brightest region is
+    // the canvas seen through the brightest stacked glass (hover layer over base).
+    const glass = over(token('--glass-bg-hover'), over(token('--glass-bg'), token('--color-bg')));
+    expect(contrast(textOn(token('--color-fg'), glass), glass)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(textOn(token('--color-subtle'), glass), glass)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('light: accent-ink clears 4.5:1 on the raw canvas', () => {
+    document.documentElement.dataset.theme = 'light';
+    expect(contrast(token('--color-accent-ink'), token('--color-bg'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('light: on-accent clears 4.5:1 on the amber accent', () => {
+    document.documentElement.dataset.theme = 'light';
+    expect(contrast(token('--color-on-accent'), token('--color-accent'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('dark: warm text clears 4.5:1 on dark glass over the base canvas (DESIGN.md)', () => {
+    document.documentElement.dataset.theme = 'dark';
+    // DESIGN.md's AA bar is "warm off-white on dark glass". The amber blob glow
+    // stays background ambience at DESIGN.md's mandated 0.55 opacity; text over
+    // a full-strength blob core is physically unreachable (pure white scores
+    // 3.9:1 there) and is reported as a spec tension in the V6 report instead.
+    const glass = over(token('--glass-bg'), token('--color-bg'));
+    expect(contrast(textOn(token('--color-fg'), glass), glass)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(textOn(token('--color-subtle'), glass), glass)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

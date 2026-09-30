@@ -5,12 +5,12 @@
   /* Slice D R1 — Light Liquid Glass */
   --color-bg: #f0ebe3;
   --color-fg: rgba(20, 16, 12, 0.90);
-  --color-subtle: rgba(20, 16, 12, 0.55);
+  --color-subtle: rgba(20, 16, 12, 0.62);
   --color-muted: rgba(255, 255, 255, 0.62);
   --color-panel: rgba(255, 255, 255, 0.45);
   --color-line: rgba(20, 16, 12, 0.10);
   --color-accent: #f59e0b;
-  --color-accent-ink: #b45309;
+  --color-accent-ink: #92400e;
   --color-on-accent: #0f0e0c;
   --hm-empty: #f4eee4;
   --hm-0: #fbe8cd;
