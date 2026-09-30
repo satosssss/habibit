@@ -4,6 +4,7 @@ import { Pause, Play, Plus, Minus, RotateCcw, SkipForward, Square, Undo2 } from 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { putEntry } from '@/lib/repo';
 import { reportWriteError } from '@/lib/writeError';
+import { celebrateIfCompleted } from '@/lib/completionToast';
 import type { Habit } from '@/lib/types';
 import { FlameBadge } from './FlameBadge';
 import { Sheet } from './Sheet';
@@ -65,9 +66,12 @@ export function TimerModal({
     setStage('idle');
     // Spec R1.2.2: honest accounting — log the session actually run
     // (a 14-minute session on a 15-minute habit writes 840, not the target).
-    void putEntry(habit.id, date, Math.min(elapsed, duration)).catch(reportWriteError);
+    const written = Math.min(elapsed, duration);
+    void putEntry(habit.id, date, written)
+      .then(() => celebrateIfCompleted(habit, initialSeconds, written))  // A2: after success only
+      .catch(reportWriteError);
     onComplete();
-  }, [elapsed, duration, running, habit.id, date, onComplete]);
+  }, [elapsed, duration, running, habit.id, date, initialSeconds, onComplete]);
 
   // Spec §6: closing mid-run keeps the elapsed seconds in the entry, so
   // reopening the modal resumes where it left off.

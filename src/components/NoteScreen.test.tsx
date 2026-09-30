@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
+import { dismissCompletionToast } from '@/lib/completionToast';
 import { weekColumn } from '@/lib/dates';
 import type { Habit } from '@/lib/types';
 import { quoteFor } from '@/lib/quotes';
+import { CompletionToast } from './CompletionToast';
 import { NoteScreen } from './NoteScreen';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -15,6 +17,7 @@ const habit = (over: Partial<Habit> = {}): Habit => ({
 });
 
 beforeEach(async () => { await clearAll(); });
+afterEach(() => { dismissCompletionToast(); });   // A2: module store outlives each render
 
 describe('NoteScreen', () => {
   it('titles itself with the long date and shows a bundled quote', async () => {
@@ -161,5 +164,28 @@ describe('NoteScreen', () => {
     render(<NoteScreen date="2026-05-24" />);
     const boxes = await screen.findAllByRole('checkbox');
     expect(boxes[0]).toHaveAccessibleName(/drink water/i);   // order 1 first, not insertion order
+  });
+
+  it('celebrates when the checkbox completes a habit (A2)', async () => {
+    const w = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups', intention: 'Be Grateful' });
+    await putHabit(w);
+    render(<><CompletionToast /><NoteScreen date="2026-05-24" /></>);
+    const box = await screen.findByRole('checkbox', { name: /drink water/i });
+    fireEvent.click(box);
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /drink water/i })).toBeChecked());
+    expect(await screen.findByTestId('completion-toast'))
+      .toHaveTextContent('Nice work — Drink Water is done!');
+  });
+
+  it('never celebrates unchecking (A2)', async () => {
+    const w = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups', intention: 'Be Grateful' });
+    await putHabit(w);
+    await putEntry(w.id, '2026-05-24', 8);
+    render(<><CompletionToast /><NoteScreen date="2026-05-24" /></>);
+    const box = await screen.findByRole('checkbox', { name: /drink water/i });
+    await waitFor(() => expect(box).toBeChecked());
+    fireEvent.click(box);
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /drink water/i })).not.toBeChecked());
+    expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument();
   });
 });

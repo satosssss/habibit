@@ -8,6 +8,7 @@ import { ensureDb } from '@/lib/db';
 import { clampLegacyEntries, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
 import { reportWriteError } from '@/lib/writeError';
+import { CompletionToast } from './CompletionToast';
 import { WriteErrorBanner } from './WriteErrorBanner';
 
 const TABS = [
@@ -64,6 +65,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
 
       <div className="min-w-0 flex-1 pb-24 md:pb-0">
         <WriteErrorBanner />
+        <CompletionToast />
         {degraded && (
           <p role="alert"
              className="m-3 rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { putEntry } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
 import { TimerModal } from './TimerModal';
+import { celebrateIfCompleted } from '@/lib/completionToast';
 
 vi.mock('@/lib/repo', () => ({ putEntry: vi.fn(async () => undefined) }));
+vi.mock('@/lib/completionToast', () => ({ celebrateIfCompleted: vi.fn() }));
 
 const habit: Habit = {
   id: 't1', name: 'Meditate', icon: 'flower2', color: '#c026d3', category: 'Morning',
@@ -239,5 +241,41 @@ describe('TimerModal', () => {
     expect(ring.style.background).toContain('conic-gradient');
     expect(ring.style.background).toContain('360deg');   // never 400deg
     expect(ring.style.background).not.toContain('400deg');
+  });
+
+  it('celebrates exactly once when a full-duration session completes (A2)', async () => {
+    render(<TimerModal habit={habit} initialSeconds={0} streak={0} date="2026-09-23"
+                       onClose={vi.fn()} onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /start timer/i }));
+    act(() => { vi.advanceTimersByTime(15 * 60_000 + 1000); });
+    await waitFor(() => expect(vi.mocked(putEntry)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(celebrateIfCompleted)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(celebrateIfCompleted)).toHaveBeenCalledWith(habit, 0, 900);
+  });
+
+  it('passes a below-target session honestly to the store guard (A2)', async () => {
+    // The call always follows a successful write; the store's transition
+    // guard (cycle A: partial progress stays silent) is what keeps an
+    // 840/900 session from celebrating — here we pin the exact arguments.
+    render(<TimerModal habit={habit} initialSeconds={0} streak={0} date="2026-09-23"
+                       onClose={vi.fn()} onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /decrease duration/i }));  // an 840s session
+    fireEvent.click(screen.getByRole('button', { name: /start timer/i }));
+    act(() => { vi.advanceTimersByTime(14 * 60_000 + 1000); });
+    await waitFor(() => expect(vi.mocked(putEntry)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(putEntry)).toHaveBeenCalledWith('t1', '2026-09-23', 840);
+    expect(vi.mocked(celebrateIfCompleted)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(celebrateIfCompleted)).toHaveBeenCalledWith(habit, 0, 840);
+  });
+
+  it('passes an already-completed before value on reopen (A2)', async () => {
+    // before=900 → the store's guard stays silent; here we pin the arguments.
+    render(<TimerModal habit={habit} initialSeconds={900} streak={0} date="2026-09-23"
+                       onClose={vi.fn()} onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /start timer/i }));
+    act(() => { vi.advanceTimersByTime(1000); });
+    await waitFor(() => expect(vi.mocked(putEntry)).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(celebrateIfCompleted)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(celebrateIfCompleted)).toHaveBeenCalledWith(habit, 900, 900);
   });
 });

@@ -6,6 +6,7 @@ import { formatLong, todayKey, weekdayIndex } from '@/lib/dates';
 import { listHabits, loadRange, putEntry } from '@/lib/repo';
 import { isCompleted } from '@/lib/stats';
 import { clampedValue, toggleValue } from '@/lib/values';
+import { celebrateIfCompleted } from '@/lib/completionToast';
 import { reportWriteError } from '@/lib/writeError';
 import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
@@ -111,7 +112,12 @@ export function NoteScreen({ date }: { date: string }) {
                         type="checkbox"
                         aria-label={habit.name}
                         checked={done}
-                        onChange={() => void putEntry(habit.id, date, toggleValue(habit, v)).catch(reportWriteError)}
+                        onChange={() => {
+                          const next = toggleValue(habit, v);
+                          void putEntry(habit.id, date, next)
+                            .then(() => celebrateIfCompleted(habit, v, next))   // A2: after success only
+                            .catch(reportWriteError);
+                        }}
                         className="h-4 w-4 accent-white"
                       />
                       <span className={done ? 'line-through opacity-80' : ''}>{habit.name}</span>

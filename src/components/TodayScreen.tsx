@@ -10,6 +10,7 @@ import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
 import { reportWriteError } from '@/lib/writeError';
 import { habitStreaks } from '@/lib/streaks';
 import { toggleValue } from '@/lib/values';
+import { celebrateIfCompleted } from '@/lib/completionToast';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
@@ -110,9 +111,13 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
   }, [habits, entries, date, rangeStart]);
 
   const setValue = useCallback(async (habit: Habit, value: number) => {
-    try { await putEntry(habit.id, date, value); }   // putEntry owns the clamp (R1)
-    catch (err) { reportWriteError(err); }
-  }, [date]);
+    const before = values[habit.id] ?? 0;
+    try {
+      await putEntry(habit.id, date, value);   // putEntry owns the clamp (R1)
+      celebrateIfCompleted(habit, before, value);   // A2: only after a successful write
+    }
+    catch (err) { reportWriteError(err); }           // failure → banner, never a toast
+  }, [date, values]);
 
   const saveHabit = useCallback(async (habit: Habit) => {
     try { await putHabit(habit); setCreating(null); }

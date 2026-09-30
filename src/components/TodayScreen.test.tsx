@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, listHabits, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
+import { dismissCompletionToast } from '@/lib/completionToast';
 import type { Habit } from '@/lib/types';
 import { addDays, todayKey } from '@/lib/dates';
 import { getThemePref } from '@/lib/theme';
@@ -33,6 +34,10 @@ beforeEach(async () => {
   localStorage.clear();
   delete document.documentElement.dataset.theme;
 });
+
+// A2: the toast store is module-level and outlives each render — reset it so
+// a celebration from one test can never satisfy (or break) the next one.
+afterEach(() => { dismissCompletionToast(); });
 
 describe('TodayScreen', () => {
   it('defaults the date to the current day when no date prop is passed', () => {
@@ -315,6 +320,7 @@ it('surfaces a failed toggle write on the shared banner (R3)', async () => {
   button.click();
   expect(await screen.findByTestId('write-error'))
     .toHaveTextContent(/couldn't save that change/i);
+  expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument(); // A2: failed writes never celebrate
   vi.restoreAllMocks();
 });
 
@@ -332,4 +338,81 @@ it('routes the empty-state CTA through the client router (R2)', async () => {
   const cta = await screen.findByRole('link', { name: /add a habit/i });
   expect(cta).toHaveAttribute('href', '/settings');
   expect(cta).toHaveAttribute('data-next-link');   // next/link, not a bare <a>
+});
+
+// Slice A2 R1/R2: the check button completes quantity rows and celebrates.
+it('completes a quantity habit from its check button and celebrates (A2)', async () => {
+  const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
+  await putHabit(h);
+  const { NavShell } = await import('./NavShell');
+  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  const check = await screen.findByRole('button', { name: 'Mark Drink Water done' });
+  check.click();
+  await waitFor(async () => {
+    expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(8);
+  });
+  expect(await screen.findByTestId('completion-toast'))
+    .toHaveTextContent('Nice work — Drink Water is done!');
+  fireEvent.click(screen.getByRole('button', { name: 'Mark Drink Water not done' }));
+  await waitFor(async () => {
+    expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(0);
+  });
+});
+
+it('celebrates when a stepper crosses the target, then stops at the cap (A2)', async () => {
+  const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
+  await putHabit(h);
+  await putEntry(h.id, todayKey(), 7);
+  const { NavShell } = await import('./NavShell');
+  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  (await screen.findByRole('button', { name: /add one cups/i })).click();
+  await waitFor(async () => {
+    expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(8);
+  });
+  expect(await screen.findByTestId('completion-toast')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /add one cups/i })).toBeDisabled(); // cap: no further write
+});
+
+it('celebrates when the exact-value sheet saves a full target (A2)', async () => {
+  const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
+  await putHabit(h);
+  const { NavShell } = await import('./NavShell');
+  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Set exact value for Drink Water' }));
+  fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '8' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(async () => {
+    expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(8);
+  });
+  expect(await screen.findByTestId('completion-toast'))
+    .toHaveTextContent('Nice work — Drink Water is done!');
+});
+
+it('never celebrates an undo (A2)', async () => {
+  const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
+  await putHabit(h);
+  await putEntry(h.id, todayKey(), 8);
+  const { NavShell } = await import('./NavShell');
+  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Mark Drink Water not done' }));
+  await waitFor(async () => {
+    expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(0);
+  });
+  expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument();
+});
+
+it('never celebrates an imported completion (A2)', async () => {
+  const { importState } = await import('@/lib/repo');
+  await importState({
+    habits: [{
+      id: 'x1', name: 'Drink Water', icon: 'target', color: '#6366f1', category: 'Health',
+      intention: 'Feel Better', type: 'quantity', target: 8, unit: 'cups',
+      frequency: [0, 1, 2, 3, 4, 5, 6], order: 0, createdAt: 0,
+    }],
+    entries: [{ id: `x1_${todayKey()}`, habitId: 'x1', date: todayKey(), value: 8, timestamp: 0 }],
+  });
+  const { NavShell } = await import('./NavShell');
+  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  expect(await screen.findByText('Every day, 8/8 cups')).toBeInTheDocument();
+  expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument();
 });
