@@ -6,6 +6,7 @@
   --color-bg: #f0ebe3;
   --color-fg: rgba(20, 16, 12, 0.90);
   --color-subtle: rgba(20, 16, 12, 0.62);
+  --color-placeholder: rgba(20, 16, 12, 0.62);
   --color-muted: rgba(255, 255, 255, 0.62);
   --color-panel: rgba(255, 255, 255, 0.45);
   --color-line: rgba(20, 16, 12, 0.10);
@@ -49,6 +50,9 @@
   --color-bg: #100d0a;
   --color-fg: rgba(255, 248, 240, 0.95);
   --color-subtle: rgba(255, 235, 210, 0.60);
+  /* Placeholder sits on glass-heavy (lighter than row glass), where subtle at
+     0.60 only reaches ~3.3:1 — its own ink keeps spec R10/V6's ≥4.5 bar. */
+  --color-placeholder: rgba(255, 248, 240, 0.80);
   --color-muted: rgba(255, 255, 255, 0.13);
   --color-panel: rgba(255, 255, 255, 0.08);
   --color-line: rgba(255, 255, 255, 0.12);
@@ -193,7 +197,7 @@ h2 { letter-spacing: -0.01em; }
     outline: none;
     transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
   }
-  .glass-input::placeholder { color: var(--color-subtle); }
+  .glass-input::placeholder { color: var(--color-placeholder); }
   .glass-input:focus {
     background: var(--glass-bg-hover);
     border-color: var(--glass-input-focus-border);

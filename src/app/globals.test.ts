@@ -142,6 +142,21 @@ describe('slice D contrast — WCAG AA sampling (spec R10, V6)', () => {
     expect(contrast(textOn(token('--color-fg'), glass), glass)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(textOn(token('--color-subtle'), glass), glass)).toBeGreaterThanOrEqual(4.5);
   });
+
+  it('light: input placeholder clears 4.5:1 on the stacked input glass', () => {
+    document.documentElement.dataset.theme = 'light';
+    const input = over(token('--glass-input-bg'), over(token('--glass-heavy-bg'), over(token('--glass-bg'), token('--color-bg'))));
+    expect(contrast(textOn(token('--color-placeholder'), input), input)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('dark: input placeholder clears 4.5:1 on the stacked input glass', () => {
+    document.documentElement.dataset.theme = 'dark';
+    // Inputs sit on glass-heavy inside the Sheet — lighter than row glass, where
+    // subtle (0.60) measures only ~3.3:1 (3.94:1 in-browser) — so the placeholder
+    // gets its own token instead of sharing --color-subtle.
+    const input = over(token('--glass-input-bg'), over(token('--glass-heavy-bg'), over(token('--glass-bg'), token('--color-bg'))));
+    expect(contrast(textOn(token('--color-placeholder'), input), input)).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 describe('slice D glass utilities, motion, and fallbacks (spec R4)', () => {
