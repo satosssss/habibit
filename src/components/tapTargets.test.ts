@@ -57,6 +57,16 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
 
   it('HabitList row actions are all h-10', () => {
     // move up / move down / edit / delete — the non-interactive swatch span stays h-8
-    expect(count(src('HabitList.tsx'), 'grid h-10 w-10 place-items-center rounded-full')).toBe(4);
+    const s = src('HabitList.tsx');
+    expect(count(s, 'grid h-10 w-10 shrink-0 place-items-center rounded-full')).toBe(4);
+    // 375px row space: tighter gap so the 40px buttons never flex-squeeze (was 38px wide)
+    expect(s).toContain('gap-2 glass-row px-3');
+  });
+
+  it('Settings button rows are ≥40px tall', () => {
+    // New habit was py-1.5 (32px); both theme segments were py-2 (36px)
+    expect(src('HabitsPanel.tsx')).toContain('px-3 py-2.5 text-sm font-semibold text-[var(--color-on-accent)]');
+    expect(src('ThemePanel.tsx')).toContain('rounded-xl px-4 py-2.5 text-sm font-semibold capitalize');
+    expect(src('MenuDrawer.tsx')).toContain('rounded-xl px-4 py-2.5 text-sm font-semibold capitalize');
   });
 });

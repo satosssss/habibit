@@ -30,7 +30,7 @@ export function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           {OPTIONS.map((option) => (
             <button key={option} type="button" aria-pressed={pref === option}
                     onClick={() => { setPref(option); applyTheme(option); }}
-                    className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize ${
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold capitalize ${
                       pref === option ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]' : 'text-[var(--color-subtle)]'
                     }`}>
               {option}
