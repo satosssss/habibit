@@ -54,15 +54,6 @@ export function HabitRow({
 
         <FlameBadge count={streak} className="pointer-events-none absolute right-3 top-1.5 text-white" />
 
-        {habit.type === 'boolean' && (
-          <button type="button"
-                  aria-label={done ? `Mark ${habit.name} not done` : `Mark ${habit.name} done`}
-                  onClick={onToggle}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white shadow">
-            {done ? <Check size={22} color={habit.color} strokeWidth={3} /> : <span className="text-slate-400">○</span>}
-          </button>
-        )}
-
         {habit.type === 'quantity' && (
           <div className="flex shrink-0 items-center gap-1.5">
             <button type="button" aria-label={`Remove one ${habit.unit || 'unit'}`}
@@ -109,6 +100,15 @@ export function HabitRow({
             </ProgressRing>
           </button>
         )}
+
+        {/* Slice A2 R1: one check control for every type — completes/undoes
+            via the shared toggle; ring and steppers keep their jobs. */}
+        <button type="button"
+                aria-label={done ? `Mark ${habit.name} not done` : `Mark ${habit.name} done`}
+                onClick={onToggle}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white shadow">
+          {done ? <Check size={22} color={habit.color} strokeWidth={3} /> : <span className="text-slate-400">○</span>}
+        </button>
       </div>
     </li>
   );

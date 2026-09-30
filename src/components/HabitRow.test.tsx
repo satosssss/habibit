@@ -133,4 +133,37 @@ describe('HabitRow', () => {
     render(<HabitRow habit={qtyHabit} value={4} onToggle={vi.fn()} {...base} streak={7} />);
     expect(screen.getByTestId('flame-badge').className).toContain('pointer-events-none');
   });
+
+  // Slice A2 R1: quantity/timer rows complete from the same check control —
+  // the ring stays the editor, the check stays the toggle.
+  it('completes a quantity habit from a dedicated check button (A2)', () => {
+    const onToggle = vi.fn();
+    render(<HabitRow habit={qtyHabit} value={4} onToggle={onToggle} {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Drink Water done' }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Drink Water done' }));
+    expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
+  it('flips the quantity check to not-done at the target (A2)', () => {
+    render(<HabitRow habit={qtyHabit} value={8} onToggle={vi.fn()} {...base} />);
+    expect(screen.getByRole('button', { name: 'Mark Drink Water not done' })).toBeInTheDocument();
+  });
+
+  it('completes a timer habit from a dedicated check button (A2)', () => {
+    const onToggle = vi.fn();
+    render(<HabitRow habit={timerHabit} value={300} onToggle={onToggle} {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Meditate done' }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole('button', { name: 'Open timer for Meditate' }),
+    ).toBeInTheDocument(); // ring untouched beside it
+  });
+
+  it('keeps the quantity ring bound to the value sheet (A2)', () => {
+    const onOpenValue = vi.fn();
+    render(<HabitRow habit={qtyHabit} value={4} onToggle={vi.fn()} {...base} onOpenValue={onOpenValue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Set exact value for Drink Water' }));
+    expect(onOpenValue).toHaveBeenCalledTimes(1);
+  });
 });
