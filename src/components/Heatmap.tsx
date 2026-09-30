@@ -102,7 +102,7 @@ export function Heatmap({
   };
 
   return (
-    <section ref={sectionRef} className="rounded-2xl bg-[var(--color-panel)] p-4" aria-label="Activity heatmap">
+    <section ref={sectionRef} className="glass-card p-4" aria-label="Activity heatmap">
       <div className="relative">
         {tooltip && (
           <div data-testid="hm-tooltip"

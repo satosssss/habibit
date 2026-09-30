@@ -77,7 +77,7 @@ export function StatsScreen() {
   if (habits === undefined || entries === undefined || allEntries === undefined) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 pb-10">
-        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
+        <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function StatsScreen() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-1">
         <div>
           <h2 className="mb-1 mt-6 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">By intention</h2>
-          <div className="rounded-2xl bg-[var(--color-panel)] px-4 py-2">
+          <div className="glass-card px-4 py-2">
             {intentions.length === 0 ? (
               <p className="py-3 text-sm text-[var(--color-subtle)]">No habits yet.</p>
             ) : (

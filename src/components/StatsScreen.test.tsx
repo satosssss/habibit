@@ -101,6 +101,22 @@ describe('StatsScreen', () => {
     expect(screen.queryByText('No habits yet.')).not.toBeInTheDocument();
     expect(await screen.findByText('Active Days')).toBeInTheDocument(); // empty DB resolves → true zeros
   });
+
+  it('frosts the stat panels and tiles with display numerals (slice D R8)', async () => {
+    await putHabit(habit());
+    const { StatsScreen } = await import('./StatsScreen');
+    const { container } = render(<StatsScreen />);
+    expect(await screen.findByText('Active Days')).toBeInTheDocument();
+    expect(container.querySelectorAll('.glass-card').length).toBeGreaterThan(0);
+    expect(container.querySelector('.font-display')).not.toBeNull();
+  });
+
+  it('shimmers the stats loading line (slice D R8)', async () => {
+    const { StatsScreen } = await import('./StatsScreen');
+    render(<StatsScreen />);
+    expect(screen.getByText('Loading…').className).toContain('skeleton');
+    await screen.findByText('Active Days'); // settle the async load
+  });
 });
 
 // Spec §8 (R6): the fourth year tile. Only Date is faked (toFake: ['Date']),

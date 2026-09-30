@@ -28,6 +28,13 @@ describe('Heatmap', () => {
     expect(cells.length % 7).toBe(0);
   });
 
+  it('frosts the heatmap panel (slice D R8)', () => {
+    render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" />);
+    const panel = document.querySelector('section[aria-label="Activity heatmap"]')!;
+    expect(panel.className).toContain('glass-card');
+    expect(panel.className).not.toContain('bg-[var(--color-panel)]');
+  });
+
   it('shows month labels across the top', () => {
     render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" />);
     for (const month of ['Jan', 'Apr', 'Jul', 'Oct']) expect(screen.getByText(month)).toBeInTheDocument();
