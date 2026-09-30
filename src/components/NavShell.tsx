@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, CalendarCheck, Flame, Settings } from 'lucide-react';
+import { BarChart3, CalendarCheck, Flame, Settings, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -22,7 +22,7 @@ const linkClass = (active: boolean) =>
   [
     'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors',
     active
-      ? 'bg-[var(--color-accent)] text-white'
+      ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]'
       : 'text-[var(--color-subtle)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]',
   ].join(' ');
 
@@ -46,12 +46,12 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       {/* Tablet icon rail / desktop sidebar */}
       <nav
         aria-label="Primary"
-        className="sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 border-r border-[var(--color-line)] bg-[var(--color-bg)] p-3 md:flex md:w-[72px] xl:w-[240px]"
+        className="sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 border-r border-[var(--color-line)] p-3 md:flex md:w-[72px] xl:w-[240px] glass-nav"
       >
         {/* Wordmark only in the labelled sidebar; flame only in the icon rail */}
         <div className="mb-4 hidden items-center gap-2 px-2 xl:flex">
           <Flame className="text-[var(--color-accent)]" size={22} />
-          <span className="text-lg font-extrabold tracking-tight">Habibit</span>
+          <span className="font-display text-lg font-extrabold tracking-tight">Habibit</span>
         </div>
         <div className="mb-4 grid place-items-center xl:hidden">
           <Flame className="text-[var(--color-accent)]" size={22} />
@@ -70,8 +70,9 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         <CompletionToast />
         {degraded && (
           <p role="alert"
-             className="m-3 rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Storage is unavailable (private browsing?), so changes will be lost when you close this tab.
+             className="m-3 flex items-start gap-2 rounded-2xl glass-card px-4 py-3 text-sm">
+            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[var(--color-accent-ink)]" />
+            <span>Storage is unavailable (private browsing?), so changes will be lost when you close this tab.</span>
           </p>
         )}
         {children}
@@ -79,11 +80,11 @@ export function NavShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom tab bar */}
       <nav aria-label="Primary"
-           className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--color-line)] bg-[var(--color-bg)]/95 backdrop-blur md:hidden">
+           className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--color-line)] md:hidden glass-nav">
         {TABS.map(({ href, label, Icon }) => (
           <Link key={href} href={href} aria-current={isActive(href) ? 'page' : undefined}
                 className={`flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium ${
-                  isActive(href) ? 'text-[var(--color-accent)]' : 'text-[var(--color-subtle)]'
+                  isActive(href) ? 'text-[var(--color-accent-ink)]' : 'text-[var(--color-subtle)]'
                 }`}>
             <Icon size={20} />
             {label}

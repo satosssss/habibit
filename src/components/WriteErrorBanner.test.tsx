@@ -55,4 +55,14 @@ describe('WriteErrorBanner (spec R3.3)', () => {
       .toHaveTextContent(/couldn't save that change/i);
     expect(screen.getByText('content')).toBeInTheDocument();
   });
+
+  it('frosts the banner and signals the warning with an icon, not a red fill (slice D R5)', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<WriteErrorBanner />);
+    act(() => { reportWriteError(new Error('quota exceeded')); });
+    const banner = screen.getByTestId('write-error');
+    expect(banner.className).toContain('glass-card');
+    expect(banner.className).not.toContain('bg-red-50');
+    expect(banner.querySelector('svg.lucide-triangle-alert')).toBeInTheDocument();
+  });
 });

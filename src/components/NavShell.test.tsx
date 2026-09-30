@@ -40,4 +40,25 @@ describe('NavShell', () => {
     render(<NavShell><main>content</main></NavShell>);
     expect(screen.getByText('content')).toBeInTheDocument();
   });
+
+  it('frosts both nav variants and drops the opaque canvas (slice D R5)', () => {
+    const { container } = render(<NavShell><main>c</main></NavShell>);
+    const navs = container.querySelectorAll('nav[aria-label="Primary"]');
+    expect(navs).toHaveLength(2);
+    for (const nav of navs) {
+      expect(nav.className).toContain('glass-nav');
+      expect(nav.className).not.toContain('bg-[var(--color-bg)]');
+    }
+    expect(navs[0].className).toContain('border-r');   // rail edge stays
+    expect(navs[1].className).toContain('border-t');   // bottom bar edge stays
+  });
+
+  it('prints active tabs with the on-accent/ink tokens (slice D R1 contrast)', () => {
+    render(<NavShell><main>c</main></NavShell>);
+    const today = screen.getAllByRole('link', { name: /today/i });
+    expect(today[0].className).toContain('bg-[var(--color-accent)]');
+    expect(today[0].className).toContain('text-[var(--color-on-accent)]');   // pill on amber
+    expect(today[1].className).toContain('text-[var(--color-accent-ink)]');  // bottom-bar label
+    expect(today[1].className).not.toContain('text-[var(--color-accent)]');
+  });
 });

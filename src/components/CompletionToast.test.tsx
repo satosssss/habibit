@@ -72,4 +72,12 @@ describe('CompletionToast (A2 R2)', () => {
     expect(await screen.findByTestId('completion-toast')).toBeInTheDocument();
     expect(screen.getByText('content')).toBeInTheDocument();
   });
+
+  it('frosts the toast body as neutral glass (slice D)', () => {
+    render(<CompletionToast />);
+    act(() => { celebrateIfCompleted(qty, 0, 8); });
+    const body = screen.getByRole('button', { name: /nice work/i });
+    expect(body.className).toContain('glass-card');
+    expect(body.className).not.toContain('bg-[var(--color-bg)]');
+  });
 });
