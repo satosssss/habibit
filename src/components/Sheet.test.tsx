@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { stylesheetForJsdom } from '@/lib/testStylesheet';
 import { Sheet } from './Sheet';
 
 // Vitest runs with css:false, so inject the real stylesheet and assert against
@@ -16,7 +17,7 @@ let themeStyle: HTMLStyleElement;
 beforeAll(() => {
   themeStyle = document.createElement('style');
   themeStyle.dataset.from = 'globals';
-  themeStyle.textContent = css;
+  themeStyle.textContent = stylesheetForJsdom(css);
   document.head.appendChild(themeStyle);
 });
 afterAll(() => themeStyle.remove());
@@ -68,23 +69,25 @@ describe('Sheet', () => {
 
   // Branch review #3: surfaces must come from the theme tokens, not hardcoded
   // white — dark theme used to open white panels with dark-palette inner borders.
+  // Slice D R1: token VALUES changed (Ember & Slate / Liquid Glass); the pin
+  // mechanism (resolve off the theme root) is unchanged.
   describe('theme tokens (branch review #3)', () => {
     it('renders the dark token surface when data-theme is dark', () => {
       document.documentElement.dataset.theme = 'dark';
       render(<Sheet open onClose={vi.fn()} title="Exact value"><span>body</span></Sheet>);
       const panel = screen.getByRole('dialog');
-      expect(panel.style.background).toBe('rgb(11, 11, 15)');        // --color-bg (dark)
-      expect(panel.style.color).toBe('rgb(245, 245, 247)');          // --color-fg (dark)
-      expect(panel.style.border).toBe('1px solid rgb(38, 38, 46)');  // --color-line (dark)
+      expect(panel.style.background).toBe('rgb(16, 13, 10)');                    // --color-bg (dark) #100d0a
+      expect(panel.style.color).toBe('rgba(255, 248, 240, 0.95)');               // --color-fg (dark)
+      expect(panel.style.border).toBe('1px solid rgba(255, 255, 255, 0.12)');    // --color-line (dark)
     });
 
     it('keeps the light surface exactly as before', () => {
       document.documentElement.dataset.theme = 'light';
       render(<Sheet open onClose={vi.fn()} title="Exact value"><span>body</span></Sheet>);
       const panel = screen.getByRole('dialog');
-      expect(panel.style.background).toBe('rgb(255, 255, 255)');     // --color-bg (light)
-      expect(panel.style.color).toBe('rgb(15, 23, 42)');             // --color-fg (light)
-      expect(panel.style.border).toBe('1px solid rgb(226, 232, 240)'); // --color-line (light)
+      expect(panel.style.background).toBe('rgb(240, 235, 227)');                 // --color-bg (light) #f0ebe3
+      expect(panel.style.color).toBe('rgba(20, 16, 12, 0.9)');                   // --color-fg (light) 0.90 → serialized
+      expect(panel.style.border).toBe('1px solid rgba(20, 16, 12, 0.1)');        // --color-line (light) 0.10 → serialized
     });
 
     it('keeps the timer sheet on its fixed dark surface in light theme (spec §6)', () => {

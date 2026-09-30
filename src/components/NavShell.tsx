@@ -9,6 +9,7 @@ import { clampLegacyEntries, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
 import { reportWriteError } from '@/lib/writeError';
 import { CompletionToast } from './CompletionToast';
+import { BackgroundScene } from './BackgroundScene';
 import { WriteErrorBanner } from './WriteErrorBanner';
 
 const TABS = [
@@ -41,6 +42,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh md:flex">
+      <BackgroundScene />
       {/* Tablet icon rail / desktop sidebar */}
       <nav
         aria-label="Primary"

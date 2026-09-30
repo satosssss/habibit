@@ -22,6 +22,12 @@ describe('NavShell', () => {
     expect(screen.getAllByRole('link', { name: /settings/i })).toHaveLength(2);
   });
 
+  it('mounts the background scene exactly once behind the content (slice D R3)', () => {
+    const { container } = render(<NavShell><main>content</main></NavShell>);
+    expect(container.querySelectorAll('.bg-scene')).toHaveLength(1);
+    expect(screen.getByText('content')).toBeInTheDocument();
+  });
+
   it('marks the active destination with aria-current', () => {
     render(<NavShell><main>content</main></NavShell>);
     const current = screen.getAllByRole('link', { name: /today/i });
