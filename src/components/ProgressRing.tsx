@@ -9,7 +9,7 @@ export function ProgressRing({
     <div className="relative grid place-items-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none"
-                stroke="rgba(255,255,255,0.35)" strokeWidth={stroke} />
+                stroke="var(--color-line)" strokeWidth={stroke} />
         <circle data-progress cx={size / 2} cy={size / 2} r={radius} fill="none"
                 stroke={color} strokeWidth={stroke} strokeLinecap="round"
                 strokeDasharray={circumference}

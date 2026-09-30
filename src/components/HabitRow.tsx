@@ -21,9 +21,10 @@ export interface HabitRowProps {
 
 /**
  * The row fill is the progress bar. `boolean` rows are always fully saturated
- * (the check carries the state) and progress rows keep a 55% floor so the white
- * text stays readable on a fresh, empty day — the ring and the x/y subtext are
- * the authoritative progress.
+ * (the check carries the state) and progress rows keep a 55% floor so the
+ * habit-color wash stays visible on a fresh, empty day — the ring and the x/y
+ * subtext are the authoritative progress. The fill moves on transform
+ * (scaleX), never width, so the glass surface stays cheap to composite (D R6).
  */
 export function HabitRow({
   habit, value, streak, onToggle, onStep, onOpenTimer, onOpenValue,
@@ -37,35 +38,39 @@ export function HabitRow({
   const Icon = nameIcon(habit.icon);
 
   return (
-    <li className="relative isolate overflow-hidden rounded-3xl"
-        style={{ background: rgba(habit.color, 0.2) }}>
-      <div data-testid="habit-fill"
-           className="absolute inset-y-0 left-0"
-           style={{ width: `${Math.round(fill * 100)}%`, background: habit.color, transition: 'width 300ms ease' }} />
+    <li className="glass-row isolate">
+      <div data-testid="habit-fill" aria-hidden="true"
+           className="absolute inset-y-0 left-0 w-full origin-left"
+           style={{
+             width: '100%',
+             transform: `scaleX(${fill})`,
+             background: `linear-gradient(90deg, ${rgba(habit.color, 0.4)} 0%, ${rgba(habit.color, 0.1)} 100%)`,
+             transition: 'transform 300ms ease',
+           }} />
       <div className="relative flex items-center gap-3 px-3 py-2.5 xl:gap-2">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/25">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: habit.color }}>
           <Icon size={20} color="#fff" />
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-white drop-shadow-sm">{habit.name}</p>
-          <p className="truncate text-xs text-white/90 drop-shadow-sm">{subtext(habit, v)}</p>
+          <p className="truncate text-sm font-bold text-[var(--color-fg)]">{habit.name}</p>
+          <p className="truncate text-xs text-[var(--color-subtle)]">{subtext(habit, v)}</p>
         </div>
 
-        <FlameBadge count={streak} className="pointer-events-none absolute right-3 top-1.5 text-white" />
+        <FlameBadge count={streak} className="pointer-events-none absolute right-3 top-1.5 glass-pill px-1.5" />
 
         {habit.type === 'quantity' && (
           <div className="flex shrink-0 items-center gap-1.5">
             <button type="button" aria-label={`Remove one ${habit.unit || 'unit'}`}
                     disabled={v <= 0}
                     onClick={() => onStep(-1)}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-white/85 disabled:opacity-40">
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full glass-pill disabled:opacity-40">
               <Minus size={16} color={habit.color} />
             </button>
             <button type="button" aria-label={`Add one ${habit.unit || 'unit'}`}
                     disabled={v >= habit.target}
                     onClick={() => onStep(1)}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-white shadow disabled:opacity-40">
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full glass-pill disabled:opacity-40">
               <Plus size={20} color={habit.color} />
             </button>
           </div>
@@ -79,7 +84,7 @@ export function HabitRow({
                   onClick={onOpenTimer}
                   className="shrink-0 rounded-full">
             <ProgressRing size={40} stroke={4} progress={ratio} color={habit.color}>
-              {done ? <Check size={18} color="#fff" strokeWidth={3} /> : <Plus size={18} color="#fff" />}
+              {done ? <Check size={18} className="text-[var(--color-fg)]" strokeWidth={3} /> : <Plus size={18} className="text-[var(--color-fg)]" />}
             </ProgressRing>
           </button>
         )}
@@ -93,9 +98,9 @@ export function HabitRow({
                   className="shrink-0 rounded-full">
             <ProgressRing size={40} stroke={4} progress={ratio} color={habit.color}>
               {done ? (
-                <Check size={16} color="#fff" strokeWidth={3} />
+                <Check size={16} className="text-[var(--color-fg)]" strokeWidth={3} />
               ) : (
-                <span className="text-[10px] font-bold text-white">{Math.floor(ratio * 100)}</span>
+                <span className="text-[10px] font-bold text-[var(--color-fg)]">{Math.floor(ratio * 100)}</span>
               )}
             </ProgressRing>
           </button>
@@ -106,8 +111,10 @@ export function HabitRow({
         <button type="button"
                 aria-label={done ? `Mark ${habit.name} not done` : `Mark ${habit.name} done`}
                 onClick={onToggle}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white shadow">
-          {done ? <Check size={22} color={habit.color} strokeWidth={3} /> : <span className="text-slate-400">○</span>}
+                className={done
+                  ? 'grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow'
+                  : 'grid h-10 w-10 shrink-0 place-items-center rounded-full glass-pill text-[var(--color-subtle)] disabled:opacity-40'}>
+          {done ? <Check size={22} strokeWidth={3} /> : <span>○</span>}
         </button>
       </div>
     </li>

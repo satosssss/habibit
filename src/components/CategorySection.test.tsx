@@ -58,4 +58,14 @@ describe('CategorySection', () => {
     expect(id).toBeTruthy();
     expect(document.getElementById(id!)).toBe(screen.getByRole('list'));
   });
+
+  it('frosts the section card and reveals it immediately in jsdom (slice D R6/R9)', () => {
+    render(<CategorySection category="Morning" habits={[habit('a', 'Meditate')]}
+                            collapsed={false} onToggleCollapse={vi.fn()} {...handlers} />);
+    const section = screen.getByText('Morning').closest('section')!;
+    expect(section.className).toContain('glass-card');
+    expect(section.className).toContain('reveal');
+    expect(section.className).toContain('visible');   // no IntersectionObserver → never hidden
+    expect(section.className).not.toContain('bg-[var(--color-panel)]');
+  });
 });

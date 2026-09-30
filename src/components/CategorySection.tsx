@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useId } from 'react';
 import { categoryIcon } from '@/lib/icons';
 import type { Habit } from '@/lib/types';
+import { useReveal } from '@/lib/useReveal';
 import { HabitRow } from './HabitRow';
 
 export interface CategorySectionProps {
@@ -25,12 +26,14 @@ export function CategorySection({
 }: CategorySectionProps) {
   const Icon = categoryIcon(category);
   const listId = useId();
+  const revealRef = useReveal<HTMLElement>();
   const ordered = [...habits].sort((a, b) => a.order - b.order);
 
   return (
     // mb-3 = vertical rhythm (a multicol gap can't space stacked blocks);
-    // break-inside-avoid keeps a panel whole inside its column.
-    <section className="mb-3 break-inside-avoid rounded-3xl bg-[var(--color-panel)] p-3">
+    // break-inside-avoid keeps a panel whole inside its column; reveal enters
+    // via useReveal (immediate fallback where IntersectionObserver is absent).
+    <section ref={revealRef} className="mb-3 break-inside-avoid glass-card reveal p-3">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide">
           <Icon size={16} /> {category}
@@ -43,7 +46,7 @@ export function CategorySection({
           // idref would fail axe (spec R5).
           aria-controls={collapsed ? undefined : listId}
           onClick={onToggleCollapse}
-          className="grid h-8 w-8 place-items-center rounded-full border-2 border-[var(--color-accent)] text-[var(--color-accent)]"
+          className="grid h-8 w-8 place-items-center rounded-full border-2 border-[var(--color-accent-ink)] text-[var(--color-accent-ink)]"
         >
           {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>

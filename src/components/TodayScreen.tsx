@@ -172,12 +172,12 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
                  onSelect={(key) => router.push(key === today ? '/today' : `/today/${key}`)} />
 
       {habits === undefined || entries === undefined ? (
-        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
+        <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
       ) : habits.length === 0 ? (
         <div className="p-10 text-center">
           <p className="mb-3 text-base font-semibold">Create your first habit</p>
           {/* Spec R2: client-side route, not a full page load. */}
-          <Link href="/settings" className="rounded-2xl bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white">
+          <Link href="/settings" className="btn-primary text-sm">
             Add a habit
           </Link>
         </div>

@@ -21,4 +21,10 @@ describe('ProgressRing', () => {
     const circle = container.querySelector('circle[data-progress]')!;
     expect(circle).toHaveAttribute('stroke-dashoffset', '0');
   });
+
+  it('tracks with the theme hairline so the ring survives light glass (slice D)', () => {
+    const { container } = render(<ProgressRing size={64} stroke={6} progress={0.5} color="#6366f1">4/8</ProgressRing>);
+    const [track] = container.querySelectorAll('circle');
+    expect(track.getAttribute('stroke')).toBe('var(--color-line)');
+  });
 });

@@ -78,4 +78,13 @@ describe('DateStrip', () => {
       expect(label.textContent).toBe('\u200b');
     }
   });
+
+  it('prints day numerals on accent fills with the on-accent token (slice D R1)', () => {
+    render(<DateStrip selected={TODAY} today={TODAY} onSelect={vi.fn()} />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons[5].className).toContain('text-[var(--color-on-accent)]'); // selected today
+    expect(buttons[4].className).toContain('text-[var(--color-on-accent)]'); // past day
+    expect(buttons[6].className).toContain('text-[var(--color-subtle)]');    // future preview
+    expect(buttons[6].className).not.toContain('text-white');
+  });
 });

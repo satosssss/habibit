@@ -18,7 +18,7 @@ describe('HabitRow', () => {
     render(<HabitRow habit={boolHabit} value={1} onToggle={vi.fn()} {...base} />);
     expect(screen.getByText('Take a Cold Shower')).toBeInTheDocument();
     expect(screen.getByText('Every day')).toBeInTheDocument();
-    expect(screen.getByTestId('habit-fill')).toHaveStyle({ width: '100%' });
+    expect(screen.getByTestId('habit-fill')).toHaveStyle({ width: '100%', transform: 'scaleX(1)' });
   });
 
   it('toggles a boolean habit from its check control', () => {
@@ -42,9 +42,9 @@ describe('HabitRow', () => {
 
   it('clamps the visual ratio but never below the 55% readability floor', () => {
     render(<HabitRow habit={qtyHabit} value={0} onToggle={vi.fn()} {...base} />);
-    expect(screen.getByTestId('habit-fill')).toHaveStyle({ width: '55%' });
+    expect(screen.getByTestId('habit-fill')).toHaveStyle({ transform: 'scaleX(0.55)' });
     render(<HabitRow habit={qtyHabit} value={8} onToggle={vi.fn()} {...base} />);
-    expect(screen.getAllByTestId('habit-fill')[1]).toHaveStyle({ width: '100%' });
+    expect(screen.getAllByTestId('habit-fill')[1]).toHaveStyle({ transform: 'scaleX(1)' });
   });
 
   it('opens the timer from the ring of a timer habit', () => {
@@ -165,5 +165,33 @@ describe('HabitRow', () => {
     render(<HabitRow habit={qtyHabit} value={4} onToggle={vi.fn()} {...base} onOpenValue={onOpenValue} />);
     fireEvent.click(screen.getByRole('button', { name: 'Set exact value for Drink Water' }));
     expect(onOpenValue).toHaveBeenCalledTimes(1);
+  });
+
+  it('frosts the row chrome and keeps habit color only in the wash (slice D R6)', () => {
+    render(<HabitRow habit={qtyHabit} value={6} onToggle={vi.fn()} {...base} />);
+    const row = document.querySelector('li')!;
+    expect(row.className).toContain('glass-row');
+    expect(row.style.background).toBe('');                       // no inline tinted surface
+    const fill = screen.getByTestId('habit-fill');
+    expect(fill).toHaveAttribute('aria-hidden', 'true');          // decorative; ring+subtext authoritative
+    expect(fill.style.width).toBe('100%');
+    expect(fill.style.transform).toBe('scaleX(0.75)');            // 6/8 above the floor
+    expect(fill.style.background).toContain('linear-gradient');   // wash, not solid slab
+  });
+
+  it('prints done state on the check control with the accent tokens (slice D R1)', () => {
+    const { rerender } = render(<HabitRow habit={qtyHabit} value={4} onToggle={vi.fn()} {...base} />);
+    const notDone = screen.getByRole('button', { name: 'Mark Drink Water done' });
+    expect(notDone.className).toContain('text-[var(--color-subtle)]');
+    rerender(<HabitRow habit={qtyHabit} value={8} onToggle={vi.fn()} {...base} />);
+    const done = screen.getByRole('button', { name: 'Mark Drink Water not done' });
+    expect(done.className).toContain('bg-[var(--color-accent)]');
+    expect(done.className).toContain('text-[var(--color-on-accent)]');
+  });
+
+  it('keeps the row text on theme tokens, never fixed white (slice D R6)', () => {
+    render(<HabitRow habit={boolHabit} value={0} onToggle={vi.fn()} {...base} />);
+    expect(screen.getByText('Take a Cold Shower').className).toContain('text-[var(--color-fg)]');
+    expect(screen.getByText('Every day').className).toContain('text-[var(--color-subtle)]');
   });
 });
