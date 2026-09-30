@@ -188,4 +188,28 @@ describe('NoteScreen', () => {
     await waitFor(() => expect(screen.getByRole('checkbox', { name: /drink water/i })).not.toBeChecked());
     expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument();
   });
+
+  it('frosts the quote and keeps loading shimmering (slice D R8)', async () => {
+    const first = render(<NoteScreen date="2026-05-24" />);   // quote-present render
+    await first.findByText('Nothing scheduled this day.');     // settled → no stray Loading…
+    const quote = document.querySelector('blockquote')!;
+    expect(quote.className).toContain('glass-card');
+    expect(quote.className).not.toContain('bg-[var(--color-panel)]');
+    render(<NoteScreen date="2026-05-24" />);                 // loading render (habits undefined)
+    expect(screen.getByText('Loading…').className).toContain('skeleton');
+  });
+
+  it('styles intention groups as neutral glass with theme text (slice D R8)', async () => {
+    await putHabit(habit({ name: 'Meditate', intention: 'Do Hard Things' }));
+    render(<NoteScreen date="2026-05-24" />);
+    await screen.findByText('DO HARD THINGS');
+    const group = screen.getByText('DO HARD THINGS').closest('section')!;
+    expect(group.className).toContain('glass-card');
+    expect(group.parentElement!.className).toContain('reveal');   // the list container blurs in once (R9)
+    const heading = group.querySelector('h2')!;
+    expect(heading.className).toContain('text-[var(--color-fg)]');
+    expect(heading.className).not.toContain('text-white');
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox.className).toContain('accent-[var(--color-accent)]');
+  });
 });

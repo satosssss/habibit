@@ -120,4 +120,12 @@ describe('DataPanel', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/write blocked/i));
     expect(screen.queryByText(/erase everything/i)).not.toBeInTheDocument(); // dialog closed
   });
+
+  it('frosts the data panel and secondary actions (slice D R8)', async () => {
+    render(<DataPanel />);
+    const exportBtn = await screen.findByRole('button', { name: /export json/i });
+    const panel = screen.getByRole('heading', { name: 'Data' }).closest('section')!;
+    expect(panel.className).toContain('glass-card');
+    expect(exportBtn.className).toContain('btn-glass');
+  });
 });

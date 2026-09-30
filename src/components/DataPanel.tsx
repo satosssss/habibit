@@ -55,17 +55,17 @@ export function DataPanel() {
   };
 
   return (
-    <section className="mt-6">
+    <section className="mt-6 glass-card p-4 mb-4">
       <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Data</h2>
 
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void exportJson()}
-                className="flex items-center gap-2 rounded-2xl border border-[var(--color-line)] px-4 py-2.5 text-sm font-semibold">
+                className="flex items-center gap-2 btn-glass px-4 py-2.5 text-sm font-semibold">
           <Download size={15} /> Export JSON
         </button>
 
         <button type="button" onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-2 rounded-2xl border border-[var(--color-line)] px-4 py-2.5 text-sm font-semibold">
+                className="flex items-center gap-2 btn-glass px-4 py-2.5 text-sm font-semibold">
           <Upload size={15} /> Import JSON
         </button>
         <input ref={fileRef} type="file" accept="application/json" className="sr-only"
@@ -73,7 +73,7 @@ export function DataPanel() {
                onChange={(e) => void importJson(e.target.files?.[0])} />
 
         <button type="button" onClick={() => setConfirmReset(true)}
-                className="flex items-center gap-2 rounded-2xl border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-500">
+                className="flex items-center gap-2 btn-glass border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-500">
           <RotateCcw size={15} /> Reset data
         </button>
       </div>
@@ -83,7 +83,7 @@ export function DataPanel() {
           <p className="mb-2 font-semibold">Erase everything and restore the example habits?</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setConfirmReset(false)}
-                    className="rounded-xl border border-[var(--color-line)] px-3 py-1.5">Cancel</button>
+                    className="btn-glass px-3 py-1.5 text-sm">Cancel</button>
             <button type="button" onClick={() => void reset()}
                     className="rounded-xl bg-red-600 px-3 py-1.5 font-semibold text-white">Yes, reset</button>
           </div>
