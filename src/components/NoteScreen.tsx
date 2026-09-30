@@ -77,7 +77,7 @@ export function NoteScreen({ date }: { date: string }) {
             can never mismatch hydration; no suppression flag needed. */}
         <h1 className="text-lg font-extrabold">{formatLong(date)}</h1>
         <button type="button" aria-label="Share this day" onClick={() => void share()}
-                className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-muted)]">
+                className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
           <Share2 size={16} />
         </button>
       </header>

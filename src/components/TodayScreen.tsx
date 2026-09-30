@@ -149,7 +149,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
           the title is absolutely centered rather than justify-between aligned. */}
       <header className="relative flex items-center gap-3 px-2 py-4">
         <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--color-muted)] md:hidden">
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--color-muted)] md:hidden">
           <Menu size={18} />
         </button>
         {/* Date-derived text stays empty in prerendered HTML and fills in only
@@ -162,7 +162,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
             <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}
           </span>
           <button type="button" aria-label="Add habit" onClick={() => setCreating(blankHabit())}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-muted)]">
+                  className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
             <Plus size={18} />
           </button>
         </div>

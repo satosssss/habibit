@@ -46,7 +46,7 @@ export function CategorySection({
           // idref would fail axe (spec R5).
           aria-controls={collapsed ? undefined : listId}
           onClick={onToggleCollapse}
-          className="grid h-8 w-8 place-items-center rounded-full border-2 border-[var(--color-accent-ink)] text-[var(--color-accent-ink)]"
+          className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--color-accent-ink)] text-[var(--color-accent-ink)]"
         >
           {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>

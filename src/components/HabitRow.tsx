@@ -64,7 +64,7 @@ export function HabitRow({
             <button type="button" aria-label={`Remove one ${habit.unit || 'unit'}`}
                     disabled={v <= 0}
                     onClick={() => onStep(-1)}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full glass-pill disabled:opacity-40">
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full glass-pill disabled:opacity-40">
               <Minus size={16} color={habit.color} />
             </button>
             <button type="button" aria-label={`Add one ${habit.unit || 'unit'}`}

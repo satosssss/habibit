@@ -87,20 +87,20 @@ export function HabitList({
                     </div>
                     <button type="button" aria-label={`Move ${habit.name} up`} disabled={index === 0}
                             onClick={() => move(habit, -1)}
-                            className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
+                            className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
                       <ChevronUp size={15} />
                     </button>
                     <button type="button" aria-label={`Move ${habit.name} down`} disabled={index === list.length - 1}
                             onClick={() => move(habit, 1)}
-                            className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
+                            className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
                       <ChevronDown size={15} />
                     </button>
                     <button type="button" aria-label={`Edit ${habit.name}`} onClick={() => onEdit(habit.id)}
-                            className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--color-muted)]">
+                            className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-muted)]">
                       <Pencil size={15} />
                     </button>
                     <button type="button" aria-label={`Delete ${habit.name}`} onClick={() => setPendingDelete(habit.id)}
-                            className="grid h-8 w-8 place-items-center rounded-full text-red-500 hover:bg-red-500/10">
+                            className="grid h-10 w-10 place-items-center rounded-full text-red-500 hover:bg-red-500/10">
                       <Trash2 size={15} />
                     </button>
                   </li>

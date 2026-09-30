@@ -67,7 +67,7 @@ export function DateStrip({
                 isSelected
                   ? 'h-11 w-11 bg-[var(--color-accent)] text-[var(--color-on-accent)] ring-2 ring-[var(--color-accent)] ring-offset-2 ring-offset-[var(--color-bg)]'
                   : kind === 'past'
-                    ? 'h-8 w-8 bg-[var(--color-accent)] text-[var(--color-on-accent)]'
+                    ? 'h-10 w-10 bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                     : 'h-8 w-8 text-[var(--color-subtle)]',
                 disabled ? 'opacity-50' : 'hover:opacity-90',
               ].join(' ')}

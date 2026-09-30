@@ -137,7 +137,7 @@ export function HabitForm({
               return (
                 <button key={name} type="button" aria-label={`Icon ${name}`}
                         aria-pressed={active} onClick={() => set('icon', name)}
-                        className={`grid h-9 w-9 place-items-center rounded-xl border ${
+                        className={`grid h-10 w-10 place-items-center rounded-xl border ${
                           active ? 'border-[var(--color-accent)] bg-[var(--color-muted)]' : 'border-[var(--color-line)]'
                         }`}>
                   <Icon size={16} />
@@ -153,7 +153,7 @@ export function HabitForm({
             {HABIT_COLORS.map((color) => (
               <button key={color} type="button" aria-label={`Color ${color}`}
                       aria-pressed={draft.color === color} onClick={() => set('color', color)}
-                      className={`h-8 w-8 rounded-full border-2 ${
+                      className={`h-10 w-10 rounded-full border-2 ${
                         draft.color === color ? 'border-[var(--color-fg)]' : 'border-transparent'
                       }`}
                       style={{ background: color }} />
