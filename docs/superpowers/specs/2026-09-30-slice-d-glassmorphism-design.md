@@ -14,6 +14,8 @@ Approved conversational decisions (this session):
 
 Corrections applied vs. the chat summary (source docs win): blobs are **650/450/350 px at `blur(90px)`**, light base is **`#f0ebe3`**, and the completion toast is **neutral** glass — the skill's core rule forbids tinted glass fills; the amber lives in the check icon.
 
+Post-approval factual fixes (codebase reality): the app has **no landing page** (root `/` redirects to `/today`), so DESIGN's hero clamp is unused; fonts ship as **two variable `.woff2` files** (each covering the 700/800 and 400/500 weights) rather than four static ones.
+
 Behavior is frozen: 347 tests green, same interaction model as A2 (check/steppers/ring/timer/toast), no new runtime dependencies, no network calls. This slice changes how the app looks, never what it does.
 
 ## R1 — Token system (bridged, both themes)
@@ -45,9 +47,9 @@ Color rules (skill core): glass fills are white-neutral `rgba(255,255,255,N)` on
 
 ## R2 — Typography (vendored)
 
-- Outfit 700/800 and DM Sans 400/500 as static `.woff2` files in `src/app/fonts/`, loaded via `next/font/local` with CSS variables wired on `<body>` in `layout.tsx`. No `<link>` to any CDN, no runtime font fetch. Test asserts the four files exist and no `fonts.googleapis|fonts.gstatic` string appears in source.
+- Outfit (variable, 100–900) and DM Sans (variable) as `.woff2` files in `src/app/fonts/` — two files covering the required 700/800 and 400/500 weights — loaded via `next/font/local` with CSS variables wired on `<body>` in `layout.tsx`. No `<link>` to any CDN, no runtime font fetch (the one-time authoring download happens during implementation, like `npm install`). Test asserts both files exist and no `fonts.googleapis|fonts.gstatic` string appears in source.
 - Body everywhere = DM Sans (`--font-body`); `h1/h2/h3`, the wordmark, and stat-tile numerals = Outfit (`--font-display`) with the spec's tight tracking (`-0.02em` h1, `-0.01em` h2).
-- **App-scale adaptation:** DESIGN's `clamp(2.5rem,5vw,4.5rem)` hero applies to the **landing page only**. In-app headings keep current visual sizes, just in Outfit (h1 ≈ 1.875–2rem/800, h2 ≈ 1.375rem/700, h3 ≈ 1.0625rem/600) — a full hero scale would swallow screen headers.
+- **App-scale adaptation:** the app has no landing page (root `/` redirects to `/today`), so DESIGN's hero `clamp()` is unused; in-app headings keep current visual sizes, just in Outfit (h1 ≈ 1.875–2rem/800, h2 ≈ 1.375rem/700, h3 ≈ 1.0625rem/600) — a full hero scale would swallow screen headers.
 
 ## R3 — Background scene
 
@@ -118,12 +120,12 @@ Both `-webkit-backdrop-filter` and `backdrop-filter` everywhere. Guardrail: neve
 - `NoteScreen`: quote → `.glass-card` blockquote (no accent border), intention groups → `.glass-card`, checkboxes → glass circle + accent check, compact heatmap warm ramp, loading copy + skeleton.
 - `SettingsScreen` → `.glass-card` sections; danger actions stay `.btn-glass` with explicit text labels (confirmation flows untouched).
 - `DataPanel` → `.glass-card`, import/export buttons + Cancel per R4.
-- `LandingScreen` → full DESIGN treatment: hero in Outfit at hero clamp scale, `.btn-primary` CTA, feature cards `.reveal` + `.glass-card` (no-nav condition preserved).
+- `SettingsScreen` itself is a thin wrapper (header + `HabitsPanel` + `ThemePanel` + `DataPanel`) — its panels above carry the treatment; the theme segmented control goes `--color-on-accent`.
 
 ## R9 — Motion application
 
 - New `src/lib/useReveal.ts`: ref callback + IntersectionObserver (threshold 0.12) adding `visible`, unobserving after reveal, cleaning up on unmount; **guards `typeof IntersectionObserver === 'undefined'`** → adds `visible` immediately (jsdom has no IO — this is what keeps the suite green).
-- Applied to: category sections (Today), stat tiles, settings/data/note panels, landing sections — **not** to individual habit rows (density + observer churn).
+- Applied to: category sections (Today), stat tiles, settings/data/note panels — **not** to individual habit rows (density + observer churn).
 - Hover scope: lift + shimmer on `.glass-card` only; `.glass-row` gets fill/border brighten. Buttons press, inputs focus-glow, skeletons shimmer, blobs float. Nothing pulses, nothing glows, no 3D tilt. Every animation is transform/opacity (except the existing toast entrance, untouched).
 
 ## R10 — States, responsive, a11y
@@ -146,7 +148,7 @@ Both `-webkit-backdrop-filter` and `backdrop-filter` everywhere. Guardrail: neve
 - **`BackgroundScene.test.tsx` (new):** three `.blob` children, `aria-hidden`, `pointer-events-none`, fixed container; NavShell renders it exactly once.
 - **`useReveal.test.ts` (new):** adds `visible` on intersect (mock IO), adds it immediately when IO undefined, unobserves/cleans up.
 - **`globals.test.ts` (extended):** token values resolve per theme (existing computed-style pattern incl. `data-theme` switching); glass classes compute the right fill/border; `--color-accent-ink`/`--color-on-accent` exact values; fallback + reduced-motion + reduced-transparency blocks present (source-string assertions — jsdom can't evaluate `@supports`/media reliably); no CDN font string anywhere in `src/`.
-- **Fonts:** fs existence test for the four `.woff2` files.
+- **Fonts:** fs existence test for the two `.woff2` files.
 - **Per-component:** glass-class presence on NavShell rail/bar, CompletionToast, HabitRow, Sheet, HabitForm; updated pins: HabitRow fill `width → transform` assertions, any `text-white`-on-accent assertions move to `--color-on-accent`, `layout.test.tsx` body/font-classname assertions updated consciously with the font wiring. DateStrip's `h-11 w-11 rounded-full` pin and all A2 toast pins stay byte-identical.
 - **Audit before starting:** grep every test for color/class assertions (done: fixture `#6366f1`s are habit *data* — unaffected; `Heatmap` "no `--hm-N` inline" assertion unaffected by value retune; `colors.test.ts` tests the util, not the theme).
 - Gates per commit: `npm test` (347 baseline) → `npm run typecheck` → `npm run lint` (2-warning baseline) → `npm run build`. Updated assertions must be *rewritten*, never loosened.
@@ -158,7 +160,7 @@ Both `-webkit-backdrop-filter` and `backdrop-filter` everywhere. Guardrail: neve
 3. `feat(today): glass habit rows, date strip, and category sections (D)` — `HabitRow`, `TodayScreen`, `DateStrip`, `CategorySection`, `FlameBadge`, `ProgressRing`, `IntentionBar` + tests.
 4. `feat(overlays): glass sheets, drawer, timer, and forms (D)` — `Sheet`, `ValueSheet`, `TimerModal`, `MenuDrawer`, `HabitForm`, `Combobox`, `HabitsPanel`, `HabitList` + tests.
 5. `feat(stats): glass tiles and warm heatmap ramp (D)` — `StatsScreen`, `Heatmap` + tests.
-6. `feat(screens): glass note, settings, data, and landing (D)` — `NoteScreen`, `SettingsScreen`, `DataPanel`, `LandingScreen` + `useReveal` applications + tests.
+6. `feat(screens): glass note, settings, and data screens (D)` — `NoteScreen`, `SettingsScreen`, `DataPanel` + `useReveal` panel applications + tests.
 
 Never `git add .`; never stage `.opencode/` or `opencode.json`. Windows commit messages via `git commit -F` (UTF-8 no-BOM temp file).
 
@@ -171,5 +173,5 @@ Never `git add .`; never stage `.opencode/` or `opencode.json`. Windows commit m
 5. Viewports 375 / 768 / 1280: no overflow, nav forms correct, truncation sane.
 6. Contrast sampling: computed fg/subtle/link/button colors vs. backgrounds in both themes → ratios ≥ targets (R10).
 7. Interaction smoke = A2 protocol (check, steppers, ring → ValueSheet, timer → toast, undo, menu, theme switch) — behavior identical, only pixels changed.
-8. **First-time-user flow review (spec requirement):** fresh profile (clear storage) → landing → create a habit → complete it → stats → settings, judging the design as a first-timer; fix findings.
+8. **First-time-user flow review (spec requirement):** fresh profile (clear storage) → `/` redirect → empty Today (`No habits yet — create one.`) → create a habit → complete it → stats → settings, judging the design as a first-timer; fix findings.
 9. Scroll perf sanity on Today (blurred rows): no visible jank.
