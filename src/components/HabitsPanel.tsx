@@ -38,17 +38,17 @@ export function HabitsPanel() {
   }, []);
 
   return (
-    <section>
+    <section className="glass-card mb-6 p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Habits</h2>
         <button type="button" onClick={() => setEditing(blankHabit())}
-                className="flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white">
+                className="flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-[var(--color-on-accent)]">
           <Plus size={15} /> New habit
         </button>
       </div>
 
       {habits === undefined ? (
-        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
+        <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
       ) : habits.length === 0 ? (
         <p className="p-6 text-center text-sm text-[var(--color-subtle)]">No habits yet — create one.</p>
       ) : (

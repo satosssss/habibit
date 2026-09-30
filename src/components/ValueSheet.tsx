@@ -41,13 +41,13 @@ export function ValueSheet({
             onChange={(e) => { setDraft(e.target.value); setError(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
             aria-invalid={error ? true : undefined}
-            className="mt-1 w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 text-base outline-none focus:border-[var(--color-accent)]"
+            className="mt-1 glass-input"
           />
         </label>
         <p className="mb-3 text-xs text-[var(--color-subtle)]">{`Maximum ${habit.target}${unit}.`}</p>
         {error && <p role="alert" className="mb-3 text-xs text-red-500">{error}</p>}
         <button type="submit"
-                className="w-full rounded-2xl bg-[var(--color-accent)] px-4 py-3 font-semibold text-white">
+                className="btn-primary w-full">
           Save
         </button>
       </form>

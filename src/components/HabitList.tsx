@@ -74,7 +74,7 @@ export function HabitList({
                       onDragStart={() => setDragId(habit.id)}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => drop(habit)}
-                      className="flex items-center gap-3 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-2.5">
+                      className="flex items-center gap-3 glass-row px-3 py-2.5">
                     <GripVertical size={16} className="cursor-grab text-[var(--color-subtle)]" />
                     <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: habit.color }}>
                       <HabitIcon size={16} color="#fff" />
@@ -118,7 +118,7 @@ export function HabitList({
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setPendingDelete(null)}
-                    className="rounded-xl border border-[var(--color-line)] px-3 py-1.5">Cancel</button>
+                    className="btn-glass rounded-xl px-3 py-1.5 text-sm">Cancel</button>
             <button type="button" onClick={() => { onDelete(pendingDelete); setPendingDelete(null); }}
                     className="rounded-xl bg-red-600 px-3 py-1.5 font-semibold text-white">Yes, delete</button>
           </div>

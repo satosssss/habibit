@@ -19,7 +19,7 @@ export function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <Sheet open={open} onClose={onClose} title="Menu">
-      <nav aria-label="Menu" className="flex flex-col gap-3">
+      <nav aria-label="Menu" className="glass-menu flex flex-col gap-3 p-3">
         <button type="button"
                 onClick={() => { router.push('/settings'); onClose(); }}
                 className="flex items-center gap-3 rounded-2xl bg-[var(--color-muted)] px-3 py-2.5 text-sm font-medium">
@@ -31,7 +31,7 @@ export function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             <button key={option} type="button" aria-pressed={pref === option}
                     onClick={() => { setPref(option); applyTheme(option); }}
                     className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize ${
-                      pref === option ? 'bg-[var(--color-accent)] text-white' : 'text-[var(--color-subtle)]'
+                      pref === option ? 'bg-[var(--color-accent)] text-[var(--color-on-accent)]' : 'text-[var(--color-subtle)]'
                     }`}>
               {option}
             </button>

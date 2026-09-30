@@ -67,35 +67,46 @@ describe('Sheet', () => {
     expect(screen.getByRole('dialog').className).not.toContain('md:max-w-lg');
   });
 
-  // Branch review #3: surfaces must come from the theme tokens, not hardcoded
-  // white — dark theme used to open white panels with dark-palette inner borders.
-  // Slice D R1: token VALUES changed (Ember & Slate / Liquid Glass); the pin
-  // mechanism (resolve off the theme root) is unchanged.
-  describe('theme tokens (branch review #3)', () => {
-    it('renders the dark token surface when data-theme is dark', () => {
+  // Slice D R7: the surface now comes from the .glass-heavy class (backdrop
+  // frosting over the scene); only the themed text stays inline. Replaces the
+  // branch-review #3 pins, which asserted inline background/border values.
+  describe('glass surfaces (slice D R7; replaces branch-review #3 pins)', () => {
+    it('frosts the dark panel with themed text and no inline surface', () => {
       document.documentElement.dataset.theme = 'dark';
       render(<Sheet open onClose={vi.fn()} title="Exact value"><span>body</span></Sheet>);
       const panel = screen.getByRole('dialog');
-      expect(panel.style.background).toBe('rgb(16, 13, 10)');                    // --color-bg (dark) #100d0a
-      expect(panel.style.color).toBe('rgba(255, 248, 240, 0.95)');               // --color-fg (dark)
-      expect(panel.style.border).toBe('1px solid rgba(255, 255, 255, 0.12)');    // --color-line (dark)
+      expect(panel.className).toContain('glass-heavy');
+      expect(panel.style.background).toBe('');                          // surface comes from the class
+      expect(panel.style.color).toBe('rgba(255, 248, 240, 0.95)');      // --color-fg (dark)
     });
 
-    it('keeps the light surface exactly as before', () => {
+    it('frosts the light panel with themed text and no inline surface', () => {
       document.documentElement.dataset.theme = 'light';
       render(<Sheet open onClose={vi.fn()} title="Exact value"><span>body</span></Sheet>);
       const panel = screen.getByRole('dialog');
-      expect(panel.style.background).toBe('rgb(240, 235, 227)');                 // --color-bg (light) #f0ebe3
-      expect(panel.style.color).toBe('rgba(20, 16, 12, 0.9)');                   // --color-fg (light) 0.90 → serialized
-      expect(panel.style.border).toBe('1px solid rgba(20, 16, 12, 0.1)');        // --color-line (light) 0.10 → serialized
+      expect(panel.className).toContain('glass-heavy');
+      expect(panel.style.background).toBe('');
+      expect(panel.style.color).toBe('rgba(20, 16, 12, 0.9)');          // --color-fg (light), cssstyle-serialized
     });
 
-    it('keeps the timer sheet on its fixed dark surface in light theme (spec §6)', () => {
+    it('keeps the timer sheet dark in light theme via the heavy scrim (spec §6)', () => {
       document.documentElement.dataset.theme = 'light';
-      render(<Sheet open dark onClose={vi.fn()} title="Timer"><span>body</span></Sheet>);
+      const { container } = render(<Sheet open dark onClose={vi.fn()} title="Timer"><span>body</span></Sheet>);
       const panel = screen.getByRole('dialog');
-      expect(panel.style.background).toBe('rgb(17, 17, 22)');
-      expect(panel.style.color).toBe('rgb(245, 245, 247)');
+      expect(panel.className).toContain('glass-heavy');
+      expect(panel.style.background).toBe('');
+      expect(panel.style.color).toBe('rgb(245, 245, 247)');             // fixed light text on dark glass
+      const scrim = container.querySelector('[data-sheet-backdrop]')!;
+      expect(scrim.className).toContain('bg-black/75');
+      expect(scrim.className).toContain('backdrop-blur-sm');
+    });
+
+    it('keeps the non-timer scrim blurring and the layer under the toast (z-order)', () => {
+      const { container } = render(<Sheet open onClose={vi.fn()} title="Exact value"><span>body</span></Sheet>);
+      const scrim = container.querySelector('[data-sheet-backdrop]')!;
+      expect(scrim.className).toContain('bg-black/50');
+      expect(scrim.className).toContain('backdrop-blur-sm');
+      expect(scrim.parentElement!.className).toContain('z-50');          // toast stays z-[60] above it
     });
   });
 

@@ -77,4 +77,11 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move Read up' }));
     expect(screen.getByRole('status')).toHaveTextContent('Read moved up');
   });
+
+  it('frosts every manage-screen habit row (slice D)', () => {
+    render(<HabitList habits={[h('a', 'Meditate', 'Morning', 0)]}
+                      onEdit={vi.fn()} onDelete={vi.fn()} onReorder={vi.fn()} />);
+    const rows = document.querySelectorAll('.glass-row');
+    expect(rows.length).toBeGreaterThan(0);
+  });
 });

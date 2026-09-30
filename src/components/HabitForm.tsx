@@ -91,7 +91,7 @@ export function HabitForm({
           <input id="habit-name" value={draft.name}
                  onChange={(e) => set('name', e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
-                 className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]" />
+                 className="glass-input" />
         </label>
 
         {/* Two distinct concepts (spec §4.2): category = time/context, intention = meaning/purpose. */}
@@ -112,7 +112,7 @@ export function HabitForm({
                 <button key={suggestion} type="button" aria-label={suggestion}
                         aria-pressed={active} onClick={() => set('intention', suggestion)}
                         className={`rounded-lg border px-2.5 py-1.5 text-xs ${
-                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                                  : 'border-[var(--color-line)]'
                         }`}>
                   {active ? '✓ ' : ''}{suggestion}
@@ -191,7 +191,7 @@ export function HabitForm({
                        draft.type === 'timer'
                          ? Math.round(Number(e.target.value)) * 60
                          : Number(e.target.value))}
-                     className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]" />
+                     className="glass-input" />
             </label>
             {errors.target && <p role="alert" className="text-xs text-red-500">{errors.target}</p>}
           </>
@@ -202,7 +202,7 @@ export function HabitForm({
             <span className="mb-1 block font-semibold">Unit</span>
             <input id="habit-unit" value={draft.unit} placeholder="cups, calories, minutes…"
                    onChange={(e) => set('unit', e.target.value)}
-                   className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]" />
+                   className="glass-input" />
           </label>
         )}
 
@@ -219,7 +219,7 @@ export function HabitForm({
                 <button key={preset.label} type="button" aria-label={preset.label}
                         aria-pressed={active} onClick={() => set('frequency', [...preset.days])}
                         className={`rounded-lg border px-2.5 py-1.5 text-xs ${
-                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                                  : 'border-[var(--color-line)]'
                         }`}>
                   {preset.label}
@@ -236,7 +236,7 @@ export function HabitForm({
                           active ? draft.frequency.filter((d) => d !== index)
                                  : [...draft.frequency, index].sort((a, b) => a - b))}
                         className={`rounded-lg border px-2.5 py-1.5 text-xs ${
-                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-white'
+                          active ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-on-accent)]'
                                  : 'border-[var(--color-line)]'
                         }`}>
                   {day}
@@ -248,7 +248,7 @@ export function HabitForm({
         </fieldset>
 
         <button type="submit"
-                className="mt-1 rounded-2xl bg-[var(--color-accent)] px-4 py-3 font-semibold text-white">
+                className="mt-1 btn-primary">
           Save habit
         </button>
       </form>

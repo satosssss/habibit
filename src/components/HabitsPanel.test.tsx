@@ -17,4 +17,13 @@ describe('HabitsPanel (spec R3)', () => {
     expect(await screen.findByText('No habits yet — create one.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /new habit/i })).toBeInTheDocument();
   });
+
+  it('shimmers the loading line and prints New habit on the accent token (slice D)', () => {
+    render(<HabitsPanel />);   // habits undefined → the loading harness
+    const loading = screen.getByText('Loading…');
+    expect(loading.className).toContain('skeleton');
+    const add = screen.getByRole('button', { name: /new habit/i });
+    expect(add.className).toContain('text-[var(--color-on-accent)]');
+    expect(add.className).not.toContain('text-white');
+  });
 });

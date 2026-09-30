@@ -22,7 +22,7 @@ export function Combobox({
           id={id} list={resolvedListId} value={value}
           placeholder={placeholder ?? `Choose or type ${label.toLowerCase()}`}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-[var(--color-line)] bg-transparent px-3 py-2 outline-none focus:border-[var(--color-accent)]"
+          className="glass-input"
         />
       </label>
       {/* Outside the label on purpose: a wrapping label would append the option

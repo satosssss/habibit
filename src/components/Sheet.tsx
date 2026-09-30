@@ -3,31 +3,26 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
-// Spec §6 pins the timer to a dark bottom sheet in every theme; every other
-// sheet follows the theme tokens so dark mode never opens a white panel
-// (branch review #3). The light literals are the `:root` fallback values.
-const TIMER_SURFACE = { bg: '#111116', fg: '#f5f5f7', line: '#2a2a33' };
+// Spec §6 pins the timer to a dark sheet in every theme; the darkness now
+// comes from the heavier scrim (slice D R7), not a panel fill — the frosted
+// surface stays neutral and only the light text is fixed.
+const TIMER_SURFACE = { fg: '#f5f5f7' };
 
-// Custom properties live only in globals.css, so resolve them off the theme
-// root at render (the boot script sets data-theme before first paint, and the
-// sheet itself only ever opens from client state).
-const themedSurface = () => {
-  const value = (token: string, fallback: string): string =>
-    typeof document === 'undefined'
-      ? fallback
-      : getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
-  return {
-    bg: value('--color-bg', '#ffffff'),
-    fg: value('--color-fg', '#0f172a'),
-    line: value('--color-line', '#e2e8f0'),
-  };
-};
+// Custom properties live only in globals.css, so resolve the themed text off
+// the theme root at render (the boot script sets data-theme before first
+// paint, and the sheet itself only ever opens from client state). The light
+// literal is the :root fallback.
+const themedFg = (): string =>
+  typeof document === 'undefined'
+    ? 'rgba(20, 16, 12, 0.90)'
+    : getComputedStyle(document.documentElement).getPropertyValue('--color-fg').trim()
+      || 'rgba(20, 16, 12, 0.90)';
 
 // Centered-dialog classes per breakpoint: other consumers keep the original
 // md (768px) default; the timer modal asks for lg (1024px, spec §6).
 const CENTER = {
-  md: { wrap: 'md:items-center', panel: 'md:max-w-lg md:rounded-3xl' },
-  lg: { wrap: 'lg:items-center', panel: 'lg:max-w-lg lg:rounded-3xl' },
+  md: { wrap: 'md:items-center', panel: 'md:max-w-lg md:rounded-[28px]' },
+  lg: { wrap: 'lg:items-center', panel: 'lg:max-w-lg lg:rounded-[28px]' },
 } as const;
 
 export function Sheet({
@@ -85,15 +80,16 @@ export function Sheet({
   }, [open]);
 
   if (!open) return null;
-  const surface = dark ? TIMER_SURFACE : themedSurface();
+  const color = dark ? TIMER_SURFACE.fg : themedFg();
   const center = CENTER[centerFrom];
 
   return (
     <div className={`fixed inset-0 z-50 flex items-end justify-center ${center.wrap}`}>
-      <div data-sheet-backdrop className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div data-sheet-backdrop className={`absolute inset-0 bg-black/${dark ? '75' : '50'} backdrop-blur-sm`}
+            onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={panelRef}
-           className={`relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl p-5 ${center.panel}`}
-           style={{ background: surface.bg, color: surface.fg, border: `1px solid ${surface.line}` }}>
+           className={`relative z-10 glass-heavy max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] rounded-b-none p-5 ${center.panel}`}
+           style={{ color }}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
           <button type="button" aria-label="Close" onClick={onClose}

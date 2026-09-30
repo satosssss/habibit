@@ -274,4 +274,11 @@ describe('HabitForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
     expect(onSave.mock.calls[0][0]).toMatchObject({ type: 'boolean', target: 1 });
   });
+
+  it('styles inputs as glass pills and Save as the primary amber pill (slice D)', () => {
+    const { container } = render(<HabitForm habit={habit} open onSave={vi.fn()} onClose={vi.fn()} />);
+    expect(container.querySelector('.glass-input')).not.toBeNull();
+    expect(container.querySelector('input.focus\\:border-\\[var\\(--color-accent\\)\\]')).toBeNull(); // focus utility gone
+    expect(screen.getByRole('button', { name: /save habit/i }).className).toContain('btn-primary');
+  });
 });
