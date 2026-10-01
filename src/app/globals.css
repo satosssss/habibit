@@ -90,8 +90,14 @@
   --blob-3: #78350f;
 }
 
-html, body {
+/* Only <html> carries the canvas fill: an opaque background on <body>
+   paints in step 3 of the root stacking context — above the z-index:-1
+   scene (step 2) — and hides every blob. Spec R3 wants the scene above
+   the html canvas and below content. */
+html {
   background: var(--color-bg);
+}
+html, body {
   color: var(--color-fg);
   font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }

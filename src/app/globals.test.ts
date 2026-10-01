@@ -224,4 +224,15 @@ describe('slice D review fixes — cascade order (spec R4/R6)', () => {
     // prefers-reduced-motion must out-rank the raised selector too.
     expect(css).toContain('.glass-card.glass-card:hover, .btn-primary:hover, .btn-glass:hover { transform: none; }');
   });
+
+  it('keeps the canvas fill off <body> so the z-index:-1 scene can paint (spec R3)', () => {
+    // Found by the final screenshot pass: an opaque background on <body>
+    // paints in step 3 of the root stacking context — above the negative-z
+    // scene (step 2) — so every blob was hidden behind a flat
+    // rgb(16,13,10). Spec R3 puts the scene above the html canvas and
+    // below content; only <html> may carry the canvas fill.
+    const both = css.match(/html, body \{[^}]*\}/)?.[0] ?? '';
+    expect(both).not.toContain('background');
+    expect(css).toMatch(/(^|\n)html \{[^}]*background: var\(--color-bg\)/);
+  });
 });
