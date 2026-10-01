@@ -41,7 +41,7 @@ export function ValueSheet({
             onChange={(e) => { setDraft(e.target.value); setError(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
             aria-invalid={error ? true : undefined}
-            className="mt-1 glass-input"
+            className="mt-1 glass-input text-base"
           />
         </label>
         <p className="mb-3 text-xs text-[var(--color-subtle)]">{`Maximum ${habit.target}${unit}.`}</p>

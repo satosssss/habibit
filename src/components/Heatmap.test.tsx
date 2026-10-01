@@ -30,9 +30,25 @@ describe('Heatmap', () => {
 
   it('frosts the heatmap panel (slice D R8)', () => {
     render(<Heatmap year={2026} habits={[habit('a')]} entries={[]} today="2026-12-31" />);
-    const panel = document.querySelector('section[aria-label="Activity heatmap"]')!;
-    expect(panel.className).toContain('glass-card');
-    expect(panel.className).not.toContain('bg-[var(--color-panel)]');
+    const section = document.querySelector('section[aria-label="Activity heatmap"]')!;
+    const panel = section.querySelector('.glass-card');
+    expect(panel).not.toBeNull();
+    expect(panel?.className).toContain('p-4');
+    expect(panel?.className).not.toContain('bg-[var(--color-panel)]');
+  });
+
+  // Slice D final-review finding #1: .glass-card's overflow:hidden clipped
+  // the above-the-card tooltip to an ~8px sliver. The fix moves the frost to
+  // an inner panel; the tooltip must stay inside the section (outside-click
+  // unpin relies on section.contains) but outside the clipping box.
+  it('renders the tooltip outside the clipped frost so it is not cut off', () => {
+    render(<Heatmap year={2026} habits={[habit('a')]} entries={[entry('a', '2026-06-10')]} today="2026-06-15" />);
+    fireEvent.mouseEnter(screen.getByTestId('hm-cell-2026-06-10'));
+    const tip = screen.getByTestId('hm-tooltip');
+    const section = document.querySelector('section[aria-label="Activity heatmap"]')!;
+    expect(section.contains(tip)).toBe(true);
+    expect(tip.closest('.glass-card')).toBeNull();
+    expect(section.querySelector('.glass-card')).not.toBeNull();
   });
 
   it('shows month labels across the top', () => {

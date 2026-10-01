@@ -102,29 +102,34 @@ export function Heatmap({
   };
 
   return (
-    <section ref={sectionRef} className="glass-card p-4" aria-label="Activity heatmap">
-      <div className="relative">
-        {tooltip && (
-          <div data-testid="hm-tooltip"
-               className="absolute -top-2 left-1/2 z-20 w-56 -translate-x-1/2 -translate-y-full rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-2 text-xs shadow-lg">
-            <p className="font-bold">{formatShort(tooltip.date)}, {tooltip.date.slice(0, 4)}</p>
-            {tooltip.scheduled === 0 && tooltip.bonus > 0 ? (
+    // The frost lives on an inner panel, not this section: .glass-card's
+    // overflow:hidden is what clips, and the above-the-card tooltip has to
+    // escape it. As a sibling of the frost — still inside the section, so
+    // the outside-click unpin above still sees it — the tooltip renders in
+    // full at its pre-slice-D position.
+    <section ref={sectionRef} className="relative" aria-label="Activity heatmap">
+      {tooltip && (
+        <div data-testid="hm-tooltip"
+             className="absolute -top-2 left-1/2 z-20 w-56 -translate-x-1/2 -translate-y-full rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-2 text-xs shadow-lg">
+          <p className="font-bold">{formatShort(tooltip.date)}, {tooltip.date.slice(0, 4)}</p>
+          {tooltip.scheduled === 0 && tooltip.bonus > 0 ? (
+            <p className="text-[var(--color-subtle)]">
+              {tooltip.completed + tooltip.bonus} completed (off schedule)
+            </p>
+          ) : (
+            <>
               <p className="text-[var(--color-subtle)]">
-                {tooltip.completed + tooltip.bonus} completed (off schedule)
+                {tooltip.completed} of {tooltip.scheduled} completed
               </p>
-            ) : (
-              <>
-                <p className="text-[var(--color-subtle)]">
-                  {tooltip.completed} of {tooltip.scheduled} completed
-                </p>
-                <p className="text-[var(--color-subtle)]">
-                  {tooltip.scheduled ? Math.round((tooltip.completed / tooltip.scheduled) * 100) : 0}%
-                </p>
-              </>
-            )}
-          </div>
-        )}
+              <p className="text-[var(--color-subtle)]">
+                {tooltip.scheduled ? Math.round((tooltip.completed / tooltip.scheduled) * 100) : 0}%
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
+      <div className="relative glass-card p-4">
         <div className="flex gap-1.5">
           <div className="flex w-8 shrink-0 flex-col justify-between py-0.5 text-[9px] text-[var(--color-subtle)]">
             {WEEKDAYS.map((d) => <span key={d}>{d}</span>)}
@@ -185,15 +190,15 @@ export function Heatmap({
             </div>
           </div>
         </div>
-      </div>
 
-      <div data-testid="hm-legend" className="mt-3 flex items-center justify-end gap-1 text-[10px] text-[var(--color-subtle)]">
-        <span className="mr-1">Less</span>
-        {[0, 1, 2, 3, 4].map((level) => (
-          <span key={level} data-level={level} className="h-[10px] w-[10px] rounded-[2px]"
-                style={{ background: `var(--hm-${level})` }} />
-        ))}
-        <span className="ml-1">More</span>
+        <div data-testid="hm-legend" className="mt-3 flex items-center justify-end gap-1 text-[10px] text-[var(--color-subtle)]">
+          <span className="mr-1">Less</span>
+          {[0, 1, 2, 3, 4].map((level) => (
+            <span key={level} data-level={level} className="h-[10px] w-[10px] rounded-[2px]"
+                  style={{ background: `var(--hm-${level})` }} />
+          ))}
+          <span className="ml-1">More</span>
+        </div>
       </div>
     </section>
   );

@@ -85,7 +85,11 @@ export function Sheet({
 
   return (
     <div className={`fixed inset-0 z-50 flex items-end justify-center ${center.wrap}`}>
-      <div data-sheet-backdrop className={`absolute inset-0 bg-black/${dark ? '75' : '50'} backdrop-blur-sm`}
+      {/* Full class literals in-source: Tailwind's scanner only generates
+          rules for strings it finds in component files — fragments like
+          `bg-black/${…}` would silently ship an undimmed sheet if the test
+          copies of these classes ever changed. */}
+      <div data-sheet-backdrop className={`absolute inset-0 ${dark ? 'bg-black/75' : 'bg-black/50'} backdrop-blur-sm`}
             onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={panelRef}
            className={`relative z-10 glass-heavy max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] rounded-b-none p-5 ${center.panel}`}

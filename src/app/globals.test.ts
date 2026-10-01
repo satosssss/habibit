@@ -184,3 +184,44 @@ describe('slice D glass utilities, motion, and fallbacks (spec R4)', () => {
     expect(kf).not.toMatch(/opacity|filter|width|height/);
   });
 });
+
+// Slice D final-review findings #2 and #4.
+describe('slice D review fixes — cascade order (spec R4/R6)', () => {
+  it('keeps heading typography inside @layer base so tracking utilities can win (spec R6)', () => {
+    const open = css.indexOf('@layer base {');
+    expect(open).toBeGreaterThan(-1);
+    // Brace-match the wrapper so a stray open brace can't satisfy the pin.
+    let depth = 0;
+    let end = -1;
+    for (let i = css.indexOf('{', open); i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}') {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    expect(end).toBeGreaterThan(-1);
+    const block = css.slice(open, end + 1);
+    expect(block).toContain('h1, h2, h3 {');
+    expect(block).toContain('h1 { letter-spacing: -0.02em; }');
+    expect(block).toContain('h2 { letter-spacing: -0.01em; }');
+    // …and nowhere unlayered: an unlayered rule beats every layered
+    // declaration regardless of specificity, silently killing
+    // tracking-wide/widest on every section heading.
+    expect(css.slice(0, open) + css.slice(end + 1)).not.toContain('h1, h2, h3 {');
+  });
+
+  it('lets glass-card hover outrank .reveal.visible and animates it (spec R4/R9)', () => {
+    // Equal specificity + later source order meant .reveal.visible
+    // { transform: none } vetoed the hover lift on stat tiles and
+    // category sections; raising the hover selector's specificity
+    // puts the lift back without touching the reveal itself.
+    expect(css).toContain('.glass-card.glass-card:hover');
+    // The reveal's transition list also owns background/border-color/
+    // box-shadow for elements carrying both classes — otherwise those
+    // hover changes land with no animation.
+    expect(css).toMatch(/\.reveal \{[^}]*background \.25s ease[^}]*box-shadow \.25s ease[^}]*\}/);
+    // prefers-reduced-motion must out-rank the raised selector too.
+    expect(css).toContain('.glass-card.glass-card:hover, .btn-primary:hover, .btn-glass:hover { transform: none; }');
+  });
+});

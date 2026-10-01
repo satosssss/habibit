@@ -108,6 +108,15 @@ describe('Sheet', () => {
       expect(scrim.className).toContain('backdrop-blur-sm');
       expect(scrim.parentElement!.className).toContain('z-50');          // toast stays z-[60] above it
     });
+
+    it('declares the full scrim classes in Sheet.tsx (Tailwind scanner, slice D review)', () => {
+      // The rendered class is assembled by a ternary; if the complete literals
+      // lived only in this test file, Tailwind would generate the scrim rules
+      // from test text — rewriting tests could silently strip the dim.
+      const src = readFileSync(join(here, 'Sheet.tsx'), 'utf8');
+      expect(src).toContain("'bg-black/75'");
+      expect(src).toContain("'bg-black/50'");
+    });
   });
 
   describe('focus management (spec R5.2)', () => {

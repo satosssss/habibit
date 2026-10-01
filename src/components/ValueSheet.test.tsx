@@ -84,4 +84,12 @@ describe('ValueSheet (spec R4)', () => {
                       onSave={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText('Maximum 8.')).toBeInTheDocument();
   });
+
+  // Slice D final-review finding: the base commit had text-base (16px) here;
+  // the glass-input swap dropped it, and anything under 16px makes iOS Safari
+  // auto-zoom the viewport on focus (the sheet is a stated 375px target).
+  it('keeps the amount input at 16px so iOS never auto-zooms on focus', () => {
+    open();
+    expect(input()).toHaveClass('text-base');
+  });
 });

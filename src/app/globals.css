@@ -96,10 +96,15 @@ html, body {
   font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Slice D R2 — Outfit for headings (tight tracking per DESIGN) */
-h1, h2, h3 { font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif; }
-h1 { letter-spacing: -0.02em; }
-h2 { letter-spacing: -0.01em; }
+/* Slice D R2 — Outfit for headings (tight tracking per DESIGN).
+   Wrapped in @layer base on purpose: element typography is a default that
+   utilities (tracking-widest, spec R6) must out-rank, and an unlayered rule
+   beats every layered declaration regardless of specificity. */
+@layer base {
+  h1, h2, h3 { font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif; }
+  h1 { letter-spacing: -0.02em; }
+  h2 { letter-spacing: -0.01em; }
+}
 
 /* Slice A2 R2: completion-toast entrance — applied only under motion-safe. */
 @keyframes toast-in {
@@ -127,7 +132,9 @@ h2 { letter-spacing: -0.01em; }
     transition: background .25s ease, border-color .25s ease, box-shadow .25s ease,
                 transform .25s cubic-bezier(.34, 1.56, .64, 1);
   }
-  .glass-card:hover {
+  /* Doubled selector: .reveal.visible (equal specificity, later source
+     order) otherwise vetoes the lift on stat tiles / category sections. */
+  .glass-card.glass-card:hover {
     background: var(--glass-bg-hover);
     border-color: var(--glass-border-hover);
     box-shadow: var(--glass-specular), var(--glass-shadow-hover);
@@ -270,7 +277,9 @@ h2 { letter-spacing: -0.01em; }
     filter: blur(8px);
     transition: opacity .7s cubic-bezier(.34, 1.56, .64, 1),
                 transform .7s cubic-bezier(.34, 1.56, .64, 1),
-                filter .6s ease;
+                filter .6s ease,
+                /* hover state of glass-card sits on revealed elements too */
+                background .25s ease, border-color .25s ease, box-shadow .25s ease;
   }
   .reveal.visible { opacity: 1; transform: none; filter: none; }
   .reveal:nth-child(2) { transition-delay: .08s; }
@@ -335,5 +344,5 @@ h2 { letter-spacing: -0.01em; }
   .reveal { opacity: 1; transform: none; filter: none; }
   .blob { animation: none; }
   .skeleton::after { animation: none; }
-  .glass-card:hover, .btn-primary:hover, .btn-glass:hover { transform: none; }
+  .glass-card.glass-card:hover, .btn-primary:hover, .btn-glass:hover { transform: none; }
 }
