@@ -13,7 +13,7 @@ export function clampedValue(habit: Habit, value: number): number {
 
 /**
  * One shared completion toggle (spec R2): done → 0, not-done → the full
- * target (boolean habits: 1). TodayScreen's row toggles and NoteScreen's
+ * target (boolean habits: 1). HomeScreen's row toggles and NoteScreen's
  * checkboxes now behave identically — a partial quantity completes to its
  * target instead of being zeroed.
  */

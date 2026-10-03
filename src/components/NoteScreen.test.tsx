@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 // Full-suite CPU contention can push the fake-indexeddb live query past the
 // default 1s wait budget (observed failure: found nothing after 1905ms).
 // Same elements, same matchers, same assertions — only the wait grows.
-// In-repo precedent: StatsScreen.test.tsx findByText(..., { timeout: 5000 }).
+// In-repo precedent: InsightsScreen.test.tsx findByText(..., { timeout: 5000 }).
 const WAIT = { timeout: 5000 } as const;
 
 const habit = (over: Partial<Habit> = {}): Habit => ({

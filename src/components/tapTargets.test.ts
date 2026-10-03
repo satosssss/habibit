@@ -13,8 +13,8 @@ const src = (file: string) => readFileSync(join(here, file), 'utf8');
 const count = (haystack: string, needle: string) => haystack.split(needle).length - 1;
 
 describe('tap targets ≥40px (spec R10, V5)', () => {
-  it('TodayScreen header controls are h-10', () => {
-    const s = src('TodayScreen.tsx');
+  it('HomeScreen header controls are h-10', () => {
+    const s = src('HomeScreen.tsx');
     expect(s).toMatch(/aria-label="Open menu"[\s\S]{0,220}h-10 w-10/);
     expect(s).toMatch(/aria-label="Add habit"[\s\S]{0,220}h-10 w-10/);
   });

@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { nameIcon } from '@/lib/icons';
 
-// `icon` accepts a name (unit usage) or a component (StatsScreen passes the
+// `icon` accepts a name (unit usage) or a component (InsightsScreen passes the
 // Lucide icon returned by intentionIcon).
 export function IntentionBar({
   intention, color, icon, completed, scheduled,

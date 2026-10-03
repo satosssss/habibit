@@ -1,12 +1,12 @@
 'use client';
 
 import { NavShell } from '@/components/NavShell';
-import { TodayScreen } from '@/components/TodayScreen';
+import { HomeScreen } from '@/components/HomeScreen';
 
 export default function TodayPage() {
   return (
     <NavShell>
-      <TodayScreen />
+      <HomeScreen />
     </NavShell>
   );
 }

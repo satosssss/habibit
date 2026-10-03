@@ -28,7 +28,7 @@ const readCollapsed = (): Record<string, boolean> => {
 
 // `date` defaults to the current day at render time so the statically
 // prerendered /today route never freezes on the build date.
-export function TodayScreen({ date = todayKey() }: { date?: string }) {
+export function HomeScreen({ date = todayKey() }: { date?: string }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [valueSheet, setValueSheet] = useState<Habit | null>(null);
   const [timerHabit, setTimerHabit] = useState<Habit | null>(null);
@@ -215,7 +215,7 @@ export function TodayScreen({ date = todayKey() }: { date?: string }) {
         />
       )}
 
-      {/* Spec §9: `+ New habit` is also available from the Today header. */}
+      {/* Spec §9: `+ New habit` is also available from the Home header. */}
       {creating && (
         <HabitForm
           habit={creating} open categories={categories} intentions={intentions}

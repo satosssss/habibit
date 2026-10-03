@@ -6,7 +6,7 @@ import { dismissCompletionToast } from '@/lib/completionToast';
 import type { Habit } from '@/lib/types';
 import { addDays, todayKey } from '@/lib/dates';
 import { getThemePref } from '@/lib/theme';
-import { TodayScreen } from './TodayScreen';
+import { HomeScreen } from './HomeScreen';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 
@@ -39,12 +39,12 @@ beforeEach(async () => {
 // a celebration from one test can never satisfy (or break) the next one.
 afterEach(() => { dismissCompletionToast(); });
 
-describe('TodayScreen', () => {
+describe('HomeScreen', () => {
   it('defaults the date to the current day when no date prop is passed', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-30T09:00:00')); // Wednesday
     try {
-      render(<TodayScreen />);
+      render(<HomeScreen />);
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Today');
       const selected = screen.getByRole('button', { name: '2026-09-30' });
       expect(selected).toHaveAttribute('aria-current', 'date');
@@ -60,7 +60,7 @@ describe('TodayScreen', () => {
     // Morning, Health — guaranteed to differ from the sorted expectation.
     await putHabit(habit({ id: 'a-morning', name: 'Meditate', category: 'Morning' }));
     await putHabit(habit({ id: 'z-health', name: 'Drink Water', category: 'Health' }));
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     expect(await screen.findByText('Meditate')).toBeInTheDocument();
     expect(screen.getByText('Drink Water')).toBeInTheDocument();
     // Spec §5.3: sections ordered by category name (localeCompare → Health < Morning)
@@ -72,20 +72,20 @@ describe('TodayScreen', () => {
     await putHabit(habit({ name: 'Weekend only', category: 'Health', frequency: [0, 6] }));
     await putHabit(habit({ name: 'Daily Stretch', category: 'Morning' }));
     // Fixed Wednesday so exactly one category is hidden on every possible run day
-    render(<TodayScreen date="2026-09-23" />);
+    render(<HomeScreen date="2026-09-23" />);
     expect(await screen.findByText('Morning')).toBeInTheDocument();
     expect(screen.queryByText('Health')).not.toBeInTheDocument();
   });
 
   it('shows the empty state when there are no habits at all', async () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     expect(await screen.findByText(/create your first habit/i)).toBeInTheDocument();
   });
 
   it('writes a 1 when a boolean habit is toggled', async () => {
     const h = habit({ name: 'Take a Cold Shower' });
     await putHabit(h);
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     const button = await screen.findByRole('button', { name: /mark take a cold shower done/i });
     button.click();
     await waitFor(async () => {
@@ -98,12 +98,12 @@ describe('TodayScreen', () => {
     const h = habit({ name: 'Read' });
     await putHabit(h);
     await putEntry(h.id, todayKey(), 1);
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     expect(await screen.findByRole('button', { name: /mark read not done/i })).toBeInTheDocument();
   });
 
   it('routes a tapped past day to /today/<key>', () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     const pastKey = addDays(todayKey(), -1);
     screen.getByRole('button', { name: pastKey }).click();
     expect(push).toHaveBeenCalledWith(`/today/${pastKey}`);
@@ -114,7 +114,7 @@ describe('TodayScreen', () => {
   it('lays category panels out in CSS columns: 1 / 2 / 3 across (spec §10)', async () => {
     await putHabit(habit({ id: 'a-morning', name: 'Meditate', category: 'Morning' }));
     await putHabit(habit({ id: 'z-health', name: 'Drink Water', category: 'Health' }));
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     await screen.findByText('Morning');
     const grid = document.querySelector<HTMLElement>('div[class*="md:columns-2"]');
     expect(grid).not.toBeNull();
@@ -132,7 +132,7 @@ describe('TodayScreen', () => {
   // quantity row's fixed chrome (px-3, icon, stepper, ring ≈ 218px) would
   // otherwise leave the truncated habit name ~16px.
   it('widens the screen container at xl so habit names keep room (spec §10)', () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     const container = document.querySelector<HTMLElement>('.max-w-3xl');
     expect(container).not.toBeNull();
     expect(container!.className.split(/\s+/)).toContain('xl:max-w-6xl');
@@ -141,9 +141,9 @@ describe('TodayScreen', () => {
 
 // Branch review #2 — spec §5.1 header: hamburger (mobile) | centered title |
 // flame + streak | `+` → new-habit form; §9: `+ New habit` also from Today.
-describe('Today header (spec §5.1)', () => {
+describe('Home header (spec §5.1)', () => {
   it('opens the new-habit form from the header + instead of routing to /settings', async () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('New habit')).toBeInTheDocument(); // form title, not the route
@@ -152,7 +152,7 @@ describe('Today header (spec §5.1)', () => {
   });
 
   it('creates a habit from the header form that renders under its category', async () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
     fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Journal' } });
     // R5 makes the intention required — blankHabit starts it empty, so the
@@ -167,7 +167,7 @@ describe('Today header (spec §5.1)', () => {
   });
 
   it('leaves no habit behind when the header form is closed without saving', async () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
     fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Never saved' } });
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
@@ -178,7 +178,7 @@ describe('Today header (spec §5.1)', () => {
   });
 
   it('opens a menu drawer from the hamburger, shown on mobile only via md:hidden', async () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     const hamburger = screen.getByRole('button', { name: /open menu/i });
     // Visibility is a Tailwind breakpoint, never a JS width check (constraint 2d)
     expect(hamburger.className.split(/\s+/)).toContain('md:hidden');
@@ -188,7 +188,7 @@ describe('Today header (spec §5.1)', () => {
   });
 
   it('routes to Settings from the drawer and closes it', async () => {
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     expect(push).toHaveBeenCalledWith('/settings');
@@ -197,7 +197,7 @@ describe('Today header (spec §5.1)', () => {
 
   it('flips the persisted theme from the drawer toggle', async () => {
     localStorage.setItem('habibit:theme', 'light');
-    render(<TodayScreen date={todayKey()} />);
+    render(<HomeScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
     // Labels are lowercase text capitalized by CSS, exactly like ThemePanel.
     const dark = await screen.findByRole('button', { name: 'dark' });
@@ -212,9 +212,9 @@ describe('Today header (spec §5.1)', () => {
 // A statically prerendered /today embeds the build date in the HTML (the h1
 // and DateStrip), which then freezes there for every later visit. The server
 // markup must be clock-independent: date-derived text only after mount.
-describe('TodayScreen prerender (SSR)', () => {
+describe('HomeScreen prerender (SSR)', () => {
   it('emits clock-independent HTML with no date text', () => {
-    const html = renderToString(<TodayScreen date="2026-05-24" />);
+    const html = renderToString(<HomeScreen date="2026-05-24" />);
     expect(html).not.toContain('2026-');
     expect(html).not.toMatch(/May 24|May/);
     expect(html).toContain('Loading'); // the clock-independent body still renders
@@ -233,7 +233,7 @@ describe('shared all-time streak (R1)', () => {
 
   it('shows an uncapped 90-day streak in the header and on the habit badge', async () => {
     await longFixture();
-    render(<TodayScreen />);
+    render(<HomeScreen />);
     // The header span renders immediately with 0; wait for the live queries to
     // fill (findByTestId alone would resolve on the first, empty paint).
     // Old code capped both at 41 (a 40-day window + today).
@@ -243,12 +243,12 @@ describe('shared all-time streak (R1)', () => {
 
   it('matches the Stats Current Streak tile on the same data', async () => {
     await longFixture();
-    render(<TodayScreen />);
+    render(<HomeScreen />);
     await waitFor(() => expect(screen.getByTestId('header-streak')).toHaveTextContent('90'));
     const header = screen.getByTestId('header-streak');
 
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     const tile = (await screen.findByText('Current Streak')).closest('div')!;
     const tileValue = await within(tile).findByText('90');
     expect(header.textContent?.trim()).toBe(tileValue.textContent?.trim());
@@ -260,7 +260,7 @@ it('steps up to the target and then disables the stepper (R1)', async () => {
   const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
   await putHabit(h);
   await putEntry(h.id, todayKey(), 7);
-  render(<TodayScreen date={todayKey()} />);
+  render(<HomeScreen date={todayKey()} />);
   const add = await screen.findByRole('button', { name: /add one cups/i });
   fireEvent.click(add);
   await waitFor(async () => {
@@ -273,7 +273,7 @@ it('steps up to the target and then disables the stepper (R1)', async () => {
 it('opens the timer modal from a timer habit row', async () => {
   const h = habit({ name: 'Meditate', type: 'timer', target: 900 });
   await putHabit(h);
-  render(<TodayScreen date={todayKey()} />);
+  render(<HomeScreen date={todayKey()} />);
   fireEvent.click(await screen.findByRole('button', { name: /open timer for meditate/i }));
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   expect(screen.getByText('15:00')).toBeInTheDocument();
@@ -289,7 +289,7 @@ it('renders a hostile import without crashing (R6)', async () => {
     }],
     entries: [{ id: 'x1_2026-09-22', habitId: 'x1', date: todayKey(), value: 99, timestamp: 0 }],
   });
-  render(<TodayScreen date={todayKey()} />);
+  render(<HomeScreen date={todayKey()} />);
   expect(await screen.findByText('Untitled habit')).toBeInTheDocument();      // repaired name
   expect(await screen.findByText('Every day, 11/11 cups')).toBeInTheDocument(); // target 11 survives, value 99 → clamped 11
 });
@@ -299,7 +299,7 @@ it('shows Loading… until habits and entries both resolve (R3)', async () => {
   const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
   await putHabit(h);
   await putEntry(h.id, todayKey(), 0);
-  render(<TodayScreen date={todayKey()} />);
+  render(<HomeScreen date={todayKey()} />);
   expect(screen.getByText('Loading…')).toBeInTheDocument();
   expect(screen.queryByText(/0\/8/)).not.toBeInTheDocument();
   expect(await screen.findByText('Every day, 0/8 cups')).toBeInTheDocument();
@@ -315,7 +315,7 @@ it('surfaces a failed toggle write on the shared banner (R3)', async () => {
   );
   vi.spyOn(console, 'error').mockImplementation(() => {});
   const { NavShell } = await import('./NavShell');
-  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   const button = await screen.findByRole('button', { name: /mark take a cold shower done/i });
   button.click();
   expect(await screen.findByTestId('write-error'))
@@ -328,13 +328,13 @@ it('surfaces a failed toggle write on the shared banner (R3)', async () => {
 // a directly-passed future date renders normally with no ghost message.
 it('renders a directly-passed future date without the dead branch (R2)', async () => {
   await putHabit(habit({ name: 'Daily Stretch' }));
-  render(<TodayScreen date="2026-12-31" />);
+  render(<HomeScreen date="2026-12-31" />);
   expect(await screen.findByText('Daily Stretch')).toBeInTheDocument();
   expect(screen.queryByText(/hasn’t happened yet/i)).not.toBeInTheDocument();
 });
 
 it('routes the empty-state CTA through the client router (R2)', async () => {
-  render(<TodayScreen date={todayKey()} />);
+  render(<HomeScreen date={todayKey()} />);
   const cta = await screen.findByRole('link', { name: /add a habit/i });
   expect(cta).toHaveAttribute('href', '/settings');
   expect(cta).toHaveAttribute('data-next-link');   // next/link, not a bare <a>
@@ -345,7 +345,7 @@ it('completes a quantity habit from its check button and celebrates (A2)', async
   const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
   await putHabit(h);
   const { NavShell } = await import('./NavShell');
-  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   const check = await screen.findByRole('button', { name: 'Mark Drink Water done' });
   check.click();
   await waitFor(async () => {
@@ -364,7 +364,7 @@ it('celebrates when a stepper crosses the target, then stops at the cap (A2)', a
   await putHabit(h);
   await putEntry(h.id, todayKey(), 7);
   const { NavShell } = await import('./NavShell');
-  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   (await screen.findByRole('button', { name: /add one cups/i })).click();
   await waitFor(async () => {
     expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(8);
@@ -377,7 +377,7 @@ it('celebrates when the exact-value sheet saves a full target (A2)', async () =>
   const h = habit({ name: 'Drink Water', type: 'quantity', target: 8, unit: 'cups' });
   await putHabit(h);
   const { NavShell } = await import('./NavShell');
-  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   fireEvent.click(await screen.findByRole('button', { name: 'Set exact value for Drink Water' }));
   fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '8' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -393,7 +393,7 @@ it('never celebrates an undo (A2)', async () => {
   await putHabit(h);
   await putEntry(h.id, todayKey(), 8);
   const { NavShell } = await import('./NavShell');
-  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   fireEvent.click(await screen.findByRole('button', { name: 'Mark Drink Water not done' }));
   await waitFor(async () => {
     expect((await loadDay(todayKey())).find((e) => e.habitId === h.id)?.value).toBe(0);
@@ -412,7 +412,7 @@ it('never celebrates an imported completion (A2)', async () => {
     entries: [{ id: `x1_${todayKey()}`, habitId: 'x1', date: todayKey(), value: 8, timestamp: 0 }],
   });
   const { NavShell } = await import('./NavShell');
-  render(<NavShell><TodayScreen date={todayKey()} /></NavShell>);
+  render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   expect(await screen.findByText('Every day, 8/8 cups')).toBeInTheDocument();
   expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument();
 });

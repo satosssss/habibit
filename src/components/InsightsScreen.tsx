@@ -16,7 +16,7 @@ import { IntentionBar } from './IntentionBar';
 import { StatTile } from './StatTile';
 import { YearNav } from './YearNav';
 
-export function StatsScreen() {
+export function InsightsScreen() {
   const today = todayKey();
   const maxYear = Number(today.slice(0, 4));
   const [year, setYear] = useState(maxYear);

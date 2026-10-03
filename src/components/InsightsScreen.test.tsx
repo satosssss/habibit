@@ -14,11 +14,11 @@ const habit = (over: Partial<Habit> = {}): Habit => ({
 
 beforeEach(async () => { await clearAll(); });
 
-describe('StatsScreen', () => {
+describe('InsightsScreen', () => {
   it('shows the four year tiles and the four all-time tiles', async () => {
     await putHabit(habit());
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     for (const caption of ['Active Days', 'Perfect Days', 'This week', 'Completions',
                            'Current Streak', 'Longest Streak', 'Total Active Days', 'Total Perfect Days']) {
       expect(await screen.findByText(caption)).toBeInTheDocument();
@@ -31,22 +31,22 @@ describe('StatsScreen', () => {
     await putHabit(a);
     await putHabit(b);
     await putEntry(a.id, addDays(todayKey(), -1), 1);
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('Study')).toBeInTheDocument();
     expect(await screen.findByText('Be Grateful')).toBeInTheDocument();
     expect(await screen.findByText('1/2')).toBeInTheDocument(); // Study: today + yesterday scheduled, 1 done
   });
 
   it('renders the current year in the nav', async () => {
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText(String(new Date().getFullYear()))).toBeInTheDocument();
   });
 
   it('lays the intention bars beside the heatmap on tablet, full width on desktop (spec §10)', async () => {
-    const { StatsScreen } = await import('./StatsScreen');
-    const { container } = render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    const { container } = render(<InsightsScreen />);
     await screen.findByText('By intention');
     // gap-6 (not md:grid-cols-2) selects this grid: once tiles also break at md
     // they would otherwise match first in document order.
@@ -65,8 +65,8 @@ describe('StatsScreen', () => {
   // Task 14 review issue 6a: §10's Stats row — mobile "Stacked", tablet "Tiles
   // 2×2", desktop "Tiles 4-across".
   it('stacks tiles one-across on mobile, 2×2 on tablet, 4-across on desktop (spec §10)', async () => {
-    const { StatsScreen } = await import('./StatsScreen');
-    const { container } = render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    const { container } = render(<InsightsScreen />);
     await screen.findByText('Active Days');
     const grids = container.querySelectorAll<HTMLElement>('div[class*="xl:grid-cols-4"]');
     expect(grids).toHaveLength(2); // year tiles + all-time tiles
@@ -84,8 +84,8 @@ describe('StatsScreen', () => {
     // order sort (5 vs 1), so only sorting can put Be Grateful on top.
     await putHabit(habit({ id: 'a-study', intention: 'Study', name: 'Learn Spanish', order: 5 }));
     await putHabit(habit({ id: 'b-grateful', intention: 'Be Grateful', name: 'Read', order: 1 }));
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     const study = await screen.findByText('Study');
     const grateful = await screen.findByText('Be Grateful');
     expect(
@@ -94,8 +94,8 @@ describe('StatsScreen', () => {
   });
 
   it('shows Loading… on first paint — never 0 tiles or a false "No habits yet." (R3)', async () => {
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('Active Days')).not.toBeInTheDocument();
     expect(screen.queryByText('No habits yet.')).not.toBeInTheDocument();
@@ -104,16 +104,16 @@ describe('StatsScreen', () => {
 
   it('frosts the stat panels and tiles with display numerals (slice D R8)', async () => {
     await putHabit(habit());
-    const { StatsScreen } = await import('./StatsScreen');
-    const { container } = render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    const { container } = render(<InsightsScreen />);
     expect(await screen.findByText('Active Days')).toBeInTheDocument();
     expect(container.querySelectorAll('.glass-card').length).toBeGreaterThan(0);
     expect(container.querySelector('.font-display')).not.toBeNull();
   });
 
   it('shimmers the stats loading line (slice D R8)', async () => {
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(screen.getByText('Loading…').className).toContain('skeleton');
     await screen.findByText('Active Days'); // settle the async load
   });
@@ -140,8 +140,8 @@ describe('weekly trend tile (R6)', () => {
     // would score last week 12/28 = 43% and claim "Stronger"; elapsed says ↓.
     for (const d of ['2026-09-28', '2026-09-29'])
       for (const h of habits) await putEntry(h.id, d, 1);
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     // 5s: the default 1s waitFor misses under full-parallel suite contention
     // (A2 env hardening — same data, same assertions, wider window).
     expect(await screen.findByText('8 of 12', {}, { timeout: 5000 })).toBeInTheDocument();
@@ -158,15 +158,15 @@ describe('weekly trend tile (R6)', () => {
     for (const d of ['2026-09-28', '2026-09-29', '2026-09-30'])
       for (const h of habits) await putEntry(h.id, d, 1);
     await putEntry(fresh.id, '2026-09-28', 1);              // this: 13/15 = 87% — counts rose 12→13, rate fell
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('13 of 15')).toBeInTheDocument();  // denominators differ (12 vs 15)
     expect(await screen.findByText(/↓ Quieter than last week/)).toBeInTheDocument();
   });
 
   it('renders "A quiet week" when nothing is scheduled this window (R6.3)', async () => {
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('0 of 0')).toBeInTheDocument();
     expect(await screen.findByText('A quiet week · All year: 0%')).toBeInTheDocument(); // sub format pinned
   });
@@ -174,8 +174,8 @@ describe('weekly trend tile (R6)', () => {
   it('renders "First week" without a baseline (R6.3)', async () => {
     const fresh = await putHabit(habit({ createdAt: Date.parse('2026-09-28T09:00:00') })); // Monday of this week
     await putEntry(fresh.id, '2026-09-29', 1);
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText(/First week · All year/)).toBeInTheDocument();
   });
 
@@ -183,16 +183,16 @@ describe('weekly trend tile (R6)', () => {
     const daily = habit({});
     await putHabit(daily);
     await putEntry(daily.id, '2026-09-30', 1);
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('1 of 3')).toBeInTheDocument(); // Mon+Tue+Wed, one done
     expect(await screen.findByText(/Just getting started · All year/)).toBeInTheDocument();
   });
 
   it('renders "≈ Same as last week" when both windows are untouched and ≥ 10 slots (R6.3)', async () => {
     for (const name of ['A', 'B', 'C', 'D']) await putHabit(habit({ name })); // 4 daily habits → 12 slots
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('0 of 12')).toBeInTheDocument();
     expect(await screen.findByText(/≈ Same as last week · All year/)).toBeInTheDocument();
   });
@@ -202,8 +202,8 @@ describe('weekly trend tile (R6)', () => {
     for (const h of habits) await putHabit(h);
     for (const d of ['2026-09-28', '2026-09-29', '2026-09-30'])
       for (const h of habits) await putEntry(h.id, d, 1); // this: 12/12; last: 0/12 → ↑
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('12 of 12')).toBeInTheDocument();
     expect(await screen.findByText(/↑ Stronger than last week · All year/)).toBeInTheDocument();
   });
@@ -213,8 +213,8 @@ describe('weekly trend tile (R6)', () => {
     await putHabit(daily);
     for (const d of ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'])
       await putEntry(daily.id, d, 1);
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('3 of 3')).toBeInTheDocument(); // Mon–Wed only
     expect(screen.queryByText('5 of 5')).not.toBeInTheDocument();
   });
@@ -226,8 +226,8 @@ describe('weekly trend tile (R6)', () => {
     }));
     await putEntry(old.id, '2025-12-01', 1);
     await putEntry(old.id, '2025-12-08', 1);
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     fireEvent.click(await screen.findByRole('button', { name: 'Previous year' }));
     expect(await screen.findByText('Completed in 2025')).toBeInTheDocument();
     // findBy, not get: the caption flips with the `year` state while the
@@ -244,8 +244,8 @@ describe('weekly trend tile (R6)', () => {
     await putEntry(mwf.id, '2026-09-28', 1);  // Mon — scheduled
     await putEntry(mwf.id, '2026-09-29', 1);  // Tue — OFF schedule (bonus)
     await putEntry(mwf.id, '2026-09-30', 1);  // Wed — scheduled
-    const { StatsScreen } = await import('./StatsScreen');
-    render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
     expect(await screen.findByText('2 of 2')).toBeInTheDocument();          // weekly tile: slots only
     const activeDays = (await screen.findByText('Active Days')).closest('div')!;
     expect(within(activeDays).getByText('3')).toBeInTheDocument();          // Mon + Tue-bonus + Wed
@@ -264,8 +264,8 @@ describe('heatmap year switch (R3 §5)', () => {
   it('opens a past year at January after the current year was scrolled', async () => {
     await putHabit(habit({ id: 'old-habit', name: 'Old Habit', frequency: [1],
                            createdAt: Date.parse('2025-12-01T09:00:00') }));
-    const { StatsScreen } = await import('./StatsScreen');
-    const { container } = render(<StatsScreen />);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    const { container } = render(<InsightsScreen />);
     const prev = () => screen.getByRole('button', { name: 'Previous year' }) as HTMLButtonElement;
     await waitFor(() => expect(prev().disabled).toBe(false)); // minYear picked up the old habit
     const sc = () => container.querySelector('[data-testid="hm-scroll"]') as HTMLElement;

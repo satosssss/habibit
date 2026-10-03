@@ -241,7 +241,7 @@ describe('Heatmap', () => {
     // Month labels are year-derived text (week columns of the viewed year).
     const months = src.slice(src.indexOf('{months.map('), src.indexOf('{/* 7 weekday rows'));
     expect(months).toContain('suppressHydrationWarning');
-    // The year label itself (StatsScreen renders YearNav).
+    // The year label itself (InsightsScreen renders YearNav).
     expect(readFileSync(join(here, 'YearNav.tsx'), 'utf8')).toContain('suppressHydrationWarning');
   });
 

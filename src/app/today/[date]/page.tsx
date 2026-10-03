@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { redirect } from 'next/navigation';
 import { NavShell } from '@/components/NavShell';
 import { NoteScreen } from '@/components/NoteScreen';
-import { TodayScreen } from '@/components/TodayScreen';
+import { HomeScreen } from '@/components/HomeScreen';
 import { classifyDate, isValidDateKey, todayKey } from '@/lib/dates';
 
 export default function DayPage({ params }: { params: Promise<{ date: string }> }) {
@@ -29,7 +29,7 @@ export default function DayPage({ params }: { params: Promise<{ date: string }> 
   if (!mounted) return <NavShell>{null}</NavShell>;
   return (
     <NavShell>
-      {classifyDate(date, todayKey()) === 'past' ? <NoteScreen date={date} /> : <TodayScreen date={date} />}
+      {classifyDate(date, todayKey()) === 'past' ? <NoteScreen date={date} /> : <HomeScreen date={date} />}
     </NavShell>
   );
 }
