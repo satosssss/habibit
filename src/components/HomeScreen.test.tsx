@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
@@ -7,6 +7,13 @@ import type { Habit } from '@/lib/types';
 import { addDays, todayKey } from '@/lib/dates';
 import { getThemePref } from '@/lib/theme';
 import { HomeScreen } from './HomeScreen';
+
+// Full-suite CPU contention pushes fake-indexeddb write→read roundtrips past
+// the default 1s wait budget (observed: value still 8 at 1000ms under load).
+// Same elements, same matchers, same assertions — only the window grows.
+// Per-call precedent: NoteScreen/InsightsScreen WAIT={timeout:5000}; here the
+// wait sites are numerous, so the file-wide default is raised instead.
+configure({ asyncUtilTimeout: 5000 });
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 
