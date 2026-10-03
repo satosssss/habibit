@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { todayKey } from '@/lib/dates';
-import { loadRange, listHabits, putEntry, putHabit } from '@/lib/repo';
+import { loadRange, listHabits, putEntry } from '@/lib/repo';
 import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
 import { reportWriteError } from '@/lib/writeError';
 import { habitStreaks } from '@/lib/streaks';
@@ -15,8 +15,6 @@ import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
 import { DateStrip } from './DateStrip';
-import { HabitForm } from './HabitForm';
-import { blankHabit } from './HabitsPanel';
 import { MenuDrawer } from './MenuDrawer';
 import { TimerModal } from './TimerModal';
 import { ValueSheet } from './ValueSheet';
@@ -33,7 +31,6 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
   const [valueSheet, setValueSheet] = useState<Habit | null>(null);
   const [timerHabit, setTimerHabit] = useState<Habit | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [creating, setCreating] = useState<Habit | null>(null);
   // Date-derived text renders only after mount: prerendered HTML must stay
   // clock-independent, or a static /today build freezes its build day into
   // the DOM (React keeps the server DOM on a suppressed mismatch and later
@@ -83,16 +80,6 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [habits, date]);
 
-  // Form suggestions for the header's `+` — same lists HabitsPanel uses in Settings.
-  const categories = useMemo(
-    () => [...new Set((habits ?? []).map((h) => h.category))].sort(),
-    [habits],
-  );
-  const intentions = useMemo(
-    () => [...new Set((habits ?? []).map((h) => h.intention).filter(Boolean))].sort(),
-    [habits],
-  );
-
   const values = useMemo(() => {
     const map: Record<string, number> = {};
     for (const entry of entries ?? []) if (entry.date === date) map[entry.habitId] = entry.value;
@@ -118,11 +105,6 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
     }
     catch (err) { reportWriteError(err); }           // failure → banner, never a toast
   }, [date, values]);
-
-  const saveHabit = useCallback(async (habit: Habit) => {
-    try { await putHabit(habit); setCreating(null); }
-    catch (err) { reportWriteError(err); }           // stays open — never strand half a save
-  }, []);
 
   // Spec R2: one shared completion toggle — done → 0, not-done → full target,
   // identical to NoteScreen's checkbox (toggleValue in lib/values).
@@ -161,7 +143,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
           <span data-testid="header-streak" className="flex items-center gap-1 text-sm font-bold">
             <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}
           </span>
-          <button type="button" aria-label="Add habit" onClick={() => setCreating(blankHabit())}
+          <button type="button" aria-label="Add habit" onClick={() => router.push('/add-habit')}
                   className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
             <Plus size={18} />
           </button>
@@ -177,7 +159,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
         <div className="p-10 text-center">
           <p className="mb-3 text-base font-semibold">Create your first habit</p>
           {/* Spec R2: client-side route, not a full page load. */}
-          <Link href="/settings" className="btn-primary text-sm">
+          <Link href="/add-habit" className="btn-primary text-sm">
             Add a habit
           </Link>
         </div>
@@ -215,14 +197,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
         />
       )}
 
-      {/* Spec §9: `+ New habit` is also available from the Home header. */}
-      {creating && (
-        <HabitForm
-          habit={creating} open categories={categories} intentions={intentions}
-          onSave={(h) => void saveHabit(h)} onClose={() => setCreating(null)}
-        />
-      )}
-
+      {/* Spec §9: creating a habit now lives on /add-habit (slice E R2). */}
       {menuOpen && <MenuDrawer open onClose={() => setMenuOpen(false)} />}
 
       {timerHabit && (

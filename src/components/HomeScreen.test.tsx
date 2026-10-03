@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAll, listHabits, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
+import { clearAll, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
 import { dismissCompletionToast } from '@/lib/completionToast';
 import type { Habit } from '@/lib/types';
 import { addDays, todayKey } from '@/lib/dates';
@@ -140,41 +140,13 @@ describe('HomeScreen', () => {
 });
 
 // Branch review #2 — spec §5.1 header: hamburger (mobile) | centered title |
-// flame + streak | `+` → new-habit form; §9: `+ New habit` also from Today.
+// flame + streak | `+` → /add-habit (slice E R2; creation left the Home screen).
 describe('Home header (spec §5.1)', () => {
-  it('opens the new-habit form from the header + instead of routing to /settings', async () => {
+  it('routes the header + to /add-habit (slice E R2)', () => {
     render(<HomeScreen date={todayKey()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('New habit')).toBeInTheDocument(); // form title, not the route
-    expect(screen.getByLabelText('Habit name')).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it('creates a habit from the header form that renders under its category', async () => {
-    render(<HomeScreen date={todayKey()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
-    fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Journal' } });
-    // R5 makes the intention required — blankHabit starts it empty, so the
-    // flow now includes choosing one (the form stays open otherwise).
-    fireEvent.change(screen.getByLabelText('Intention'), { target: { value: 'Do Hard Things' } });
-    fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
-    // liveQuery re-emits after putHabit: the row shows up with no manual refetch
-    const morning = (await screen.findByRole('heading', { level: 2, name: 'Morning' })).closest('section')!;
-    expect(within(morning).getByText('Journal')).toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith('/add-habit');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect((await listHabits()).map((h) => h.name)).toContain('Journal');
-  });
-
-  it('leaves no habit behind when the header form is closed without saving', async () => {
-    render(<HomeScreen date={todayKey()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add habit' }));
-    fireEvent.change(await screen.findByLabelText('Habit name'), { target: { value: 'Never saved' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.queryByText('Never saved')).not.toBeInTheDocument();
-    expect(await listHabits()).toHaveLength(0);
-    expect(push).not.toHaveBeenCalled();
   });
 
   it('opens a menu drawer from the hamburger, shown on mobile only via md:hidden', async () => {
@@ -336,7 +308,7 @@ it('renders a directly-passed future date without the dead branch (R2)', async (
 it('routes the empty-state CTA through the client router (R2)', async () => {
   render(<HomeScreen date={todayKey()} />);
   const cta = await screen.findByRole('link', { name: /add a habit/i });
-  expect(cta).toHaveAttribute('href', '/settings');
+  expect(cta).toHaveAttribute('href', '/add-habit');
   expect(cta).toHaveAttribute('data-next-link');   // next/link, not a bare <a>
 });
 
