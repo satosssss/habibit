@@ -82,13 +82,15 @@ now redundant with the tab but harmless).
 
 `TodayScreen` is renamed **`HomeScreen`** (file, component, tests) and keeps every
 current behavior: header (menu / `Today` title / header streak flame /
-`Add habit` `+`), `DateStrip`, `IntentionBar`, category masonry, row interactions,
-sheets, completion toast, loading/empty states.
+`Add habit` `+`), `DateStrip`, category masonry, row interactions, sheets,
+completion toast, loading/empty states. *(Correction 2026-10-03: an earlier draft
+listed `IntentionBar` among Home's content — it only exists on Insights; Home
+never rendered it.)*
 
 Changes:
 
-1. **`StreakStrip`** — new section between `IntentionBar` and the category masonry,
-   rendered only when habits exist. A row of three glass mini-cards, all computed
+1. **`StreakStrip`** — new section directly below the `DateStrip`, above the
+   category masonry (rendered only when habits exist). A row of three glass mini-cards, all computed
    from data `HomeScreen` already loads (`habitStreaks(habits, entries, today)` and
    `buildDayStats(...)`):
    - **Best current streak** — habit name + `N days` + `FlameBadge`; when every
