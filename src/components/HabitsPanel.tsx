@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
 import { deleteHabit, listHabits, newId, putHabit, putHabits } from '@/lib/repo';
 import { useLiveQuery } from '@/lib/useLiveQuery';
@@ -9,8 +10,8 @@ import type { Habit } from '@/lib/types';
 import { HabitForm } from './HabitForm';
 import { HabitList } from './HabitList';
 
-// Shared draft for a brand-new habit: Settings' `+ New habit` and the Today
-// header's `+` both open the form with this.
+// Shared draft for a brand-new habit: the /add-habit scratch flow seeds the
+// form with this.
 export const blankHabit = (): Habit => ({
   id: newId(), name: '', icon: 'target', color: '#6366f1', category: 'Morning',
   intention: '', type: 'boolean', target: 1, unit: '',
@@ -41,16 +42,18 @@ export function HabitsPanel() {
     <section className="glass-card mb-6 p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Habits</h2>
-        <button type="button" onClick={() => setEditing(blankHabit())}
-                className="flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-[var(--color-on-accent)]">
+        <Link href="/add-habit"
+              className="flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-[var(--color-on-accent)]">
           <Plus size={15} /> New habit
-        </button>
+        </Link>
       </div>
 
       {habits === undefined ? (
         <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
       ) : habits.length === 0 ? (
-        <p className="p-6 text-center text-sm text-[var(--color-subtle)]">No habits yet — create one.</p>
+        <Link href="/add-habit" className="block p-6 text-center text-sm text-[var(--color-subtle)]">
+          No habits yet — create one.
+        </Link>
       ) : (
         <HabitList
           habits={habits}
