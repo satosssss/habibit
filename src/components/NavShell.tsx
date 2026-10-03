@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, CalendarCheck, Flame, Settings, TriangleAlert } from 'lucide-react';
+import { BarChart3, CalendarDays, Flame, House, ListChecks, Plus, Settings, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -13,8 +13,10 @@ import { BackgroundScene } from './BackgroundScene';
 import { WriteErrorBanner } from './WriteErrorBanner';
 
 const TABS = [
-  { href: '/today', label: 'Today', Icon: CalendarCheck },
-  { href: '/stats', label: 'Stats', Icon: BarChart3 },
+  { href: '/', label: 'Home', Icon: House },
+  { href: '/habits', label: 'Habits', Icon: ListChecks },
+  { href: '/calendar', label: 'Calendar', Icon: CalendarDays },
+  { href: '/insights', label: 'Insights', Icon: BarChart3 },
   { href: '/settings', label: 'Settings', Icon: Settings },
 ] as const;
 
@@ -28,7 +30,12 @@ const linkClass = (active: boolean) =>
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // '/' is special: the per-day view /today/<date> is Home content (spec R1)
+  const isActive = (href: string) =>
+    href === '/'
+      ? pathname === '/' || pathname.startsWith('/today')
+      : pathname === href || pathname.startsWith(`${href}/`);
+  const showFab = pathname === '/' || pathname.startsWith('/today') || pathname === '/habits';
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
@@ -56,6 +63,11 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         <div className="mb-4 grid place-items-center xl:hidden">
           <Flame className="text-[var(--color-accent)]" size={22} />
         </div>
+        <Link href="/add-habit" title="Add habit" aria-label="Add habit"
+              className="mb-3 flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-[var(--color-on-accent)] xl:justify-start">
+          <Plus size={18} />
+          <span className="hidden xl:inline">Add habit</span>
+        </Link>
         {TABS.map(({ href, label, Icon }) => (
           <Link key={href} href={href} aria-current={isActive(href) ? 'page' : undefined}
                 className={linkClass(isActive(href))} title={label}>
@@ -65,7 +77,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         ))}
       </nav>
 
-      <div className="min-w-0 flex-1 pb-24 md:pb-0">
+      <div className={`min-w-0 flex-1 md:pb-0 ${showFab ? 'pb-40' : 'pb-24'}`}>
         <WriteErrorBanner />
         <CompletionToast />
         {degraded && (
@@ -76,6 +88,12 @@ export function NavShell({ children }: { children: React.ReactNode }) {
           </p>
         )}
         {children}
+        {showFab && (
+          <Link href="/add-habit" aria-label="Add a habit"
+                className="fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow-lg transition-transform active:scale-95 md:hidden">
+            <Plus size={22} />
+          </Link>
+        )}
       </div>
 
       {/* Mobile bottom tab bar */}

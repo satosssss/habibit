@@ -74,4 +74,9 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
     const s = src('CalendarScreen.tsx');
     expect(s).toContain('h-11 w-11');
   });
+
+  it('the mobile FAB is a 56px circle (slice E R1: ≥44px)', () => {
+    const s = src('NavShell.tsx');
+    expect(s).toMatch(/aria-label="Add a habit"[\s\S]{0,340}h-14 w-14/);
+  });
 });
