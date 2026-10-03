@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays, classifyDate, dayOfYear, formatLong, fromKey, isValidDateKey,
-  mondayOf, monthLabelPositions, stripDays, toKey, weekdayIndex, yearDays,
+  mondayOf, monthGrid, monthLabelPositions, stripDays, toKey, weekdayIndex, yearDays,
 } from './dates';
 
 describe('date keys', () => {
@@ -92,5 +92,50 @@ describe('mondayOf', () => {
     expect(mondayOf('2026-09-28')).toBe('2026-09-28'); // Monday
     expect(mondayOf('2026-09-30')).toBe('2026-09-28'); // Wednesday
     expect(mondayOf('2026-10-04')).toBe('2026-09-28'); // Sunday
+  });
+});
+
+describe('monthGrid (slice E R5)', () => {
+  it('aligns October 2026 Monday-first with 3 leading blanks (Oct 1 = Thursday)', () => {
+    const grid = monthGrid(2026, 10);
+    expect(grid.length % 7).toBe(0);
+    expect(grid.slice(0, 3)).toEqual([null, null, null]);
+    expect(grid[3]).toBe('2026-10-01');
+    expect(grid.filter(Boolean).pop()).toBe('2026-10-31');
+    expect(grid[34]).toBeNull();            // 3 + 31 = 34 → padded to 35
+  });
+
+  it('keeps every cell in the requested month, 1-based month (spec R5)', () => {
+    for (const [y, m] of [[2026, 1], [2026, 12]] as const) {
+      const keys = monthGrid(y, m).filter(Boolean) as string[];
+      expect(keys[0]!.startsWith(`${y}-${String(m).padStart(2, '0')}`)).toBe(true);
+      for (const k of keys) expect(k.startsWith(`${y}-${String(m).padStart(2, '0')}`)).toBe(true);
+    }
+  });
+
+  it('handles 28-, 29-, 30-, and 31-day months', () => {
+    expect((monthGrid(2026, 2).filter(Boolean)).length).toBe(28);
+    expect((monthGrid(2028, 2).filter(Boolean)).length).toBe(29);  // leap
+    expect((monthGrid(2026, 4).filter(Boolean)).length).toBe(30);
+    expect((monthGrid(2026, 3).filter(Boolean)).length).toBe(31);
+    expect(monthGrid(2026, 2)).not.toContain('2026-02-29');
+    expect(monthGrid(2028, 2)).toContain('2028-02-29');
+  });
+
+  it('is Monday-first: cell index → weekday mapping holds for a whole year', () => {
+    for (let m = 1; m <= 12; m++) {
+      const grid = monthGrid(2026, m);
+      grid.forEach((key, i) => {
+        if (!key) return;
+        // Monday-first columns: index%7 0=Mon … 6=Sun; weekdayIndex is 0=Sun
+        expect(weekdayIndex(key)).toBe(((i % 7) + 1) % 7);
+      });
+    }
+  });
+
+  it('rolls the year over in December', () => {
+    const grid = monthGrid(2026, 12).filter(Boolean) as string[];
+    expect(grid[0]).toBe('2026-12-01');
+    expect(grid[grid.length - 1]).toBe('2026-12-31');
   });
 });

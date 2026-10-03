@@ -96,6 +96,20 @@ export function monthLabelPositions(year: number): Array<{ month: number; column
   }));
 }
 
+/**
+ * Calendar grid for one month: Monday-first rows of 7, `null` outside the month.
+ * `month` is 1-based (1 = January). Slice E R5 (Calendar page).
+ */
+export function monthGrid(year: number, month: number): (string | null)[] {
+  const first = new Date(year, month - 1, 1);
+  const lead = mondayIndex(toKey(first));                    // blank cells before the 1st
+  const days = new Date(year, month, 0).getDate();           // days in month
+  const cells: (string | null)[] = Array(lead).fill(null);
+  for (let d = 1; d <= days; d++) cells.push(toKey(new Date(year, month - 1, d)));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
 /** Monday of the week containing `key` (weeks start Monday — spec §8/R6). */
 export function mondayOf(key: string): string {
   return addDays(key, -((weekdayIndex(key) + 6) % 7)); // Sun → -6, Mon → 0
