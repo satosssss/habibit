@@ -69,4 +69,9 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
     expect(src('ThemePanel.tsx')).toContain('rounded-xl px-4 py-2.5 text-sm font-semibold capitalize');
     expect(src('MenuDrawer.tsx')).toContain('rounded-xl px-4 py-2.5 text-sm font-semibold capitalize');
   });
+
+  it('calendar day cells are h-11 w-11 (slice E R5: ≥44px)', () => {
+    const s = src('CalendarScreen.tsx');
+    expect(s).toContain('h-11 w-11');
+  });
 });
