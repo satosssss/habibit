@@ -217,7 +217,11 @@ describe('shared all-time streak (R1)', () => {
     // fill (findByTestId alone would resolve on the first, empty paint).
     // Old code capped both at 41 (a 40-day window + today).
     await waitFor(() => expect(screen.getByTestId('header-streak')).toHaveTextContent('90'));
-    expect(screen.getByTestId('flame-badge')).toHaveTextContent('90');
+    // Habit-row badge + strip best-streak badge (slice E R2) — every flame on
+    // this fixture must read the uncapped 90.
+    const badges = await screen.findAllByTestId('flame-badge');
+    expect(badges.length).toBeGreaterThan(0);
+    badges.forEach((b) => expect(b).toHaveTextContent('90'));
   });
 
   it('matches the Stats Current Streak tile on the same data', async () => {
@@ -269,7 +273,10 @@ it('renders a hostile import without crashing (R6)', async () => {
     entries: [{ id: 'x1_2026-09-22', habitId: 'x1', date: todayKey(), value: 99, timestamp: 0 }],
   });
   render(<HomeScreen date={todayKey()} />);
-  expect(await screen.findByText('Untitled habit')).toBeInTheDocument();      // repaired name
+  // The strip's best-streak card shows the repaired name too: assert presence
+  // across matches (never drop the pin) instead of a single-match query, which
+  // would retry on "found multiple" until the test timeout.
+  expect((await screen.findAllByText('Untitled habit')).length).toBeGreaterThan(0);  // repaired name
   expect(await screen.findByText('Every day, 11/11 cups')).toBeInTheDocument(); // target 11 survives, value 99 → clamped 11
 });
 
@@ -394,4 +401,16 @@ it('never celebrates an imported completion (A2)', async () => {
   render(<NavShell><HomeScreen date={todayKey()} /></NavShell>);
   expect(await screen.findByText('Every day, 8/8 cups')).toBeInTheDocument();
   expect(screen.queryByTestId('completion-toast')).not.toBeInTheDocument();
+});
+
+it('shows the streak summary strip when habits exist (slice E R2)', async () => {
+  await putHabit(habit({ name: 'Meditate' }));
+  render(<HomeScreen date={todayKey()} />);
+  expect(await screen.findByRole('region', { name: 'Streak summaries' })).toBeInTheDocument();
+});
+
+it('hides the strip when there are no habits (slice E R2)', async () => {
+  render(<HomeScreen date={todayKey()} />);
+  await screen.findByText('Create your first habit');
+  expect(screen.queryByRole('region', { name: 'Streak summaries' })).not.toBeInTheDocument();
 });

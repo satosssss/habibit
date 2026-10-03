@@ -16,6 +16,7 @@ import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
 import { DateStrip } from './DateStrip';
 import { MenuDrawer } from './MenuDrawer';
+import { StreakStrip } from './StreakStrip';
 import { TimerModal } from './TimerModal';
 import { ValueSheet } from './ValueSheet';
 
@@ -152,6 +153,10 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
 
       <DateStrip selected={date} today={today}
                  onSelect={(key) => router.push(key === today ? '/today' : `/today/${key}`)} />
+
+      {habits !== undefined && entries !== undefined && habits.length > 0 && (
+        <StreakStrip habits={habits} entries={entries} today={date} />
+      )}
 
       {habits === undefined || entries === undefined ? (
         <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
