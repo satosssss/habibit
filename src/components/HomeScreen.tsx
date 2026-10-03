@@ -152,7 +152,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
       </header>
 
       <DateStrip selected={date} today={today}
-                 onSelect={(key) => router.push(key === today ? '/today' : `/today/${key}`)} />
+                 onSelect={(key) => router.push(key === today ? '/' : `/today/${key}`)} />
 
       {habits !== undefined && entries !== undefined && habits.length > 0 && (
         <StreakStrip habits={habits} entries={entries} today={date} />

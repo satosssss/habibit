@@ -28,16 +28,16 @@ describe('/today/[date]', () => {
     return p;
   };
 
-  it('future date redirects to /today', () => {
+  it('future date redirects to /', () => {
     expect(() =>
       render(<DayPage params={paramsOf('2099-01-01')} />)
-    ).toThrow(/NEXT_REDIRECT:\/today/);
+    ).toThrow(/NEXT_REDIRECT:\/$/);
   });
 
   it('redirects for a malformed date', () => {
     expect(() =>
       render(<DayPage params={paramsOf('not-a-date')} />)
-    ).toThrow(/NEXT_REDIRECT:\/today/);
+    ).toThrow(/NEXT_REDIRECT:\/$/);
   });
 
   it('renders the note view for a past date', async () => {

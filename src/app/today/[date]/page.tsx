@@ -15,7 +15,7 @@ export default function DayPage({ params }: { params: Promise<{ date: string }> 
   // runs pre-mount on server and client, deliberately: page.test pins that a
   // future date redirects on the first render, and an east-of-UTC client's
   // local tomorrow checked against Vercel's UTC SSR clock around midnight
-  // redirects to /today, which renders the same (Today) screen. What stays
+  // redirects to /, which renders Home — the same screen. What stays
   // gated is the *screen choice*: prerendered HTML must be clock-independent,
   // so under UTC SSR the local-midnight window can never freeze the wrong
   // screen — SSR/first client render is just the shell, and the effect flips
@@ -23,8 +23,8 @@ export default function DayPage({ params }: { params: Promise<{ date: string }> 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!isValidDateKey(date)) redirect('/today');
-  if (classifyDate(date, todayKey()) === 'future') redirect('/today');
+  if (!isValidDateKey(date)) redirect('/');
+  if (classifyDate(date, todayKey()) === 'future') redirect('/');
 
   if (!mounted) return <NavShell>{null}</NavShell>;
   return (

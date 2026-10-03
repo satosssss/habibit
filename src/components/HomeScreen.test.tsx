@@ -414,3 +414,9 @@ it('hides the strip when there are no habits (slice E R2)', async () => {
   await screen.findByText('Create your first habit');
   expect(screen.queryByRole('region', { name: 'Streak summaries' })).not.toBeInTheDocument();
 });
+
+it('routes a tapped today cell to Home (slice E R2)', () => {
+  render(<HomeScreen date={todayKey()} />);
+  screen.getByRole('button', { name: todayKey() }).click();
+  expect(push).toHaveBeenCalledWith('/');
+});

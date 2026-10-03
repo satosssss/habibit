@@ -1,5 +1,12 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-export default function Home() {
-  redirect('/today');
+import { NavShell } from '@/components/NavShell';
+import { HomeScreen } from '@/components/HomeScreen';
+
+export default function HomePage() {
+  return (
+    <NavShell>
+      <HomeScreen />
+    </NavShell>
+  );
 }

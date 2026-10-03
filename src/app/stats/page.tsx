@@ -1,10 +1,5 @@
-'use client';
-
-import { NavShell } from '@/components/NavShell';
-import { InsightsScreen } from '@/components/InsightsScreen';
+import { redirect } from 'next/navigation';
 
 export default function StatsPage() {
-  return (
-    <NavShell><InsightsScreen /></NavShell>
-  );
+  redirect('/insights');    // slice E R6
 }

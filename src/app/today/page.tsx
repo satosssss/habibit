@@ -1,12 +1,5 @@
-'use client';
-
-import { NavShell } from '@/components/NavShell';
-import { HomeScreen } from '@/components/HomeScreen';
+import { redirect } from 'next/navigation';
 
 export default function TodayPage() {
-  return (
-    <NavShell>
-      <HomeScreen />
-    </NavShell>
-  );
+  redirect('/');            // slice E R2: Home consolidated at /
 }
