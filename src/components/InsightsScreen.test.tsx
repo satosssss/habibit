@@ -6,6 +6,12 @@ import { todayKey, addDays } from '@/lib/dates';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
+// Full-suite CPU contention pushes the live-query past the default 1s wait
+// budget (observed: '0 of 12' missing after 1s under load). Same elements,
+// same matchers, same assertions — only the wait grows. A2 precedent: the
+// R6.1 test below already carries an inline 5000ms for this exact reason.
+const WAIT = { timeout: 5000 } as const;
+
 const habit = (over: Partial<Habit> = {}): Habit => ({
   id: newId(), name: 'Meditate', icon: 'flower2', color: '#c026d3', category: 'Morning',
   intention: 'Do Hard Things', type: 'boolean', target: 1, unit: '',
@@ -21,7 +27,7 @@ describe('InsightsScreen', () => {
     render(<InsightsScreen />);
     for (const caption of ['Active Days', 'Perfect Days', 'This week', 'Completions',
                            'Current Streak', 'Longest Streak', 'Total Active Days', 'Total Perfect Days']) {
-      expect(await screen.findByText(caption)).toBeInTheDocument();
+      expect(await screen.findByText(caption, {}, WAIT)).toBeInTheDocument();
     }
   });
 
@@ -33,21 +39,21 @@ describe('InsightsScreen', () => {
     await putEntry(a.id, addDays(todayKey(), -1), 1);
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('Study')).toBeInTheDocument();
-    expect(await screen.findByText('Be Grateful')).toBeInTheDocument();
-    expect(await screen.findByText('1/2')).toBeInTheDocument(); // Study: today + yesterday scheduled, 1 done
+    expect(await screen.findByText('Study', {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText('Be Grateful', {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText('1/2', {}, WAIT)).toBeInTheDocument(); // Study: today + yesterday scheduled, 1 done
   });
 
   it('renders the current year in the nav', async () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText(String(new Date().getFullYear()))).toBeInTheDocument();
+    expect(await screen.findByText(String(new Date().getFullYear()), {}, WAIT)).toBeInTheDocument();
   });
 
   it('lays the intention bars beside the heatmap on tablet, full width on desktop (spec §10)', async () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     const { container } = render(<InsightsScreen />);
-    await screen.findByText('By intention');
+    await screen.findByText('By intention', {}, WAIT);
     // gap-6 (not md:grid-cols-2) selects this grid: once tiles also break at md
     // they would otherwise match first in document order.
     const grid = container.querySelector<HTMLElement>('div[class*="gap-6"]');
@@ -67,7 +73,7 @@ describe('InsightsScreen', () => {
   it('stacks tiles one-across on mobile, 2×2 on tablet, 4-across on desktop (spec §10)', async () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     const { container } = render(<InsightsScreen />);
-    await screen.findByText('Active Days');
+    await screen.findByText('Active Days', {}, WAIT);
     const grids = container.querySelectorAll<HTMLElement>('div[class*="xl:grid-cols-4"]');
     expect(grids).toHaveLength(2); // year tiles + all-time tiles
     for (const grid of grids) {
@@ -86,8 +92,8 @@ describe('InsightsScreen', () => {
     await putHabit(habit({ id: 'b-grateful', intention: 'Be Grateful', name: 'Read', order: 1 }));
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    const study = await screen.findByText('Study');
-    const grateful = await screen.findByText('Be Grateful');
+    const study = await screen.findByText('Study', {}, WAIT);
+    const grateful = await screen.findByText('Be Grateful', {}, WAIT);
     expect(
       grateful.compareDocumentPosition(study) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -99,14 +105,14 @@ describe('InsightsScreen', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('Active Days')).not.toBeInTheDocument();
     expect(screen.queryByText('No habits yet.')).not.toBeInTheDocument();
-    expect(await screen.findByText('Active Days')).toBeInTheDocument(); // empty DB resolves → true zeros
+    expect(await screen.findByText('Active Days', {}, WAIT)).toBeInTheDocument(); // empty DB resolves → true zeros
   });
 
   it('frosts the stat panels and tiles with display numerals (slice D R8)', async () => {
     await putHabit(habit());
     const { InsightsScreen } = await import('./InsightsScreen');
     const { container } = render(<InsightsScreen />);
-    expect(await screen.findByText('Active Days')).toBeInTheDocument();
+    expect(await screen.findByText('Active Days', {}, WAIT)).toBeInTheDocument();
     expect(container.querySelectorAll('.glass-card').length).toBeGreaterThan(0);
     expect(container.querySelector('.font-display')).not.toBeNull();
   });
@@ -115,7 +121,7 @@ describe('InsightsScreen', () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
     expect(screen.getByText('Loading…').className).toContain('skeleton');
-    await screen.findByText('Active Days'); // settle the async load
+    await screen.findByText('Active Days', {}, WAIT); // settle the async load
   });
 });
 
@@ -145,7 +151,7 @@ describe('weekly trend tile (R6)', () => {
     // 5s: the default 1s waitFor misses under full-parallel suite contention
     // (A2 env hardening — same data, same assertions, wider window).
     expect(await screen.findByText('8 of 12', {}, { timeout: 5000 })).toBeInTheDocument();
-    expect(await screen.findByText(/↓ Quieter than last week, that’s okay/)).toBeInTheDocument();
+    expect(await screen.findByText(/↓ Quieter than last week, that’s okay/, {}, WAIT)).toBeInTheDocument();
   });
 
   it('compares rates, not counts, when a habit starts mid-week (R6.2)', async () => {
@@ -160,15 +166,15 @@ describe('weekly trend tile (R6)', () => {
     await putEntry(fresh.id, '2026-09-28', 1);              // this: 13/15 = 87% — counts rose 12→13, rate fell
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('13 of 15')).toBeInTheDocument();  // denominators differ (12 vs 15)
-    expect(await screen.findByText(/↓ Quieter than last week/)).toBeInTheDocument();
+    expect(await screen.findByText('13 of 15', {}, WAIT)).toBeInTheDocument();  // denominators differ (12 vs 15)
+    expect(await screen.findByText(/↓ Quieter than last week/, {}, WAIT)).toBeInTheDocument();
   });
 
   it('renders "A quiet week" when nothing is scheduled this window (R6.3)', async () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('0 of 0')).toBeInTheDocument();
-    expect(await screen.findByText('A quiet week · All year: 0%')).toBeInTheDocument(); // sub format pinned
+    expect(await screen.findByText('0 of 0', {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText('A quiet week · All year: 0%', {}, WAIT)).toBeInTheDocument(); // sub format pinned
   });
 
   it('renders "First week" without a baseline (R6.3)', async () => {
@@ -176,7 +182,7 @@ describe('weekly trend tile (R6)', () => {
     await putEntry(fresh.id, '2026-09-29', 1);
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText(/First week · All year/)).toBeInTheDocument();
+    expect(await screen.findByText(/First week · All year/, {}, WAIT)).toBeInTheDocument();
   });
 
   it('renders "Just getting started" below ten slots (R6.3/§8 rule 3)', async () => {
@@ -185,16 +191,16 @@ describe('weekly trend tile (R6)', () => {
     await putEntry(daily.id, '2026-09-30', 1);
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('1 of 3')).toBeInTheDocument(); // Mon+Tue+Wed, one done
-    expect(await screen.findByText(/Just getting started · All year/)).toBeInTheDocument();
+    expect(await screen.findByText('1 of 3', {}, WAIT)).toBeInTheDocument(); // Mon+Tue+Wed, one done
+    expect(await screen.findByText(/Just getting started · All year/, {}, WAIT)).toBeInTheDocument();
   });
 
   it('renders "≈ Same as last week" when both windows are untouched and ≥ 10 slots (R6.3)', async () => {
     for (const name of ['A', 'B', 'C', 'D']) await putHabit(habit({ name })); // 4 daily habits → 12 slots
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('0 of 12')).toBeInTheDocument();
-    expect(await screen.findByText(/≈ Same as last week · All year/)).toBeInTheDocument();
+    expect(await screen.findByText('0 of 12', {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText(/≈ Same as last week · All year/, {}, WAIT)).toBeInTheDocument();
   });
 
   it('renders "↑ Stronger than last week" when the rate jumps (R6.3/§8 rule 5)', async () => {
@@ -204,8 +210,8 @@ describe('weekly trend tile (R6)', () => {
       for (const h of habits) await putEntry(h.id, d, 1); // this: 12/12; last: 0/12 → ↑
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('12 of 12')).toBeInTheDocument();
-    expect(await screen.findByText(/↑ Stronger than last week · All year/)).toBeInTheDocument();
+    expect(await screen.findByText('12 of 12', {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText(/↑ Stronger than last week · All year/, {}, WAIT)).toBeInTheDocument();
   });
 
   it('keeps days after today out of the windows (R6.6)', async () => {
@@ -215,7 +221,7 @@ describe('weekly trend tile (R6)', () => {
       await putEntry(daily.id, d, 1);
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('3 of 3')).toBeInTheDocument(); // Mon–Wed only
+    expect(await screen.findByText('3 of 3', {}, WAIT)).toBeInTheDocument(); // Mon–Wed only
     expect(screen.queryByText('5 of 5')).not.toBeInTheDocument();
   });
 
@@ -228,11 +234,11 @@ describe('weekly trend tile (R6)', () => {
     await putEntry(old.id, '2025-12-08', 1);
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Previous year' }));
-    expect(await screen.findByText('Completed in 2025')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Previous year' }, WAIT));
+    expect(await screen.findByText('Completed in 2025', {}, WAIT)).toBeInTheDocument();
     // findBy, not get: the caption flips with the `year` state while the
     // year-scoped entries liveQuery re-emits a tick later.
-    expect(await screen.findByText('2 of 5')).toBeInTheDocument();       // Dec 1, 8, 15, 22, 29 — two done
+    expect(await screen.findByText('2 of 5', {}, WAIT)).toBeInTheDocument();       // Dec 1, 8, 15, 22, 29 — two done
     expect(screen.queryByText(/All year/)).not.toBeInTheDocument(); // substring: would catch a leaked sub line
     expect(screen.queryByText(/Stronger|Quieter|Same as last|First week|Just getting|quiet week/i))
       .not.toBeInTheDocument();
@@ -246,14 +252,14 @@ describe('weekly trend tile (R6)', () => {
     await putEntry(mwf.id, '2026-09-30', 1);  // Wed — scheduled
     const { InsightsScreen } = await import('./InsightsScreen');
     render(<InsightsScreen />);
-    expect(await screen.findByText('2 of 2')).toBeInTheDocument();          // weekly tile: slots only
-    const activeDays = (await screen.findByText('Active Days')).closest('div')!;
+    expect(await screen.findByText('2 of 2', {}, WAIT)).toBeInTheDocument();          // weekly tile: slots only
+    const activeDays = (await screen.findByText('Active Days', {}, WAIT)).closest('div')!;
     expect(within(activeDays).getByText('3')).toBeInTheDocument();          // Mon + Tue-bonus + Wed
-    const completions = (await screen.findByText('Completions')).closest('div')!;
+    const completions = (await screen.findByText('Completions', {}, WAIT)).closest('div')!;
     expect(within(completions).getByText('3')).toBeInTheDocument();         // all three logged
     // Rate family: Mon+Wed since createdAt = 4 slots, 2 done → 50%. A leaked
     // bonus would read 75%, so this pins the exclusion (spec §6).
-    expect(await screen.findByText(/All year: 50%/)).toBeInTheDocument();
+    expect(await screen.findByText(/All year: 50%/, {}, WAIT)).toBeInTheDocument();
   });
 });
 
@@ -267,11 +273,11 @@ describe('heatmap year switch (R3 §5)', () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     const { container } = render(<InsightsScreen />);
     const prev = () => screen.getByRole('button', { name: 'Previous year' }) as HTMLButtonElement;
-    await waitFor(() => expect(prev().disabled).toBe(false)); // minYear picked up the old habit
+    await waitFor(() => expect(prev().disabled).toBe(false), WAIT); // minYear picked up the old habit
     const sc = () => container.querySelector('[data-testid="hm-scroll"]') as HTMLElement;
     sc().scrollLeft = 270;                                    // current-year auto-scrolled position
     fireEvent.click(prev());
-    expect(await screen.findByText('Completed in 2025')).toBeInTheDocument();
+    expect(await screen.findByText('Completed in 2025', {}, WAIT)).toBeInTheDocument();
     expect(sc().scrollLeft).toBe(0);                          // January, not the carried-over 270
   });
 });
