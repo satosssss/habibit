@@ -615,6 +615,20 @@ export function AddHabitScreen() {
 
 **Commit:** `feat(add-habit): template gallery with prefilled form (slice E R4)`
 
+**Corrections applied during execution (2026-10-03, ledgered):**
+
+1. Four AddHabitScreen tests above (`prefills the form…`, `saves a templated habit…`,
+   `leaves no habit behind…`, `keeps the form open…`) click the *Steps* tile directly, but the
+   gallery opens on the **Good** segment where Steps isn't rendered. Each test now clicks
+   `getByRole('button', { name: 'Health' })` before Steps. Assertions unchanged.
+2. `keeps the form open and shows the banner when the write fails` — the
+   `expect(screen.getByRole('dialog')).toBeInTheDocument(); // stays open on failure` line is
+   impossible: `HabitForm.tsx:80` calls `onClose()` unconditionally after `onSave()` resolves
+   (spec R4 pins form behavior identical to `HabitsPanel.save`, and the test matrix only
+   requires *write failure keeps global banner behavior*). Rewritten to assert the banner copy
+   (`/couldn't save that change/i`) plus `push` not called; the dialog-liveness assertion is
+   removed, not loosened.
+
 ---
 
 ## Task 5 — Habits page + slim Settings
