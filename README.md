@@ -48,7 +48,7 @@ Zero config: there is no backend, database, or environment to provision.
 
 - **Today** — check habits off, grouped by *category* (Morning / Health / Evening).
 - **Stats** — streaks, a year-at-a-glance activity heatmap, per-*intention* breakdowns.
-- **Settings** — data export/import, theme, and a reset to the seeded examples.
+- **Settings** — data export/import, theme, and Reset data (erases everything back to an empty app).
 
 ## Stack
 

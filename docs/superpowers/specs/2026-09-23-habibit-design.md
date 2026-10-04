@@ -213,7 +213,8 @@ all access goes through `src/lib/repo.ts`.
 - **Theme** — System / Light / Dark segmented control, applied via `data-theme` on
   `<html>`, persisted in `localStorage`.
 - **Data** — Export/Import JSON (file download/upload, no network), Reset (clears
-  Dexie and re-seeds).
+  Dexie to empty and stays empty — amended by the 2026-10-04 reset-to-empty spec;
+  seeded examples only appear on first install).
 
 ## 10. Responsive layout
 
@@ -238,9 +239,10 @@ Runs on first load when the seed marker is absent (fresh install).
   install gets identical history: realistic gaps, ~12% perfect days, live current
   streak.
 - Seeding writes one seed-marker row (`id: '__seed__'` in `entries`, `date: ''`).
-  It is skipped by every read, stat, and export path, and cleared by Reset — so
-  seeding happens exactly once, never resurrects after habits are deleted, and
-  Reset re-seeds. Seeded rows also carry `createdAt`.
+  It is skipped by every read, stat, and export path, written on first install
+  and re-written by Reset, so seeding happens exactly once, never resurrects
+  after habits are deleted, and boot never re-seeds after a Reset.
+  Seeded rows also carry `createdAt`.
 
 ## 12. Error handling
 
