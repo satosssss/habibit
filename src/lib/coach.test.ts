@@ -218,3 +218,140 @@ describe('coach: habit stacking (spec R2.3)', () => {
     expect(stack.body).toContain('after Zen');           // equal rate → higher streak beats the A…Z tiebreak
   });
 });
+
+describe('coach: level-up (spec R2.4–2.5)', () => {
+  it('an easy habit with streak 7 suggests medium', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), difficulty: 'easy' });
+    const entries = ['2026-09-27', '2026-09-28', '2026-09-29', '2026-09-30',
+                     '2026-10-01', '2026-10-02', '2026-10-03'].map((d) => entry(h.id, d));
+    const level = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'difficulty')!;
+    expect(level.patch?.difficulty).toBe('medium');
+    expect(level.body).toBe('7-day streak on Meditate. Ready for Medium?');
+    expect(level.id).toBe('levelup:h1:difficulty');
+  });
+
+  it('medium needs streak 14 before suggesting hard', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), difficulty: 'medium' });
+    const entries = ['2026-09-26', '2026-09-27', '2026-09-28', '2026-09-29',
+                     '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03'].map((d) => entry(h.id, d));
+    expect(generateCoachInsights([h], entries, TODAY).some((i) => i.category === 'difficulty')).toBe(false);
+  });
+
+  it('medium with streak 14 suggests hard', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), difficulty: 'medium' });
+    const entries = Array.from({ length: 14 }, (_, i) => entry(h.id, addDays('2026-09-20', i)));
+    const level = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'difficulty')!;
+    expect(level.patch?.difficulty).toBe('hard');
+    expect(level.body).toBe('14-day streak on Meditate. Ready for Hard?');
+  });
+
+  it('legacy habits (no difficulty stored) read as medium', () => {
+    const h = habit({ createdAt: createdDaysAgo(20) });
+    const entries = Array.from({ length: 14 }, (_, i) => entry(h.id, addDays('2026-09-20', i)));
+    const level = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'difficulty')!;
+    expect(level.patch?.difficulty).toBe('hard');          // undefined → medium → hard (streak 14 ✓)
+  });
+
+  it('legacy habits below streak 14 suggest nothing', () => {
+    const h = habit({ createdAt: createdDaysAgo(20) });
+    const entries = Array.from({ length: 8 }, (_, i) => entry(h.id, addDays('2026-09-26', i)));
+    expect(generateCoachInsights([h], entries, TODAY).some((i) => i.category === 'difficulty')).toBe(false);
+  });
+
+  it('hard is terminal', () => {
+    const h = habit({ createdAt: createdDaysAgo(40), difficulty: 'hard' });
+    const entries = Array.from({ length: 30 }, (_, i) => entry(h.id, addDays('2026-09-04', i)));
+    expect(generateCoachInsights([h], entries, TODAY).some((i) => i.category === 'difficulty')).toBe(false);
+  });
+
+  it('quantity targets bump by 10%', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), type: 'quantity', target: 10000, unit: 'steps' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry(h.id, addDays('2026-09-27', i), 10000));
+    const level = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'target')!;
+    expect(level.patch?.target).toBe(11000);
+    expect(level.body).toBe('10,000 steps for 7 days straight. Try 11,000?');
+    expect(level.id).toBe('levelup:h1:target');
+  });
+
+  it('drops an empty unit from the quantity copy', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), type: 'quantity', target: 10000, unit: '' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry(h.id, addDays('2026-09-27', i), 10000));
+    const level = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'target')!;
+    expect(level.body).toBe('10,000 for 7 days straight. Try 11,000?');
+  });
+
+  it('timer targets bump to the next whole minute of +10%', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), type: 'timer', target: 900 });
+    const entries = Array.from({ length: 7 }, (_, i) => entry(h.id, addDays('2026-09-27', i), 900));
+    const level = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'target')!;
+    expect(level.patch?.target).toBe(1020);
+    expect(level.body).toBe('7-day streak at 15 minutes. Try 17?');
+  });
+
+  it('stays quiet when a timer bump would round to the current value', () => {
+    const h = habit({ createdAt: createdDaysAgo(20), type: 'timer', target: 90 });
+    const entries = Array.from({ length: 7 }, (_, i) => entry(h.id, addDays('2026-09-27', i), 90));
+    expect(generateCoachInsights([h], entries, TODAY).some((i) => i.category === 'target')).toBe(false);
+  });
+});
+
+describe('coach: rewards (spec R2.6–2.8)', () => {
+  it('fires a streak milestone at exactly 7', () => {
+    const h = habit({ createdAt: createdDaysAgo(20) });
+    const entries = Array.from({ length: 7 }, (_, i) => entry(h.id, addDays('2026-09-27', i)));
+    const ms = generateCoachInsights([h], entries, TODAY).find((i) => i.category === 'reward-streak')!;
+    expect(ms.id).toBe(`reward:h1:streak:7`);
+    expect(ms.body).toBe(`7 days of Meditate in a row. That's a habit now.`);
+  });
+
+  it('stays silent at streak 8 (milestones fire exactly)', () => {
+    const h = habit({ createdAt: createdDaysAgo(20) });
+    const entries = Array.from({ length: 8 }, (_, i) => entry(h.id, addDays('2026-09-26', i)));
+    expect(generateCoachInsights([h], entries, TODAY).some((i) => i.category === 'reward-streak')).toBe(false);
+  });
+
+  it('fires a perfect day when every scheduled habit is done today', () => {
+    const a = habit({ id: 'a1', name: 'Meditate', createdAt: createdDaysAgo(13) });
+    const b = habit({ id: 'b1', name: 'Read', createdAt: createdDaysAgo(13) });
+    const entries = [entry('a1', TODAY), entry('b1', TODAY)];
+    const out = generateCoachInsights([a, b], entries, TODAY);
+    expect(out.find((i) => i.category === 'reward-day')).toMatchObject({
+      id: `reward:perfectday:${TODAY}`,
+      body: 'Every habit checked off today. Perfect day.',
+    });
+  });
+
+  it('stays silent while one habit is still open', () => {
+    const a = habit({ id: 'a1', createdAt: createdDaysAgo(13) });
+    const b = habit({ id: 'b1', createdAt: createdDaysAgo(13) });
+    const entries = [entry('a1', TODAY)];
+    expect(generateCoachInsights([a, b], entries, TODAY).some((i) => i.category === 'reward-day')).toBe(false);
+  });
+
+  it('stays silent when nothing is scheduled today', () => {
+    const h = habit({ createdAt: createdDaysAgo(13), frequency: [1] });   // Mondays only
+    const entries = [entry('h1', TODAY)];
+    expect(generateCoachInsights([h], entries, TODAY).some((i) => i.category === 'reward-day')).toBe(false);
+  });
+
+  it('encourages at two more completions than last week', () => {
+    const h = habit({ createdAt: createdDaysAgo(13) });
+    const entries = ['2026-09-21', '2026-09-22', '2026-09-23',          // last week: 3
+                     '2026-09-28', '2026-09-29', '2026-09-30',
+                     '2026-10-01', '2026-10-02'].map((d) => entry(h.id, d));   // this week: 5
+    const out = generateCoachInsights([h], entries, TODAY);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      id: 'encourage:2026-09-28',
+      body: 'You logged 2 more completions than last week. Keep that going.',
+    });
+  });
+
+  it('stays silent at only one more completion than last week', () => {
+    const h = habit({ createdAt: createdDaysAgo(13) });
+    const entries = ['2026-09-21', '2026-09-22', '2026-09-23',          // last week: 3
+                     '2026-09-28', '2026-09-29', '2026-09-30',
+                     '2026-10-01'].map((d) => entry(h.id, d));          // this week: 4
+    expect(generateCoachInsights([h], entries, TODAY)).toEqual([]);
+  });
+});

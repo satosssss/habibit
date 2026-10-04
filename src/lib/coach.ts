@@ -1,5 +1,5 @@
-import { addDays, weekdayIndex } from './dates';
-import { isCompleted, isScheduled } from './stats';
+import { addDays, mondayOf, weekdayIndex } from './dates';
+import { buildDayStats, completionRate, isCompleted, isScheduled, weekWindows } from './stats';
 import { habitStreaks } from './streaks';   // streaks are composed, never recomputed
 import type { Entry, Habit } from './types';
 
@@ -22,6 +22,12 @@ const STRUGGLE_MIN_SLOTS = 6;
 const MISSED_RUN = 3;
 const REMIND_LOOKBACK = 30;
 const STACK_MIN_SLOTS = 7;
+// Spec R1 success rules — level-ups need a real streak AND a strong week.
+const LEVELUP_MIN_STREAK = 7;
+const LEVELUP_HARD_STREAK = 14;
+const LEVELUP_RATE = 0.8;
+const MILESTONES = [7, 14, 30, 50, 100, 200, 365];
+const ENCOURAGE_DELTA = 2;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const key = (habitId: string, date: string) => `${habitId}|${date}`;
@@ -174,6 +180,90 @@ function stackInsight(
   };
 }
 
+function levelUpInsight(habit: Habit, streak: number, rate7: number): CoachInsight | null {
+  if (streak < LEVELUP_MIN_STREAK || rate7 < LEVELUP_RATE) return null;
+  if (habit.type === 'boolean') {
+    const current = habit.difficulty ?? 'medium';        // legacy rows read medium (spec R1)
+    if (current === 'hard') return null;                 // terminal
+    const next = current === 'easy' ? 'medium' : 'hard';
+    if (next === 'hard' && streak < LEVELUP_HARD_STREAK) return null;
+    return {
+      id: `levelup:${habit.id}:difficulty`,
+      kind: 'success',
+      category: 'difficulty',
+      habitId: habit.id,
+      title: 'Level up',
+      body: `${streak}-day streak on ${habit.name}. Ready for ${next === 'medium' ? 'Medium' : 'Hard'}?`,
+      patch: { difficulty: next },
+    };
+  }
+  const next = habit.type === 'quantity'
+    ? Math.ceil(habit.target * 1.1)
+    : Math.ceil((habit.target * 1.1) / 60) * 60;        // timer: next whole minute of +10%
+  if (habit.type === 'timer') {
+    const currentMin = Math.round(habit.target / 60);
+    if (next / 60 <= currentMin) return null;            // rounds to the current value → nothing to say
+    return {
+      id: `levelup:${habit.id}:target`,
+      kind: 'success',
+      category: 'target',
+      habitId: habit.id,
+      title: 'Raise the target',
+      body: `${streak}-day streak at ${currentMin} minutes. Try ${next / 60}?`,
+      patch: { target: next },
+    };
+  }
+  const unit = habit.unit ? ` ${habit.unit}` : '';       // empty unit drops from the copy (spec §4)
+  return {
+    id: `levelup:${habit.id}:target`,
+    kind: 'success',
+    category: 'target',
+    habitId: habit.id,
+    title: 'Raise the target',
+    body: `${habit.target.toLocaleString('en-US')}${unit} for ${streak} days straight. Try ${next.toLocaleString('en-US')}?`,
+    patch: { target: next },
+  };
+}
+
+function milestoneInsight(habit: Habit, streak: number): CoachInsight | null {
+  if (!MILESTONES.includes(streak)) return null;
+  return {
+    id: `reward:${habit.id}:streak:${streak}`,
+    kind: 'success',
+    category: 'reward-streak',
+    habitId: habit.id,
+    title: 'Streak milestone',
+    body: `${streak} days of ${habit.name} in a row. That's a habit now.`,
+  };
+}
+
+function perfectDayInsight(habits: Habit[], entries: Entry[], today: string): CoachInsight | null {
+  const day = buildDayStats(habits, entries, { from: today, to: today }).get(today);
+  if (!day?.perfect) return null;                        // scheduled > 0 && completed === scheduled
+  return {
+    id: `reward:perfectday:${today}`,
+    kind: 'success',
+    category: 'reward-day',
+    title: 'Perfect day',
+    body: 'Every habit checked off today. Perfect day.',
+  };
+}
+
+function encouragementInsight(habits: Habit[], entries: Entry[], today: string): CoachInsight | null {
+  const { thisFrom, thisTo, lastFrom, lastTo } = weekWindows(today);
+  const now = completionRate(buildDayStats(habits, entries, { from: thisFrom, to: thisTo })).completed;
+  const prev = completionRate(buildDayStats(habits, entries, { from: lastFrom, to: lastTo })).completed;
+  const delta = now - prev;
+  if (delta < ENCOURAGE_DELTA) return null;
+  return {
+    id: `encourage:${mondayOf(today)}`,
+    kind: 'success',
+    category: 'encouragement',
+    title: 'Momentum',
+    body: `You logged ${delta} more completions than last week. Keep that going.`,
+  };
+}
+
 export function generateCoachInsights(habits: Habit[], entries: Entry[], today: string): CoachInsight[] {
   const values = new Map(entries.map((e) => [key(e.habitId, e.date), e.value]));
   const streaks = habitStreaks(habits, entries, today);
@@ -188,9 +278,17 @@ export function generateCoachInsights(habits: Habit[], entries: Entry[], today: 
       const stack = stackInsight(habit, habits, values, streaks, today);
       if (stack) rows.push({ insight: stack, rate });
     }
-    // Task 3 appends level-up + milestone here (success signals per habit).
+    const streak = streaks[habit.id] ?? 0;
+    const w7 = windowStats(habit, values, addDays(today, -6), today);
+    const level = levelUpInsight(habit, streak, w7.slots ? w7.hits / w7.slots : 0);
+    if (level) rows.push({ insight: level, rate: 0 });
+    const ms = milestoneInsight(habit, streak);
+    if (ms) rows.push({ insight: ms, rate: 0 });
   }
-  // Task 3 appends global signals (perfect day, encouragement) after the loop.
+  const perfect = perfectDayInsight(habits, entries, today);
+  if (perfect) rows.push({ insight: perfect, rate: 0 });
+  const encourage = encouragementInsight(habits, entries, today);
+  if (encourage) rows.push({ insight: encourage, rate: 0 });
   // Task 4 sorts `rows` before returning.
   return rows.map((r) => r.insight);
 }
