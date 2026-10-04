@@ -1,6 +1,6 @@
 # Adaptive Habit Coach
 
-**Date:** 2026-10-04 · **Status:** approved in chat (design §§1–4); awaiting user spec review · **Supersedes:** nothing (new subsystem; builds on the add-habit `difficulty`/`reminderTime` fields and the existing stats/surfaces)
+**Date:** 2026-10-04 · **Status:** approved by user 2026-10-04 · **Supersedes:** nothing (new subsystem; builds on the add-habit `difficulty`/`reminderTime` fields and the existing stats/surfaces)
 
 ## 1. Goal
 
