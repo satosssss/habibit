@@ -48,6 +48,7 @@ Zero config: there is no backend, database, or environment to provision.
 
 - **Today** — check habits off, grouped by *category* (Morning / Health / Evening).
 - **Stats** — streaks, a year-at-a-glance activity heatmap, per-*intention* breakdowns.
+- **Coach** — reads your rhythm and nudges: trim a slipping habit, move a reminder, stack a habit, level up, celebrate a streak.
 - **Settings** — data export/import, theme, and Reset data (erases everything back to an empty app).
 
 ## Stack
@@ -62,7 +63,7 @@ database to provision, no environment variables to lose sleep over.
 |---|---|
 | `src/app/` | Routes: `/today`, `/today/[date]`, `/stats`, `/settings` |
 | `src/components/` | The UI: habit rows, heatmap, stat tiles, modals, nav shell |
-| `src/lib/` | The brains: dates, streaks, stats, seed data, Dexie repo |
+| `src/lib/` | The brains: dates, streaks, stats, coach, seed data, Dexie repo |
 | `src/test/` | Test setup |
 
 ## Docs & roadmap

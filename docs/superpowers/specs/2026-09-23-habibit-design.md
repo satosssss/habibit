@@ -125,6 +125,21 @@ all access goes through `src/lib/repo.ts`.
 - Collapsed-section state lives in `localStorage`, not Dexie, so it does not churn
   the database or re-trigger data queries.
 
+### 4.6 Adaptive coach (`src/lib/coach.ts`)
+
+Rule-based (no LLM, no network, no API) suggestion engine over the same
+completion data stats uses. Struggling habits (14-day rate < 50% or three
+missed scheduled days, ≥ 6 slots) get frequency-trim, reminder-time and
+habit-stacking suggestions; succeeding habits (streak ≥ 7, strong week) get
+level-up nudges, streak milestones, perfect-day and momentum notes.
+Surfaces: one priority card on Today (today only, between the streak strip
+and the habit list) and grouped rows in Stats after the year tiles
+(`Needs attention` / `Level up` / `Celebrate`, 6-item cap). Structured
+suggestions carry a one-tap `patch` applied via the existing `putHabit`
+write path; dismissals live in `localStorage['habibit:coach-dismissals']`
+(7-day TTL — device-local, like the theme: export/import/reset untouched).
+Full rules and copy: `docs/superpowers/specs/2026-10-04-adaptive-coach-design.md`.
+
 ## 5. Today view
 
 1. **Header** — hamburger (mobile), centered title ("Today", or the date such as
