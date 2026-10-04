@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db';
-import { clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit, putHabits } from './repo';
+import { clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
 import type { Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -138,6 +138,25 @@ describe('entries', () => {
     }
     expect(await listHabits()).toHaveLength(1);     // habits rolled back…
     expect(await loadDay('2026-09-20')).toHaveLength(1); // …entries untouched
+  });
+
+  // reset spec R1 I3: the wipe and the marker write run in ONE transaction, so
+  // a failure between them rolls back instead of leaving the crash-in-between
+  // state (cleared data + marker-less = next boot re-seeds the demo set).
+  it('rolls back the wipe and writes no marker when resetToEmpty fails mid-transaction', async () => {
+    const h = habit();
+    await putHabit(h);
+    await putEntry(h.id, '2026-09-20', 1);
+    const spy = vi.spyOn(db.entries, 'clear')
+      .mockImplementationOnce(() => Promise.reject(new Error('injected failure')) as never);
+    try {
+      await expect(resetToEmpty()).rejects.toThrow(/injected failure/);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await listHabits()).toHaveLength(1);          // habits rolled back
+    expect(await loadDay('2026-09-20')).toHaveLength(1); // entries untouched
+    expect(await hasSeeded()).toBe(false);               // marker never written
   });
 
   it('never exports the seed marker row', async () => {

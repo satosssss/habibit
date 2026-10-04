@@ -101,13 +101,16 @@ describe('DataPanel', () => {
     await putHabit(habit());
     render(<DataPanel />);
     fireEvent.click(screen.getByRole('button', { name: /reset data/i }));
+    // R2 exact confirm copy — positive pin, drift in the question must fail here
+    expect(screen.getByText("Erase all habits and history? This can't be undone.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /yes, erase/i }));
     await waitFor(async () => {
       expect((await listHabits()).length).toBe(0);              // I1
       expect(await exportState()).toEqual({ habits: [], entries: [] });
       expect(await hasSeeded()).toBe(true);                     // I2 at the panel boundary
     });
-    expect(screen.getByRole('status')).toHaveTextContent('All data erased.');  // I4 (strengthening)
+    // I4 inside waitFor so a slow success-message flush can't race the poll
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All data erased.'));
     expect(screen.queryByText(/erase all habits and history/i)).not.toBeInTheDocument(); // dialog closed
   });
 
@@ -120,13 +123,16 @@ describe('DataPanel', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/storage read failed/i));
   });
 
-  it('surfaces a reset failure as an alert and does not strand the confirm dialog', async () => {
+  it('surfaces a reset failure as an alert, keeps the data, and does not strand the confirm dialog', async () => {
+    await putHabit(habit()); // data exists before the failure
     vi.mocked(resetToEmpty).mockRejectedValueOnce(new Error('Write blocked'));
     render(<DataPanel />);
     fireEvent.click(screen.getByRole('button', { name: /reset data/i }));
     fireEvent.click(screen.getByRole('button', { name: /yes, erase/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/write blocked/i));
     expect(screen.queryByText(/erase all habits and history/i)).not.toBeInTheDocument(); // dialog closed
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();                        // no success claim
+    expect(await listHabits()).toHaveLength(1);            // I3 at the panel boundary: data untouched
   });
 
   it('frosts the data panel and secondary actions (slice D R8)', async () => {

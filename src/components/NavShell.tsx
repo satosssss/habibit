@@ -39,7 +39,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
-    void seedIfEmpty().catch(reportWriteError);   // idempotent: returns immediately once habits exist
+    void seedIfEmpty().catch(reportWriteError);   // idempotent: returns immediately once the seed marker is claimed
     void ensureDb().then((s) => {
       setDegraded(s === 'degraded');
       void pruneOrphans().catch(reportWriteError);   // stray entries never reach stats

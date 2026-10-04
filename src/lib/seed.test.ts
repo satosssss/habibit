@@ -123,7 +123,7 @@ describe('seedIfEmpty', () => {
   it('re-seeds a byte-identical dataset on a marker-less database', async () => {
     expect(await seedIfEmpty()).toBe(true);
     const first = await exportState();
-    await clearAll();                       // Reset: data + marker cleared
+    await clearAll();                       // marker-less wipe (simulates a fresh install)
     expect(await seedIfEmpty()).toBe(true);
     const second = await exportState();
     expect(second).toEqual(first);
