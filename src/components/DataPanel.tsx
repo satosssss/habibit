@@ -81,9 +81,9 @@ export function DataPanel() {
           <p className="mb-2 font-semibold">Erase all habits and history? This can&apos;t be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setConfirmReset(false)}
-                    className="btn-glass px-3 py-1.5 text-sm">Cancel</button>
+                    className="btn-glass px-3 py-2.5 text-sm">Cancel</button>
             <button type="button" onClick={() => void reset()}
-                    className="rounded-xl bg-red-600 px-3 py-1.5 font-semibold text-white">Yes, erase</button>
+                    className="rounded-xl bg-red-600 px-3 py-2.5 font-semibold text-white">Yes, erase</button>
           </div>
         </div>
       )}

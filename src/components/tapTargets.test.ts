@@ -70,6 +70,13 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
     expect(src('MenuDrawer.tsx')).toContain('rounded-xl px-4 py-2.5 text-sm font-semibold capitalize');
   });
 
+  it('Data confirm-dialog buttons are py-2.5 (reset-to-empty V6: ≥40px)', () => {
+    // Cancel / Yes, erase were py-1.5 = 34px in the browser; py-2.5 = 42px.
+    const s = src('DataPanel.tsx');
+    expect(s).toContain('btn-glass px-3 py-2.5 text-sm');
+    expect(s).toContain('rounded-xl bg-red-600 px-3 py-2.5 font-semibold text-white');
+  });
+
   it('calendar day cells are h-11 w-11 (slice E R5: ≥44px)', () => {
     const s = src('CalendarScreen.tsx');
     expect(s).toContain('h-11 w-11');
