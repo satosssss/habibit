@@ -1,5 +1,6 @@
 import { addDays, weekdayIndex } from './dates';
 import { isCompleted, isScheduled } from './stats';
+import { habitStreaks } from './streaks';   // streaks are composed, never recomputed
 import type { Entry, Habit } from './types';
 
 export type CoachCategory = 'frequency' | 'reminder' | 'stack' | 'difficulty'
@@ -19,6 +20,8 @@ export interface CoachInsight {
 const STRUGGLE_RATE = 0.5;
 const STRUGGLE_MIN_SLOTS = 6;
 const MISSED_RUN = 3;
+const REMIND_LOOKBACK = 30;
+const STACK_MIN_SLOTS = 7;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const key = (habitId: string, date: string) => `${habitId}|${date}`;
@@ -90,15 +93,100 @@ function frequencyInsight(habit: Habit, values: Map<string, number>, today: stri
   };
 }
 
+function formatHour(hour: number): string {
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12} ${hour < 12 ? 'am' : 'pm'}`;
+}
+
+function formatTime(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+/** Mode completion hour over the trailing 30 days — the user's own rhythm
+ *  (spec R2.2). Ties resolve to the earliest hour; no entries → null and the
+ *  reminder suggestion stays silent (I3: nothing invented). */
+function peakHour(entries: Entry[], today: string): number | null {
+  const from = addDays(today, -(REMIND_LOOKBACK - 1));
+  const counts = new Map<number, number>();
+  for (const e of entries) {
+    if (e.date < from || e.date > today) continue;
+    const hour = new Date(e.timestamp).getHours();
+    counts.set(hour, (counts.get(hour) ?? 0) + 1);
+  }
+  let best: number | null = null;
+  for (const [hour, n] of counts) {
+    if (best === null || n > counts.get(best)!) best = hour;
+    else if (n === counts.get(best)! && hour < best) best = hour;
+  }
+  return best;
+}
+
+function reminderInsight(habit: Habit, entries: Entry[], today: string): CoachInsight | null {
+  const peak = peakHour(entries, today);
+  if (peak === null) return null;
+  const suggested = `${String((peak + 23) % 24).padStart(2, '0')}:30`;   // peak − 30min, wraps midnight
+  const current = habit.reminderTime;
+  if (current && current === suggested) return null;
+  const absent = !current;
+  const body = absent
+    ? `${habit.name} has no reminder. You usually check off habits around ${formatHour(peak)} — set ${formatTime(suggested)}?`
+    : `${habit.name} reminds you at ${formatTime(current!)}, but you usually finish habits around ${formatHour(peak)} — try ${formatTime(suggested)}?`;
+  return {
+    id: `struggle:${habit.id}`,
+    kind: 'struggle',
+    category: 'reminder',
+    habitId: habit.id,
+    title: absent ? 'Pick a reminder time' : 'Move your reminder',
+    body,
+    patch: { reminderTime: suggested },
+  };
+}
+
+function stackInsight(
+  habit: Habit, habits: Habit[], values: Map<string, number>,
+  streaks: Record<string, number>, today: string,
+): CoachInsight | null {
+  if (habits.length < 2) return null;
+  const from = addDays(today, -29);
+  let best: { habit: Habit; rate: number; streak: number } | null = null;
+  for (const other of habits) {
+    if (other.id === habit.id) continue;
+    if (!other.frequency.some((w) => habit.frequency.includes(w))) continue;   // shared scheduled day
+    const { slots, hits } = windowStats(other, values, from, today);
+    if (slots < STACK_MIN_SLOTS) continue;
+    const rate = slots ? hits / slots : 0;
+    const streak = streaks[other.id] ?? 0;
+    const better = !best || rate > best.rate
+      || (rate === best.rate && streak > best.streak)
+      || (rate === best.rate && streak === best.streak && other.name.localeCompare(best.habit.name) < 0);
+    if (better) best = { habit: other, rate, streak };
+  }
+  if (!best) return null;
+  return {
+    id: `struggle:${habit.id}`,
+    kind: 'struggle',
+    category: 'stack',
+    habitId: habit.id,
+    title: 'Stack it',
+    body: `Stack it: do ${habit.name} right after ${best.habit.name} — your steadiest habit.`,
+  };
+}
+
 export function generateCoachInsights(habits: Habit[], entries: Entry[], today: string): CoachInsight[] {
   const values = new Map(entries.map((e) => [key(e.habitId, e.date), e.value]));
+  const streaks = habitStreaks(habits, entries, today);
   const rows: Array<{ insight: CoachInsight; rate: number }> = [];   // `rate` feeds Task 4's worst-first sort
   for (const habit of habits) {
     const rate = struggling(habit, values, today);
     if (rate !== null) {
       const freq = frequencyInsight(habit, values, today);
       if (freq) rows.push({ insight: freq, rate });
-      // Task 2 appends reminder + stack inside this block.
+      const remind = reminderInsight(habit, entries, today);
+      if (remind) rows.push({ insight: remind, rate });
+      const stack = stackInsight(habit, habits, values, streaks, today);
+      if (stack) rows.push({ insight: stack, rate });
     }
     // Task 3 appends level-up + milestone here (success signals per habit).
   }
