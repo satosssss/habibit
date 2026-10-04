@@ -2,6 +2,7 @@
 
 import { CalendarCheck, CheckSquare, Flame, Star, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { generateCoachInsights } from '@/lib/coach';
 import { intentionColor } from '@/lib/colors';
 import { intentionIcon } from '@/lib/icons';
 import { listHabits, loadRange } from '@/lib/repo';
@@ -11,6 +12,7 @@ import {
 } from '@/lib/stats';
 import { todayKey } from '@/lib/dates';
 import { useLiveQuery } from '@/lib/useLiveQuery';
+import { CoachSection } from './CoachSection';
 import { Heatmap } from './Heatmap';
 import { IntentionBar } from './IntentionBar';
 import { StatTile } from './StatTile';
@@ -74,6 +76,13 @@ export function InsightsScreen() {
     [orderedHabits, entries, year, today],
   );
 
+  // Coach spec R3: allEntries spans minYear → today — the full windows the
+  // engine needs (14/30/7 days + both week windows), year-independent.
+  const coach = useMemo(
+    () => generateCoachInsights(habits ?? [], allEntries ?? [], today),
+    [habits, allEntries, today],
+  );
+
   if (habits === undefined || entries === undefined || allEntries === undefined) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 pb-10">
@@ -98,6 +107,8 @@ export function InsightsScreen() {
         )}
         <StatTile icon={CheckSquare} value={sumCompletions(stats)} caption="Completions" />
       </div>
+
+      <CoachSection insights={coach} habits={habits ?? []} />
 
       {/* Spec §10: bars + heatmap side by side at tablet (md), heatmap full
           width at desktop (xl); mobile stays stacked via the grid gap. */}

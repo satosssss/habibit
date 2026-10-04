@@ -4,6 +4,7 @@ import { Flame, Menu, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { generateCoachInsights } from '@/lib/coach';
 import { todayKey } from '@/lib/dates';
 import { loadRange, listHabits, putEntry } from '@/lib/repo';
 import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
@@ -14,6 +15,7 @@ import { celebrateIfCompleted } from '@/lib/completionToast';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
+import { CoachCard } from './CoachCard';
 import { DateStrip } from './DateStrip';
 import { MenuDrawer } from './MenuDrawer';
 import { StreakStrip } from './StreakStrip';
@@ -98,6 +100,13 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
     return currentStreak(stats, date);
   }, [habits, entries, date, rangeStart]);
 
+  // Coach spec R3: one engine pass per data change. Other browsed dates skip
+  // the pass entirely — their entry range is truncated and would mislead.
+  const coach = useMemo(
+    () => (habits && entries && date === today ? generateCoachInsights(habits, entries, today) : []),
+    [habits, entries, date, today],
+  );
+
   const setValue = useCallback(async (habit: Habit, value: number) => {
     const before = values[habit.id] ?? 0;
     try {
@@ -156,6 +165,10 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
 
       {habits !== undefined && entries !== undefined && habits.length > 0 && (
         <StreakStrip habits={habits} entries={entries} today={date} />
+      )}
+
+      {habits !== undefined && entries !== undefined && habits.length > 0 && (
+        <CoachCard insights={coach} habits={habits} date={date} />
       )}
 
       {habits === undefined || entries === undefined ? (

@@ -420,3 +420,30 @@ it('routes a tapped today cell to Home (slice E R2)', () => {
   screen.getByRole('button', { name: todayKey() }).click();
   expect(push).toHaveBeenCalledWith('/');
 });
+
+// Coach spec R3: the card sits between the streak strip and the habit list,
+// today-only.
+describe('coach card (coach spec R3)', () => {
+  const struggleHabit = () => habit({
+    id: 'slip-1', name: 'Slippery',
+    createdAt: Date.parse(`${addDays(todayKey(), -10)}T00:00:00`),   // 11 slots, 0 hits → struggle
+  });
+
+  it('renders between the streak strip and the habit list on today', async () => {
+    await putHabit(struggleHabit());
+    render(<HomeScreen date={todayKey()} />);
+    const strip = await screen.findByRole('region', { name: 'Streak summaries' });
+    const coach = await screen.findByRole('region', { name: 'Coach' });
+    const matches = await screen.findAllByText('Slippery');
+    const row = matches[matches.length - 1];              // the habit row (strip copy comes first)
+    expect(strip.compareDocumentPosition(coach) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(coach.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('stays off a past date', async () => {
+    await putHabit(struggleHabit());
+    render(<HomeScreen date={addDays(todayKey(), -1)} />);
+    await screen.findAllByText('Slippery');
+    expect(screen.queryByRole('region', { name: 'Coach' })).not.toBeInTheDocument();
+  });
+});

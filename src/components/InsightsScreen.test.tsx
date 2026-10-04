@@ -285,3 +285,21 @@ describe('heatmap year switch (R3 §5)', () => {
     expect(sc().scrollLeft).toBe(0);                          // January, not the carried-over 270
   });
 });
+
+// Coach spec R3: groups render directly after Year stats, before By intention.
+describe('coach section (coach spec R3)', () => {
+  it('shows coach groups after the Year stats block', async () => {
+    await putHabit(habit({
+      id: 'slip-1', name: 'Slippery',
+      createdAt: Date.parse(`${addDays(todayKey(), -10)}T00:00:00`),
+    }));
+    // Dynamic import matches this file's convention (no static binding exists).
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
+    const group = await screen.findByRole('heading', { name: 'Needs attention' }, WAIT);
+    const yearStats = screen.getByText('Year stats');
+    const byIntention = screen.getByText('By intention');
+    expect(yearStats.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(group.compareDocumentPosition(byIntention) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

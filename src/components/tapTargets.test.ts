@@ -86,4 +86,12 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
     const s = src('NavShell.tsx');
     expect(s).toMatch(/aria-label="Add a habit"[\s\S]{0,340}h-14 w-14/);
   });
+
+  it('coach rows keep py-2.5 and ≥40px controls (coach spec R3)', () => {
+    // CoachRow is defined in CoachSection.tsx and shared by both surfaces.
+    const s = src('CoachSection.tsx');
+    expect(s).toContain('py-2.5');
+    expect(s).toContain('btn-primary mt-2 h-10 px-4 text-sm');   // Apply = 40px
+    expect(s).toMatch(/aria-label="Dismiss suggestion"[\s\S]{0,240}h-10 w-10/);
+  });
 });
