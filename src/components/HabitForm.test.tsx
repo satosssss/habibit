@@ -11,11 +11,61 @@ const habit: Habit = {
 };
 
 describe('HabitForm', () => {
-  it('exposes every field from the spec, in order', () => {
+  it('exposes every field from the spec, in order, inside four sections', () => {
     const { container } = render(<HabitForm habit={habit} open onSave={vi.fn()} onClose={vi.fn()} />);
     const fields = [...container.querySelectorAll('[data-field]')]
       .map((el) => el.getAttribute('data-field'));
-    expect(fields).toEqual(['name', 'category', 'intention', 'icon', 'color', 'type', 'target', 'frequency']);
+    expect(fields).toEqual([
+      'name', 'category', 'intention',      // Identity
+      'icon', 'color',                      // Look
+      'type', 'target', 'frequency',        // Schedule
+      'reminder-time', 'difficulty',        // Details
+    ]);
+    for (const section of ['Identity', 'Look', 'Schedule', 'Details']) {
+      expect(screen.getByRole('group', { name: section })).toBeInTheDocument();
+    }
+  });
+
+  it('rejects a blank name with an inline error instead of silently naming the habit', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+    render(<HabitForm habit={habit} open onSave={onSave} onClose={onClose} />);
+    fireEvent.change(screen.getByLabelText(/habit name/i), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a name.');
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('materialises difficulty medium for a legacy habit with no difficulty on record', () => {
+    render(<HabitForm habit={{ ...habit }} open onSave={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Difficulty medium' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('saves the clicked difficulty', () => {
+    let saved: Habit | undefined;
+    render(<HabitForm habit={{ ...habit }} open onSave={(h) => { saved = h; }} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Difficulty hard' }));
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    expect(saved?.difficulty).toBe('hard');
+  });
+
+  it('persists the preferred reminder time', () => {
+    let saved: Habit | undefined;
+    render(<HabitForm habit={habit} open onSave={(h) => { saved = h; }} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/preferred reminder time/i), { target: { value: '07:30' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    expect(saved?.reminderTime).toBe('07:30');
+  });
+
+  it('rejects an invalid stored reminder time with a message', () => {
+    // Corrupt value (legacy/manual data only) — blocked with a message, not saved.
+    const broken: Habit = { ...habit, reminderTime: 'banana' };
+    const onSave = vi.fn();
+    render(<HabitForm habit={broken} open onSave={onSave} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid time.');
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('offers existing categories and intentions as suggestions', () => {
