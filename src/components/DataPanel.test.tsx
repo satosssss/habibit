@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAll, exportState, listHabits, loadDay, newId, putEntry, putHabit } from '@/lib/repo';
+import { clearAll, exportState, hasSeeded, listHabits, loadDay, newId, putEntry, putHabit, resetToEmpty } from '@/lib/repo';
 import type { Habit } from '@/lib/types';
 import { DataPanel } from './DataPanel';
 
@@ -8,7 +8,12 @@ import { DataPanel } from './DataPanel';
 // to pin the panel's error path (spec §12 readable-message treatment).
 vi.mock('@/lib/repo', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/repo')>();
-  return { ...actual, exportState: vi.fn(actual.exportState), clearAll: vi.fn(actual.clearAll) };
+  return {
+    ...actual,
+    exportState: vi.fn(actual.exportState),
+    clearAll: vi.fn(actual.clearAll),
+    resetToEmpty: vi.fn(actual.resetToEmpty),
+  };
 });
 
 // jsdom (25) implements neither Blob.text() nor URL.createObjectURL; real
@@ -92,15 +97,18 @@ describe('DataPanel', () => {
     expect(await loadDay('2026-09-21')).toHaveLength(0); // payload never applied
   });
 
-  it('re-seeds after a reset', async () => {
+  it('erases everything after a reset (spec R1/R2)', async () => {
     await putHabit(habit());
     render(<DataPanel />);
     fireEvent.click(screen.getByRole('button', { name: /reset data/i }));
-    fireEvent.click(screen.getByRole('button', { name: /yes, reset/i }));
+    fireEvent.click(screen.getByRole('button', { name: /yes, erase/i }));
     await waitFor(async () => {
-      const habits = await listHabits();
-      expect(habits.length).toBe(8);   // seed restored
+      expect((await listHabits()).length).toBe(0);              // I1
+      expect(await exportState()).toEqual({ habits: [], entries: [] });
+      expect(await hasSeeded()).toBe(true);                     // I2 at the panel boundary
     });
+    expect(screen.getByRole('status')).toHaveTextContent('All data erased.');  // I4 (strengthening)
+    expect(screen.queryByText(/erase all habits and history/i)).not.toBeInTheDocument(); // dialog closed
   });
 
   // Task 14 review issue 1: Export/Reset get the same readable-error path
@@ -113,12 +121,12 @@ describe('DataPanel', () => {
   });
 
   it('surfaces a reset failure as an alert and does not strand the confirm dialog', async () => {
-    vi.mocked(clearAll).mockRejectedValueOnce(new Error('Write blocked'));
+    vi.mocked(resetToEmpty).mockRejectedValueOnce(new Error('Write blocked'));
     render(<DataPanel />);
     fireEvent.click(screen.getByRole('button', { name: /reset data/i }));
-    fireEvent.click(screen.getByRole('button', { name: /yes, reset/i }));
+    fireEvent.click(screen.getByRole('button', { name: /yes, erase/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/write blocked/i));
-    expect(screen.queryByText(/erase everything/i)).not.toBeInTheDocument(); // dialog closed
+    expect(screen.queryByText(/erase all habits and history/i)).not.toBeInTheDocument(); // dialog closed
   });
 
   it('frosts the data panel and secondary actions (slice D R8)', async () => {

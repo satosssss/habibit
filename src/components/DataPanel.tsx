@@ -2,8 +2,7 @@
 
 import { Download, RotateCcw, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { clearAll, exportState, importState } from '@/lib/repo';
-import { seedIfEmpty } from '@/lib/seed';
+import { exportState, importState, resetToEmpty } from '@/lib/repo';
 
 export function DataPanel() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -44,10 +43,9 @@ export function DataPanel() {
 
   const reset = async () => {
     try {
-      await clearAll();
-      await seedIfEmpty();
+      await resetToEmpty();
       setConfirmReset(false);
-      setMessage({ kind: 'ok', text: 'Reset and re-seeded.' });
+      setMessage({ kind: 'ok', text: 'All data erased.' });
     } catch (err) {
       setConfirmReset(false);   // never strand the dialog over a failed write
       setMessage({ kind: 'error', text: err instanceof Error ? err.message : 'Reset failed.' });
@@ -80,12 +78,12 @@ export function DataPanel() {
 
       {confirmReset && (
         <div className="mt-3 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm dark:border-red-900 dark:bg-red-950">
-          <p className="mb-2 font-semibold">Erase everything and restore the example habits?</p>
+          <p className="mb-2 font-semibold">Erase all habits and history? This can&apos;t be undone.</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setConfirmReset(false)}
                     className="btn-glass px-3 py-1.5 text-sm">Cancel</button>
             <button type="button" onClick={() => void reset()}
-                    className="rounded-xl bg-red-600 px-3 py-1.5 font-semibold text-white">Yes, reset</button>
+                    className="rounded-xl bg-red-600 px-3 py-1.5 font-semibold text-white">Yes, erase</button>
           </div>
         </div>
       )}
