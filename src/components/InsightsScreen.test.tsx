@@ -21,6 +21,10 @@ const habit = (over: Partial<Habit> = {}): Habit => ({
 beforeEach(async () => { await clearAll(); });
 
 describe('InsightsScreen', () => {
+  // Option A flake ruling (house pattern): 8 sequential 5s waits cannot fit
+  // inside the default 5s test-level cap under full-parallel suite contention
+  // (passes isolation; green full run on the same commit hours earlier).
+  // Assertions unchanged — only the wall-clock budget grows (seed.test.ts:85 precedent).
   it('shows the four year tiles and the four all-time tiles', async () => {
     await putHabit(habit());
     const { InsightsScreen } = await import('./InsightsScreen');
@@ -29,7 +33,7 @@ describe('InsightsScreen', () => {
                            'Current Streak', 'Longest Streak', 'Total Active Days', 'Total Perfect Days']) {
       expect(await screen.findByText(caption, {}, WAIT)).toBeInTheDocument();
     }
-  });
+  }, 15_000);
 
   it('renders one bar per intention with its fraction', async () => {
     const a = habit({ intention: 'Study', name: 'Learn Spanish' });
