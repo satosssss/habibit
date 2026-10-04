@@ -16,6 +16,16 @@ export interface CoachInsight {
   patch?: Partial<Habit>;
 }
 
+// Catalog order from spec §4 — the tiebreaker inside a rank band.
+const CATEGORY_ORDER: Record<CoachCategory, number> = {
+  frequency: 0, reminder: 1, stack: 2, difficulty: 3, target: 4,
+  'reward-streak': 5, 'reward-day': 6, encouragement: 7,
+};
+
+/** Struggle (0) > level-up (1) > reward (2) > encouragement (3) — spec §3 ranking. */
+const rankOf = (c: CoachCategory): number =>
+  c === 'encouragement' ? 3 : CATEGORY_ORDER[c] >= 5 ? 2 : CATEGORY_ORDER[c] >= 3 ? 1 : 0;
+
 // Spec R1 analysis rules — locked thresholds, one source of truth.
 const STRUGGLE_RATE = 0.5;
 const STRUGGLE_MIN_SLOTS = 6;
@@ -289,6 +299,52 @@ export function generateCoachInsights(habits: Habit[], entries: Entry[], today: 
   if (perfect) rows.push({ insight: perfect, rate: 0 });
   const encourage = encouragementInsight(habits, entries, today);
   if (encourage) rows.push({ insight: encourage, rate: 0 });
-  // Task 4 sorts `rows` before returning.
+  // Spec §3 + I1: priority order, worst struggling first inside the struggle
+  // band, then catalog order, then habit id + insight id — same inputs, same
+  // output, always.
+  rows.sort((a, b) => {
+    const ra = rankOf(a.insight.category);
+    const rb = rankOf(b.insight.category);
+    if (ra !== rb) return ra - rb;
+    if (ra === 0 && a.rate !== b.rate) return a.rate - b.rate;
+    return CATEGORY_ORDER[a.insight.category] - CATEGORY_ORDER[b.insight.category]
+      || (a.insight.habitId ?? '').localeCompare(b.insight.habitId ?? '')
+      || a.insight.id.localeCompare(b.insight.id);
+  });
   return rows.map((r) => r.insight);
+}
+
+export const COACH_DISMISSALS_KEY = 'habibit:coach-dismissals';
+export const COACH_DISMISS_TTL_MS = 7 * 86_400_000;
+
+export function readDismissals(): Record<string, number> {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(COACH_DISMISSALS_KEY) ?? '{}');
+    if (!raw || typeof raw !== 'object') return {};
+    const out: Record<string, number> = {};
+    for (const [id, at] of Object.entries(raw)) if (typeof at === 'number') out[id] = at;
+    return out;
+  } catch { return {}; }                                 // corrupt → empty, never a crash
+}
+
+/** Unexpired dismissals only. */
+export function liveDismissals(now: number = Date.now()): Record<string, number> {
+  const live: Record<string, number> = {};
+  for (const [id, at] of Object.entries(readDismissals()))
+    if (now - at < COACH_DISMISS_TTL_MS) live[id] = at;
+  return live;
+}
+
+export function dismissSuggestion(id: string, now: number = Date.now()): void {
+  const next = { ...liveDismissals(now), [id]: now };    // prune on every write
+  try { localStorage.setItem(COACH_DISMISSALS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+}
+
+export function visibleInsights(
+  insights: CoachInsight[], dismissed: Record<string, number>, now: number = Date.now(),
+): CoachInsight[] {
+  return insights.filter((i) => {
+    const at = dismissed[i.id];
+    return at === undefined || now - at >= COACH_DISMISS_TTL_MS;
+  });
 }

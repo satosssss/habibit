@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { generateCoachInsights } from './coach';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { dismissSuggestion, generateCoachInsights, liveDismissals, visibleInsights } from './coach';
 import { addDays } from './dates';
 import type { Entry, Habit } from './types';
 
@@ -353,5 +353,96 @@ describe('coach: rewards (spec R2.6–2.8)', () => {
                      '2026-09-28', '2026-09-29', '2026-09-30',
                      '2026-10-01'].map((d) => entry(h.id, d));          // this week: 4
     expect(generateCoachInsights([h], entries, TODAY)).toEqual([]);
+  });
+});
+
+describe('coach: ranking + determinism (spec R1 I1/I4)', () => {
+  it('orders struggle → level-up → reward → encouragement', () => {
+    // s1: 0/14 struggling; reminder pre-set so the global peak (12:00 from
+    // l1's entries) equals it and stays silent — ids stay predictable.
+    const s = habit({ id: 's1', name: 'Slippery', createdAt: createdDaysAgo(13), reminderTime: '11:30' });
+    const l = habit({ id: 'l1', name: 'Lifter', createdAt: createdDaysAgo(20), difficulty: 'easy' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry('l1', addDays('2026-09-27', i)));
+    const ids = generateCoachInsights([s, l], entries, TODAY).map((i) => i.id);
+    expect(ids).toEqual([
+      'struggle:s1',             // frequency (rate 0, first category)
+      'struggle:s1',             // stack against l1 (≥7 slots, shared days)
+      'levelup:l1:difficulty',   // rank 1
+      'reward:l1:streak:7',      // rank 2
+      'encourage:2026-09-28',    // rank 3
+    ]);
+  });
+
+  it('orders struggling habits worst-rate first', () => {
+    const a = habit({ id: 'a1', name: 'Never', createdAt: createdDaysAgo(13) });       // 0%
+    const b = habit({ id: 'b1', name: 'Sometimes', createdAt: createdDaysAgo(13) });   // 6/14 = 43%
+    const entries = ['2026-09-21', '2026-09-22', '2026-09-23',
+                     '2026-09-28', '2026-09-29', '2026-09-30'].map((d) => entry('b1', d));
+    // Input order deliberately reversed — only the rate sort can fix it.
+    const freqOrder = generateCoachInsights([b, a], entries, TODAY)
+      .filter((i) => i.category === 'frequency').map((i) => i.habitId);
+    expect(freqOrder).toEqual(['a1', 'b1']);
+  });
+
+  it('within a rank, categories follow catalog order (difficulty before target)', () => {
+    const e = habit({ id: 'e1', name: 'Stretch', createdAt: createdDaysAgo(20), difficulty: 'easy' });
+    const q = habit({ id: 'q1', name: 'Steps', createdAt: createdDaysAgo(20),
+                      type: 'quantity', target: 1000, unit: 'steps' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry('e1', addDays('2026-09-27', i), 1))
+      .concat(Array.from({ length: 7 }, (_, i) => entry('q1', addDays('2026-09-27', i), 1000)));
+    const ids = generateCoachInsights([q, e], entries, TODAY).map((i) => i.id);   // input reversed
+    expect(ids.indexOf('levelup:e1:difficulty')).toBeLessThan(ids.indexOf('levelup:q1:target'));
+  });
+
+  it('same inputs return deep-equal output (I1)', () => {
+    const s = habit({ id: 's1', name: 'Slippery', createdAt: createdDaysAgo(13), reminderTime: '11:30' });
+    const l = habit({ id: 'l1', name: 'Lifter', createdAt: createdDaysAgo(20), difficulty: 'easy' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry('l1', addDays('2026-09-27', i)));
+    const run = () => generateCoachInsights([s, l], entries, TODAY);
+    expect(run()).toEqual(run());
+  });
+});
+
+describe('coach: dismissal storage (7-day TTL, spec §4)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('treats corrupt storage as empty', () => {
+    localStorage.setItem('habibit:coach-dismissals', '{not json');
+    expect(liveDismissals()).toEqual({});
+  });
+
+  it('dismissSuggestion records the id with a timestamp', () => {
+    const now = Date.now();
+    dismissSuggestion('struggle:h1', now);
+    expect(JSON.parse(localStorage.getItem('habibit:coach-dismissals')!))
+      .toEqual({ 'struggle:h1': now });
+  });
+
+  it('prunes expired dismissals on write', () => {
+    const now = Date.now();
+    localStorage.setItem('habibit:coach-dismissals', JSON.stringify({
+      old: now - 8 * 86_400_000, fresh: now - 86_400_000,
+    }));
+    dismissSuggestion('new:id', now);
+    expect(JSON.parse(localStorage.getItem('habibit:coach-dismissals')!))
+      .toEqual({ fresh: now - 86_400_000, 'new:id': now });
+  });
+
+  it('liveDismissals drops expired entries', () => {
+    const now = Date.now();
+    localStorage.setItem('habibit:coach-dismissals', JSON.stringify({
+      old: now - 8 * 86_400_000, fresh: now - 86_400_000,
+    }));
+    expect(liveDismissals(now)).toEqual({ fresh: now - 86_400_000 });
+  });
+
+  it('visibleInsights hides fresh dismissals and brings expired ones back', () => {
+    const now = Date.now();
+    const insights = ['a', 'b'].map((id) => ({
+      id, kind: 'struggle' as const, category: 'frequency' as const,
+      habitId: id, title: 't', body: 'b',
+    }));
+    expect(visibleInsights(insights, { a: now - 1000, b: now - 8 * 86_400_000 }, now).map((i) => i.id))
+      .toEqual(['b']);
   });
 });
