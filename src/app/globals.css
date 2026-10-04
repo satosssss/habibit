@@ -311,7 +311,7 @@ html, body {
   position: absolute;
   border-radius: 50%;
   filter: blur(90px);
-  opacity: 0.55;
+  opacity: 0.35;
   animation: blob-float 10s ease-in-out infinite;
   will-change: transform;
 }

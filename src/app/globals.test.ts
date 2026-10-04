@@ -135,12 +135,29 @@ describe('slice D contrast — WCAG AA sampling (spec R10, V6)', () => {
   it('dark: warm text clears 4.5:1 on dark glass over the base canvas (DESIGN.md)', () => {
     document.documentElement.dataset.theme = 'dark';
     // DESIGN.md's AA bar is "warm off-white on dark glass". The amber blob glow
-    // stays background ambience at DESIGN.md's mandated 0.55 opacity; text over
-    // a full-strength blob core is physically unreachable (pure white scores
-    // 3.9:1 there) and is reported as a spec tension in the V6 report instead.
+    // stays background ambience at the lowered 0.35 opacity (blob-opacity
+    // ruling): the --blob-1 core over the #100d0a canvas holds pure white at
+    // 9.4:1 and --color-fg at 8.3:1 — even a full-strength core clears AA, as
+    // the dedicated pin below asserts. This test samples the realistic
+    // glass-over-canvas region instead.
     const glass = over(token('--glass-bg'), token('--color-bg'));
     expect(contrast(textOn(token('--color-fg'), glass), glass)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(textOn(token('--color-subtle'), glass), glass)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('dark: the amber blob core stays lowered and clears AA (blob-opacity ruling)', () => {
+    document.documentElement.dataset.theme = 'dark';
+    // Ruling "Lower blob opacity": .blob drops 0.55 → 0.35. Pin the CSS text so
+    // the ruling cannot silently regress, then prove the amber core (--blob-1)
+    // composited over the canvas keeps BOTH pure white and the warm fg text at
+    // ≥4.5:1 — at the old 0.55 the white-over-core figure was only 5.7:1 and
+    // stacked/edge samples fell below AA (the old spec tension).
+    const blobBlock = css.match(/\.blob \{([^}]*)\}/)?.[1] ?? '';
+    const alpha = Number(blobBlock.match(/opacity:\s*([0-9.]+)/)?.[1]);
+    expect(alpha).toBe(0.35);
+    const core = over({ ...token('--blob-1'), a: alpha }, token('--color-bg'));
+    expect(contrast({ r: 255, g: 255, b: 255, a: 1 }, core)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(textOn(token('--color-fg'), core), core)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('light: input placeholder clears 4.5:1 on the stacked input glass', () => {
