@@ -33,7 +33,9 @@ export function isCompleted(habit: Habit, value: number): boolean {
   return value >= habit.target;
 }
 
-function isScheduled(habit: Habit, date: string): boolean {
+// Exported for the coach engine (coach spec R1 I2): slot windows must use the
+// SAME scheduling rule stats uses — never a reimplementation.
+export function isScheduled(habit: Habit, date: string): boolean {
   if (!habit.frequency.includes(weekdayIndex(date))) return false;
   const dayStart = Date.parse(`${date}T00:00:00`);
   return habit.createdAt <= dayStart + 86_399_999;
