@@ -72,6 +72,22 @@ export async function clearAll(): Promise<void> {
   await resetDb();
 }
 
+/**
+ * Reset-to-empty (reset spec R1): wipe habits + entries and write the seed
+ * marker in ONE transaction, so a reload's seedIfEmpty() sees a claimed
+ * database and stays empty (I2/I3 — two separate steps would let a crash in
+ * between resurrect the demo data on the next boot). Mirrors importState's
+ * inline marker write (same row as markSeeded, no ensureDb inside the tx).
+ */
+export async function resetToEmpty(): Promise<void> {
+  await ensureDb();
+  await db.transaction('rw', db.habits, db.entries, async () => {
+    await db.habits.clear();
+    await db.entries.clear();
+    await db.entries.put(seedMarker());
+  });
+}
+
 /** Removes entries whose habit no longer exists (spec §12). Returns the count removed. */
 export async function pruneOrphans(): Promise<number> {
   await ensureDb();
@@ -89,7 +105,8 @@ const seedMarker = (): Entry => ({ id: SEED_FLAG_ID, habitId: SEED_FLAG_ID, date
 /**
  * Seed marker row — spec §4.2/§11's seed marker: lives in `entries` with
  * `id = '__seed__'` and `date: ''`; it is not a real entry, so reads, stats,
- * and exportState skip it, while clearAll() clears it (so Reset can re-seed).
+ * and exportState skip it, while clearAll() clears it (raw wipe that simulates
+ * a fresh database; the Reset button uses resetToEmpty, which re-claims it).
  * It survives habit deletion so deleting everything never resurrects seed data.
  */
 export async function hasSeeded(): Promise<boolean> {

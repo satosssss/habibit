@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAll, countHabits, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, putHabit } from './repo';
+import { clearAll, countHabits, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, putHabit, resetToEmpty } from './repo';
 import { buildDayStats, countActiveDays, currentStreak } from './stats';
 import { addDays, todayKey, weekdayIndex } from './dates';
 import { generateSeedEntries, seedIfEmpty, SEED_HABITS } from './seed';
@@ -117,9 +117,10 @@ describe('seedIfEmpty', () => {
     expect(await countHabits()).toBe(8);
   });
 
-  // Task 14 review issue 5b: Reset (clearAll → seedIfEmpty) must reproduce the
-  // exact fresh-install dataset — same PRNG, ids and values (§11 determinism).
-  it('re-seeds a byte-identical dataset after a reset', async () => {
+  // Fresh-install determinism (§11): a marker-less database (clearAll is how
+  // tests simulate one) must reproduce the exact dataset — same PRNG, ids and
+  // values. The Reset button no longer re-seeds; see resetToEmpty.
+  it('re-seeds a byte-identical dataset on a marker-less database', async () => {
     expect(await seedIfEmpty()).toBe(true);
     const first = await exportState();
     await clearAll();                       // Reset: data + marker cleared
@@ -133,5 +134,16 @@ describe('seedIfEmpty', () => {
     );
     expect(second.habits.map((h) => h.id).sort())
       .toEqual(SEED_HABITS.map((h) => h.id).sort());
+  });
+
+  // Spec reset-to-empty R1 I1–I3: Reset wipes AND writes the seed marker in one
+  // transaction, so the next boot's seedIfEmpty() must not resurrect demo data.
+  it('a reset leaves the app empty across reloads', async () => {
+    expect(await seedIfEmpty()).toBe(true);      // start from a seeded install
+    await resetToEmpty();
+    expect(await countHabits()).toBe(0);         // I1 — empty now
+    expect(await hasSeeded()).toBe(true);        // I2 — marker written
+    expect(await seedIfEmpty()).toBe(false);     // simulated reboot
+    expect(await countHabits()).toBe(0);         // still empty
   });
 });
