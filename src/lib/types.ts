@@ -1,4 +1,6 @@
 export type HabitType = 'boolean' | 'quantity' | 'timer';
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard'] as const;
 
 export interface Habit {
   id: string;
@@ -13,6 +15,8 @@ export interface Habit {
   frequency: number[];    // weekday indices, 0 = Sunday
   order: number;          // sort within a category
   createdAt: number;
+  difficulty?: Difficulty; // stored preference (add-habit design: form materialises 'medium')
+  reminderTime?: string;   // 'HH:MM' local; empty/absent = no preferred reminder
 }
 
 export interface Entry {

@@ -123,6 +123,32 @@ describe('entries', () => {
     expect(await hasSeeded()).toBe(true); // marker claimed by the import, still export-skipped
   });
 
+  it('carries difficulty and reminderTime through export/import', async () => {
+    const h = habit({ difficulty: 'hard', reminderTime: '07:30' });
+    await putHabit(h);
+    const dump = await exportState();
+    await clearAll();
+    await importState(dump);
+    const [restored] = await listHabits();
+    expect(restored.difficulty).toBe('hard');
+    expect(restored.reminderTime).toBe('07:30');
+  });
+
+  // Import repair: invalid detail values degrade to absent, never reject the
+  // file (repairHabit's "repair what is unambiguous" rule).
+  it('drops invalid difficulty and reminder time on import instead of rejecting', async () => {
+    const bad = { ...habit({ name: 'Bad details' }), difficulty: 'extreme', reminderTime: '25:99' };
+    const good = habit({ name: 'Good details', difficulty: 'easy', reminderTime: '23:59' });
+    await importState({ habits: [bad, good], entries: [] });
+    const list = await listHabits();
+    const b = list.find((x) => x.name === 'Bad details')!;
+    const g = list.find((x) => x.name === 'Good details')!;
+    expect(b.difficulty).toBeUndefined();
+    expect(b.reminderTime).toBeUndefined();
+    expect(g.difficulty).toBe('easy');
+    expect(g.reminderTime).toBe('23:59');
+  });
+
   // Task 14 review issue 2: both clears run in ONE transaction, so a write
   // failure between them can't leave 0 habits + orphaned entries (§11/§12).
   it('keeps both tables intact when a write fails mid-reset', async () => {

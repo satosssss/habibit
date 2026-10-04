@@ -160,6 +160,11 @@ function isEntryShape(x: unknown): boolean {
 const isWeekday = (v: unknown): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 6;
 
+// Add-habit design: detail fields repair to absent, never reject (isWeekday style).
+const isDifficulty = (v: unknown): v is Habit['difficulty'] =>
+  v === 'easy' || v === 'medium' || v === 'hard';
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /** Repair what is unambiguous; null = structurally unusable → reject the file. */
 function repairHabit(x: Record<string, unknown>): Habit | null {
   const frequency = [...new Set((x.frequency as unknown[]).filter(isWeekday))]
@@ -183,6 +188,9 @@ function repairHabit(x: Record<string, unknown>): Habit | null {
     frequency,
     order: x.order as number,
     createdAt: x.createdAt as number,
+    ...(isDifficulty(x.difficulty) ? { difficulty: x.difficulty } : {}),
+    ...(typeof x.reminderTime === 'string' && TIME_PATTERN.test(x.reminderTime)
+      ? { reminderTime: x.reminderTime } : {}),
   };
 }
 
