@@ -121,13 +121,21 @@ function formatTime(time: string): string {
 }
 
 /** Mode completion hour over the trailing 30 days — the user's own rhythm
- *  (spec R2.2). Ties resolve to the earliest hour; no entries → null and the
- *  reminder suggestion stays silent (I3: nothing invented). */
-function peakHour(entries: Entry[], today: string): number | null {
+ *  (spec R2.2). Only rows that ARE completions tally: un-checks overwrite the
+ *  day's row with value 0 and stopped timers leave partial seconds (both via
+ *  putEntry's single row per habit+date), so counting touches would invent a
+ *  peak from moments the habit was never finished. Orphan rows are skipped for
+ *  the same reason — completion is unknowable without the habit. Zero
+ *  completions → null and the reminder stays silent (I3: nothing invented).
+ *  Ties resolve to the earliest hour. */
+function peakHour(habits: Habit[], entries: Entry[], today: string): number | null {
   const from = addDays(today, -(REMIND_LOOKBACK - 1));
+  const byId = new Map(habits.map((h) => [h.id, h]));
   const counts = new Map<number, number>();
   for (const e of entries) {
     if (e.date < from || e.date > today) continue;
+    const habit = byId.get(e.habitId);
+    if (!habit || !isCompleted(habit, e.value)) continue;
     const hour = new Date(e.timestamp).getHours();
     counts.set(hour, (counts.get(hour) ?? 0) + 1);
   }
@@ -139,8 +147,8 @@ function peakHour(entries: Entry[], today: string): number | null {
   return best;
 }
 
-function reminderInsight(habit: Habit, entries: Entry[], today: string): CoachInsight | null {
-  const peak = peakHour(entries, today);
+function reminderInsight(habit: Habit, habits: Habit[], entries: Entry[], today: string): CoachInsight | null {
+  const peak = peakHour(habits, entries, today);
   if (peak === null) return null;
   const suggested = `${String((peak + 23) % 24).padStart(2, '0')}:30`;   // peak − 30min, wraps midnight
   const current = habit.reminderTime;
@@ -283,7 +291,7 @@ export function generateCoachInsights(habits: Habit[], entries: Entry[], today: 
     if (rate !== null) {
       const freq = frequencyInsight(habit, values, today);
       if (freq) rows.push({ insight: freq, rate });
-      const remind = reminderInsight(habit, entries, today);
+      const remind = reminderInsight(habit, habits, entries, today);
       if (remind) rows.push({ insight: remind, rate });
       const stack = stackInsight(habit, habits, values, streaks, today);
       if (stack) rows.push({ insight: stack, rate });

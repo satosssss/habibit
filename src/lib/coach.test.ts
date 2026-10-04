@@ -174,6 +174,31 @@ describe('coach: reminder suggestions (spec R2.2)', () => {
     )!;
     expect(remind.patch?.reminderTime).toBe('07:30');   // 8 − 30min wins the 3-vs-3 tie
   });
+
+  it('tallies only completed rows — un-checks and stopped timers never set the peak', () => {
+    const h = habit({ createdAt: createdDaysAgo(13) });
+    const t = habit({ id: 't1', name: 'Deep Work', type: 'timer', target: 900, createdAt: createdDaysAgo(13) });
+    const entries = [
+      entry(h.id, '2026-09-22', 1, 8),       // the one real completion: 8 am
+      entry(h.id, '2026-09-23', 0, 21),      // un-check overwrites the row at 9 pm (value 0)
+      entry(h.id, '2026-09-24', 0, 21),      // a second un-check — out-votes the completion
+      entry(t.id, '2026-09-25', 300, 22),    // stopped timer: 5 min of a 15-min target
+    ];
+    const remind = generateCoachInsights([h, t], entries, TODAY).find(
+      (i) => i.category === 'reminder' && i.habitId === h.id,
+    )!;
+    expect(remind.patch?.reminderTime).toBe('07:30');   // 8 am − 30min; touches never count
+    expect(remind.body).toContain('around 8 am');
+  });
+
+  it('invents nothing when rows exist but none completed (zero completions → silent)', () => {
+    const t = habit({ id: 't1', name: 'Deep Work', type: 'timer', target: 900, createdAt: createdDaysAgo(13) });
+    const entries = [
+      entry(t.id, '2026-09-22', 300, 7),      // stopped at 5 min, 7 am
+      entry(t.id, '2026-09-23', 600, 19),     // stopped at 10 min, 7 pm
+    ];
+    expect(generateCoachInsights([t], entries, TODAY).some((i) => i.category === 'reminder')).toBe(false);
+  });
 });
 
 describe('coach: habit stacking (spec R2.3)', () => {
