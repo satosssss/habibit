@@ -69,6 +69,8 @@ describe('AddHabitScreen (slice E R4)', () => {
       name: 'Steps', category: 'Health', intention: 'Health', type: 'quantity',
       target: 10000, unit: 'steps', frequency: [0, 1, 2, 3, 4, 5, 6],
     });
+    expect(saved.difficulty).toBe('medium');    // detail defaults reach the record
+    expect(saved.reminderTime).toBe('');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -79,7 +81,10 @@ describe('AddHabitScreen (slice E R4)', () => {
     fireEvent.change(screen.getByLabelText('Intention'), { target: { value: 'Do Hard Things' } });
     fireEvent.click(screen.getByRole('button', { name: /save habit/i }));
     await waitFor(() => expect(push).toHaveBeenCalledWith('/habits'));
-    expect((await listHabits()).map((h) => h.name)).toContain('Journal');
+    const scratch = (await listHabits())[0];
+    expect(scratch.name).toBe('Journal');
+    expect(scratch.difficulty).toBe('medium'); // same detail defaults on the scratch path
+    expect(scratch.reminderTime).toBe('');
   });
 
   it('leaves no habit behind when the form closes without saving', async () => {

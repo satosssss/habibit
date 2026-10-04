@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAll } from '@/lib/repo';
-import { HabitsPanel } from './HabitsPanel';
+import { blankHabit, HabitsPanel } from './HabitsPanel';
 
 // data-next-link marks router-rendered anchors so tests can tell a real
 // next/link apart from a hand-written <a> (both render <a> in jsdom).
@@ -18,6 +18,10 @@ describe('HabitsPanel (spec R3)', () => {
     render(<HabitsPanel />);
     expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByTestId(/^habit-row-/)).not.toBeInTheDocument();
+  });
+
+  it('constructs a blank habit with the add-habit detail defaults', () => {
+    expect(blankHabit()).toMatchObject({ difficulty: 'medium', reminderTime: '' });
   });
 
   it('shows the empty state once loaded with no habits', async () => {

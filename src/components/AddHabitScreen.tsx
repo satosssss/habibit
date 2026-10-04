@@ -37,6 +37,7 @@ export function AddHabitScreen() {
     id: newId(), name: t.name, icon: t.icon, color: t.color, category: t.category,
     intention: t.intention, type: t.type, target: t.target, unit: t.unit,
     frequency: [0, 1, 2, 3, 4, 5, 6], order: 0, createdAt: Date.now(),
+    difficulty: 'medium', reminderTime: '',
   });
 
   const save = async (habit: Habit) => {

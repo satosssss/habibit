@@ -16,6 +16,7 @@ export const blankHabit = (): Habit => ({
   id: newId(), name: '', icon: 'target', color: '#6366f1', category: 'Morning',
   intention: '', type: 'boolean', target: 1, unit: '',
   frequency: [0, 1, 2, 3, 4, 5, 6], order: 0, createdAt: Date.now(),
+  difficulty: 'medium', reminderTime: '',
 });
 
 export function HabitsPanel() {
