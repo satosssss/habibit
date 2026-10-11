@@ -140,6 +140,22 @@ write path; dismissals live in `localStorage['habibit:coach-dismissals']`
 (7-day TTL — device-local, like the theme: export/import/reset untouched).
 Full rules and copy: `docs/superpowers/specs/2026-10-04-adaptive-coach-design.md`.
 
+### 4.7 Trends & calendar markers (`src/lib/trends.ts`)
+
+Pure derivations over the same day-stats stats uses: `streakSeries` (the
+forward mirror of `currentStreak` — one point per day carrying the running
+active-day streak and the run length each break ends), `weeklyRates`
+(Monday-anchored weekly completion rates; zero-slot weeks are gaps, never a
+fake 0%), `weekdayRates` (Monday-first rate by weekday) and `hourHistogram`
+(completed entries by local hour). Surfaces: the Calendar marks a past
+due-but-untouched day with a dash and the day that ended a run with an ×
+(past only — today and future never imply failure; four-item legend under the
+grid, window widened to `allTimeStart` so runs entering the month count), and
+Stats gets a `Trends` section (streak growth, consistency, when you show up)
+between the coach rows and the by-intention grid — year-scoped via YearNav,
+recomputed through the existing live queries. Full rules:
+`docs/superpowers/specs/2026-10-05-calendar-markers-trends-design.md`.
+
 ## 5. Today view
 
 1. **Header** — hamburger (mobile), centered title ("Today", or the date such as

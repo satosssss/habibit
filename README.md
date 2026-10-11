@@ -47,7 +47,8 @@ Zero config: there is no backend, database, or environment to provision.
 ## What's in the box
 
 - **Today** — check habits off, grouped by *category* (Morning / Health / Evening).
-- **Stats** — streaks, a year-at-a-glance activity heatmap, per-*intention* breakdowns.
+- **Calendar** — a month grid with per-day markers: perfect, partial, missed, and streak break.
+- **Stats** — streaks, a year-at-a-glance activity heatmap, per-*intention* breakdowns, plus trend charts: streak growth, consistency, and when you show up.
 - **Coach** — reads your rhythm and nudges: trim a slipping habit, move a reminder, stack a habit, level up, celebrate a streak.
 - **Settings** — data export/import, theme, and Reset data (erases everything back to an empty app).
 
