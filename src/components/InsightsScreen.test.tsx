@@ -58,9 +58,10 @@ describe('InsightsScreen', () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     const { container } = render(<InsightsScreen />);
     await screen.findByText('By intention', {}, WAIT);
-    // gap-6 (not md:grid-cols-2) selects this grid: once tiles also break at md
-    // they would otherwise match first in document order.
-    const grid = container.querySelector<HTMLElement>('div[class*="gap-6"]');
+    // xl:grid-cols-1 is unique to the intention/heatmap grid: the new Trends
+    // grid also carries gap-6 and comes first in document order, so the old
+    // `div[class*="gap-6"]` selector would now return the wrong grid.
+    const grid = container.querySelector<HTMLElement>('div[class*="xl:grid-cols-1"]');
     expect(grid).not.toBeNull();
     expect(grid!.querySelector('[aria-label="Activity heatmap"]')).toBeInTheDocument();
     expect(within(grid!).getByText('By intention')).toBeInTheDocument();
@@ -127,6 +128,32 @@ describe('InsightsScreen', () => {
     expect(screen.getByText('Loading…').className).toContain('skeleton');
     await screen.findByText('Active Days', {}, WAIT); // settle the async load
   });
+
+  it('renders the Trends section between Coach and By intention', async () => {
+    const h = habit();
+    await putHabit(h);
+    await putEntry(h.id, todayKey(), 1); // streak ≥ 1 → real chart, not the fallback
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
+    const trends = await screen.findByText('Trends', {}, WAIT);
+    expect(screen.getByText('By intention')).toBeInTheDocument();
+    // Trends precedes By intention in document order
+    expect(trends.compareDocumentPosition(screen.getByText('By intention'))
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId('trend-streak')).toBeInTheDocument();
+    expect(screen.getByTestId('pattern-weekday')).toBeInTheDocument();
+  }, 15_000);
+
+  it('updates the trend charts when a completion is logged', async () => {
+    const h = habit();
+    await putHabit(h);
+    await putEntry(h.id, todayKey(), 1);
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
+    expect(await screen.findByText('Longest this year: 1', {}, WAIT)).toBeInTheDocument();
+    await putEntry(h.id, addDays(todayKey(), -1), 1); // extend the run through the live query
+    expect(await screen.findByText('Longest this year: 2', {}, WAIT)).toBeInTheDocument();
+  }, 15_000);
 });
 
 // Spec §8 (R6): the fourth year tile. Only Date is faked (toFake: ['Date']),

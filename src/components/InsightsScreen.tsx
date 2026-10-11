@@ -16,6 +16,7 @@ import { CoachSection } from './CoachSection';
 import { Heatmap } from './Heatmap';
 import { IntentionBar } from './IntentionBar';
 import { StatTile } from './StatTile';
+import { TrendsSection } from './TrendsSection';
 import { YearNav } from './YearNav';
 
 export function InsightsScreen() {
@@ -109,6 +110,9 @@ export function InsightsScreen() {
       </div>
 
       <CoachSection insights={coach} habits={habits ?? []} />
+
+      {/* Trends (2026-10-05 spec R5): year-scoped charts, live via the queries above. */}
+      <TrendsSection habits={habits ?? []} entries={allEntries ?? []} year={year} today={today} />
 
       {/* Spec §10: bars + heatmap side by side at tablet (md), heatmap full
           width at desktop (xl); mobile stays stacked via the grid gap. */}
