@@ -72,7 +72,7 @@ export function yearDays(year: number): string[] {
 }
 
 /** Monday-based weekday position: Monday = 0 … Sunday = 6. */
-function mondayIndex(key: string): number {
+export function mondayIndex(key: string): number {
   return (weekdayIndex(key) + 6) % 7;
 }
 

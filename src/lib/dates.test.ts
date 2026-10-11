@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays, classifyDate, dayOfYear, formatLong, fromKey, isValidDateKey,
-  mondayOf, monthGrid, monthLabelPositions, stripDays, toKey, weekdayIndex, yearDays,
+  mondayIndex, mondayOf, monthGrid, monthLabelPositions, stripDays, toKey, weekdayIndex, yearDays,
 } from './dates';
 
 describe('date keys', () => {
@@ -32,6 +32,11 @@ describe('date keys', () => {
   it('weekdayIndex is 0 for Sunday and 6 for Saturday', () => {
     expect(weekdayIndex('2026-09-20')).toBe(0); // Sunday
     expect(weekdayIndex('2026-09-26')).toBe(6); // Saturday
+  });
+
+  it('mondayIndex is Monday-first (Monday = 0 … Sunday = 6)', () => {
+    expect(mondayIndex('2026-09-21')).toBe(0); // Monday
+    expect(mondayIndex('2026-09-20')).toBe(6); // Sunday
   });
 
   it('dayOfYear counts from January 1', () => {
