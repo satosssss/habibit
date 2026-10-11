@@ -1,11 +1,12 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { listHabits, loadRange } from '@/lib/repo';
 import { classifyDate, fromKey, monthGrid, todayKey, toKey } from '@/lib/dates';
-import { buildDayStats } from '@/lib/stats';
+import { allTimeStart, buildDayStats } from '@/lib/stats';
+import { streakSeries } from '@/lib/trends';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
@@ -27,11 +28,19 @@ export function CalendarScreen() {
   const monthEnd = toKey(new Date(cursor.y, cursor.m + 1, 0));
 
   const habits = useLiveQuery(() => listHabits(), []);
-  const entries = useLiveQuery(() => loadRange(monthStart, monthEnd), [monthStart, monthEnd]);
+  // Spec R4: the window must reach back to the earliest habit so a streak that
+  // entered this month is known when a break happens inside it (allTimeStart is
+  // the same window Insights' allEntries uses). Before habits load, month-only.
+  const entriesFrom = habits && habits.length > 0 ? allTimeStart(habits) : monthStart;
+  const entries = useLiveQuery(() => loadRange(entriesFrom, monthEnd), [entriesFrom, monthEnd]);
 
   const stats = useMemo(
-    () => (habits && entries ? buildDayStats(habits, entries, { from: monthStart, to: monthEnd }) : undefined),
-    [habits, entries, monthStart, monthEnd],
+    () => (habits && entries ? buildDayStats(habits, entries, { from: entriesFrom, to: monthEnd }) : undefined),
+    [habits, entries, entriesFrom, monthEnd],
+  );
+  const seriesMap = useMemo(
+    () => (stats ? new Map(streakSeries(stats, today).map((p) => [p.date, p] as const)) : undefined),
+    [stats, today],
   );
   const grid = useMemo(() => monthGrid(cursor.y, cursor.m + 1), [cursor]);
 
@@ -85,36 +94,51 @@ export function CalendarScreen() {
             const kind = classifyDate(key, today);
             const stat = stats.get(key);
 
-            const label =
-              kind === 'future'
-                ? `${labelDate(key)}: upcoming`
-                : stat && stat.scheduled > 0
-                  ? `${labelDate(key)}: ${stat.completed} of ${stat.scheduled} done, ${Math.round(stat.ratio * 100)}%`
-                  : `${labelDate(key)}: nothing scheduled`;
+            const seriesPoint = kind === 'future' || !seriesMap ? undefined : seriesMap.get(key);
+            // Spec R1: past + scheduled + nothing done = missed; a `broke` on that point
+            // upgrades it to the break (one marker per cell; today/future never qualify).
+            const missed = kind === 'past' && !!stat && stat.scheduled > 0 && !stat.active;
 
-            // Spec R5: filled = perfect; hollow = active but not perfect;
-            // no dot = untouched / unscheduled / no data. Future never implies failure.
-            const dot =
+            // Spec R1 precedence: perfect → partial → break → missed → none.
+            const state: 'none' | 'filled' | 'hollow' | 'missed' | 'break' =
               kind === 'future' || !stat
                 ? 'none'
                 : stat.perfect
                   ? 'filled'
                   : stat.active
                     ? 'hollow'
-                    : 'none';
+                    : missed && seriesPoint?.broke
+                      ? 'break'
+                      : missed
+                        ? 'missed'
+                        : 'none';
+
+            // Spec R2 labels: break/missed get explicit text (shape + text, never color alone).
+            const label =
+              kind === 'future'
+                ? `${labelDate(key)}: upcoming`
+                : stat && stat.scheduled > 0
+                  ? state === 'break' && seriesPoint?.broke
+                    ? `${labelDate(key)}: streak of ${seriesPoint.broke} ended`
+                    : state === 'missed'
+                      ? `${labelDate(key)}: ${stat.completed} of ${stat.scheduled} done — missed`
+                      : `${labelDate(key)}: ${stat.completed} of ${stat.scheduled} done, ${Math.round(stat.ratio * 100)}%`
+                  : `${labelDate(key)}: nothing scheduled`;
 
             const content = (
               <>
                 <span aria-hidden>{Number(key.slice(8))}</span>
-                {dot !== 'none' && (
-                  <span
-                    aria-hidden
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      dot === 'filled'
-                        ? 'bg-[var(--color-accent)]'
-                        : 'border border-[var(--color-subtle)]'
-                    }`}
-                  />
+                {state === 'break' && (
+                  <X aria-hidden data-dot="break" size={10} strokeWidth={3} className="text-[var(--color-accent-ink)]" />
+                )}
+                {state === 'filled' && (
+                  <span aria-hidden data-dot="filled" className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                )}
+                {state === 'hollow' && (
+                  <span aria-hidden data-dot="hollow" className="h-1.5 w-1.5 rounded-full border border-[var(--color-subtle)]" />
+                )}
+                {state === 'missed' && (
+                  <span aria-hidden data-dot="missed" className="h-[3px] w-2 rounded-full bg-[var(--color-subtle)]" />
                 )}
               </>
             );
@@ -136,6 +160,23 @@ export function CalendarScreen() {
               </Link>
             );
           })}
+        </div>
+      )}
+      {mounted && stats && (
+        <div data-testid="cal-legend"
+             className="mt-3 flex flex-wrap items-center justify-end gap-3 text-[10px] text-[var(--color-subtle)]">
+          <span className="flex items-center gap-1">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />Perfect
+          </span>
+          <span className="flex items-center gap-1">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full border border-[var(--color-subtle)]" />Partial
+          </span>
+          <span className="flex items-center gap-1">
+            <span aria-hidden className="h-[3px] w-2 rounded-full bg-[var(--color-subtle)]" />Missed
+          </span>
+          <span className="flex items-center gap-1">
+            <X aria-hidden size={10} strokeWidth={3} className="text-[var(--color-accent-ink)]" />Streak break
+          </span>
         </div>
       )}
     </div>

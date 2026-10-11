@@ -115,3 +115,73 @@ describe('CalendarScreen (slice E R5)', () => {
     expect(screen.getByText(thisMonth)).toBeInTheDocument();
   });
 });
+
+describe('CalendarScreen markers (2026-10-05 spec R1/R2)', () => {
+  it('marks a past due day with nothing done as missed', async () => {
+    await putHabit(habit());                       // daily, createdAt 0 → always scheduled
+    const d = fromKey(todayKey());
+    const past = toKey(new Date(d.getFullYear(), d.getMonth() - 1, 15)); // fully in the past
+    render(<CalendarScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    const cell = await screen.findByLabelText(
+      new RegExp(`^${labelDate(past)}: 0 of 1 done — missed$`), {}, WAIT);
+    expect(cell.querySelector('[data-dot="missed"]')).toBeInTheDocument();
+  });
+
+  it('marks the day that ended a streak as a break, first miss only', async () => {
+    const h = habit();
+    await putHabit(h);
+    const d = fromKey(todayKey());
+    const day14 = toKey(new Date(d.getFullYear(), d.getMonth() - 1, 14));
+    const day15 = toKey(new Date(d.getFullYear(), d.getMonth() - 1, 15));
+    const day16 = toKey(new Date(d.getFullYear(), d.getMonth() - 1, 16));
+    const day17 = toKey(new Date(d.getFullYear(), d.getMonth() - 1, 17));
+    await putEntry(h.id, day14, 1);
+    await putEntry(h.id, day15, 1);                // run of 2, then day16 untouched
+    render(<CalendarScreen />);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    const breakCell = await screen.findByLabelText(
+      new RegExp(`^${labelDate(day16)}: streak of 2 ended$`), {}, WAIT);
+    expect(breakCell.querySelector('[data-dot="break"]')).toBeInTheDocument();
+    const nextCell = await screen.findByLabelText(
+      new RegExp(`^${labelDate(day17)}: 0 of 1 done — missed$`), {}, WAIT); // run already 0
+    expect(nextCell.querySelector('[data-dot="missed"]')).toBeInTheDocument();
+    expect(nextCell.querySelector('[data-dot="break"]')).toBeNull();
+  });
+
+  it('never marks today as missed while it is still pending', async () => {
+    await putHabit(habit());
+    render(<CalendarScreen />);
+    const cell = await screen.findByLabelText(
+      new RegExp(`^${labelDate(todayKey())}: 0 of 1 done, 0%$`), {}, WAIT); // unchanged today label
+    expect(cell.querySelector('[data-dot]')).toBeNull();
+  });
+
+  it('shows the four-item marker legend under the grid', async () => {
+    render(<CalendarScreen />);
+    const legend = await screen.findByTestId('cal-legend', {}, WAIT);
+    for (const text of ['Perfect', 'Partial', 'Missed', 'Streak break']) {
+      expect(legend).toHaveTextContent(text);
+    }
+  });
+
+  it('counts a streak that entered the month from before it when spotting a break', async () => {
+    const h = habit();
+    await putHabit(h);
+    const d = fromKey(todayKey());
+    const viewY = d.getFullYear();
+    const viewM = d.getMonth() - 6;                              // any month ≥5 back: always fully past
+    const lastPrev = toKey(new Date(viewY, viewM, 0));            // last day of the month before view
+    const dayBefore = toKey(new Date(viewY, viewM, -1));          // its predecessor
+    const firstView = toKey(new Date(viewY, viewM, 1));
+    await putEntry(h.id, dayBefore, 1);
+    await putEntry(h.id, lastPrev, 1);                            // run of 2 crosses the month line
+    render(<CalendarScreen />);
+    for (let i = 0; i < 6; i++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    }
+    const cell = await screen.findByLabelText(
+      new RegExp(`^${labelDate(firstView)}: streak of 2 ended$`), {}, WAIT);
+    expect(cell.querySelector('[data-dot="break"]')).toBeInTheDocument();
+  });
+});
