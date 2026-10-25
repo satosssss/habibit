@@ -8,6 +8,7 @@ import { ensureDb } from '@/lib/db';
 import { clampLegacyEntries, evaluateChallenges, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
 import { reportWriteError } from '@/lib/writeError';
+import { ChallengeWinOverlay } from './ChallengeWinOverlay';
 import { CompletionToast } from './CompletionToast';
 import { BackgroundScene } from './BackgroundScene';
 import { WriteErrorBanner } from './WriteErrorBanner';
@@ -81,6 +82,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <div className={`min-w-0 flex-1 md:pb-0 ${showFab ? 'pb-40' : 'pb-24'}`}>
         <WriteErrorBanner />
         <CompletionToast />
+        <ChallengeWinOverlay />
         {degraded && (
           <p role="alert"
              className="m-3 flex items-start gap-2 rounded-2xl glass-card px-4 py-3 text-sm">
