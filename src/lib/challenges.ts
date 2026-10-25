@@ -1,6 +1,6 @@
 import { addDays, toKey, weekdayIndex } from './dates';
 import { habitStreaks } from './streaks';
-import { isCompleted } from './stats';
+import { isCompleted, isScheduled } from './stats';
 import type { Challenge, ChallengeType, Entry, Habit } from './types';
 
 export type ChallengeOutcome = 'active' | 'won' | 'failed';
@@ -23,19 +23,36 @@ const valueMap = (entries: Entry[]): Map<string, number> =>
  */
 const dayPerfect = (scope: Habit[], values: Map<string, number>, date: string): boolean => {
   for (const h of scope) {
-    if (!h.frequency.includes(weekdayIndex(date))) continue;
+    // isScheduled is the house scheduling rule (stats.ts) and also gates on
+    // habit.createdAt, so a day before the habit existed is never treated as
+    // scheduled-and-missed — never reimplement it here.
+    if (!isScheduled(h, date)) continue;
     if (!isCompleted(h, values.get(`${h.id}|${date}`) ?? 0)) return false;
   }
   return true;
 };
 
-/** Consecutive perfect days ending today (today counts only if perfect; a miss before today breaks). */
+/** Does anything in scope have a schedule on `date`? (isScheduled is house scheduling.) */
+const scopeScheduled = (scope: Habit[], date: string): boolean =>
+  scope.some((h) => isScheduled(h, date));
+
+/**
+ * Consecutive perfect scheduled in-scope days ending today — same convention
+ * as habitStreaks: a day with nothing scheduled in scope is skipped (neither
+ * counts nor breaks, G3); a scheduled-and-perfect day increments; a missed
+ * scheduled day breaks; an incomplete `today` never breaks.
+ */
 const scopeRun = (scope: Habit[], entries: Entry[], today: string): number => {
   const values = valueMap(entries);
-  let run = dayPerfect(scope, values, today) ? 1 : 0;
-  for (let cursor = addDays(today, -1), guard = 0; guard < 36500; cursor = addDays(cursor, -1), guard++) {
-    if (dayPerfect(scope, values, cursor)) run++;
-    else break;
+  let run = 0;
+  let cursor = today;
+  // Safety bound mirrors habitStreaks: unreachable for real history, it only
+  // stops a never-scheduled scope from walking forever.
+  for (let guard = 0; guard < 36500; guard++, cursor = addDays(cursor, -1)) {
+    if (!scopeScheduled(scope, cursor)) continue;       // gap day: neither counts nor breaks (G3)
+    if (dayPerfect(scope, values, cursor)) { run++; continue; }
+    if (cursor === today) continue;                     // today isn't over yet — never breaks
+    break;                                              // a missed scheduled day ends the run
   }
   return run;
 };

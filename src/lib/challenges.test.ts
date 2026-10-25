@@ -104,6 +104,30 @@ describe('streak7 outcome', () => {
     const ghost: Challenge = { id: newId(), type: 'streak7', habitId: 'gone', scopeLabel: 'Ghost', status: 'active', startedAt: startedBefore(1) };
     expect(challengeOutcome(ghost, [], [], TODAY)).toBe('active');
   });
+
+  it('never fails on days that predate the habit itself (isScheduled gating)', () => {
+    // Created Tue Oct 20, joined Sat Oct 17: the Mon Oct 19 slot is before the
+    // habit existed — the house scheduling rule (isScheduled) must treat it as
+    // unscheduled, not as a missed due day.
+    const h = habit({ frequency: [1, 3, 5], createdAt: Date.parse(`${daysBack(1, TODAY)}T10:00:00`) });
+    expect(challengeOutcome(streak7(h, startedBefore(4)), [h], [], TODAY)).toBe('active');
+  });
+});
+
+describe('G3: unscheduled days neither count nor break (category7 scope)', () => {
+  it('skips unscheduled gaps after joining: stays active and never inflates progress', () => {
+    const h = habit({ frequency: [1, 3, 5] }); // Mon/Wed/Fri only
+    // Completed scheduled days only (Wed 21, Mon 19, Fri 16); Tue/Thu/Sat/Sun
+    // carry no entry at all — gaps, not misses.
+    const completed = ['0', '2', '5'].map((n) => entry(h.id, daysBack(Number(n), TODAY), 1));
+    const c: Challenge = {
+      id: newId(), type: 'category7', category: h.category, scopeLabel: h.category,
+      status: 'active', startedAt: startedBefore(6),
+    };
+    // Run = 3 scheduled-and-perfect days < 7: the four gap days must not pad it to a win.
+    expect(challengeOutcome(c, [h], completed, TODAY)).toBe('active'); // run = 3 < 7
+    expect(challengeProgress(c, [h], completed, TODAY)).toEqual({ label: 'Day 3/7', current: 3, total: 7 });
+  });
 });
 
 describe('challengeProgress (streak7)', () => {
