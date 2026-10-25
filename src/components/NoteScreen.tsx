@@ -3,7 +3,8 @@
 import { Share2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatLong, todayKey, weekdayIndex } from '@/lib/dates';
-import { listHabits, loadRange, putEntry } from '@/lib/repo';
+import { celebrateWins } from '@/lib/challengeWin';
+import { evaluateChallenges, listHabits, loadRange, putEntry } from '@/lib/repo';
 import { isCompleted } from '@/lib/stats';
 import { clampedValue, toggleValue } from '@/lib/values';
 import { celebrateIfCompleted } from '@/lib/completionToast';
@@ -118,6 +119,8 @@ export function NoteScreen({ date }: { date: string }) {
                           const next = toggleValue(habit, v);
                           void putEntry(habit.id, date, next)
                             .then(() => celebrateIfCompleted(habit, v, next))   // A2: after success only
+                            .then(() => evaluateChallenges())
+                            .then(celebrateWins)
                             .catch(reportWriteError);
                         }}
                         className="h-4 w-4 accent-[var(--color-accent)]"
