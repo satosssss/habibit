@@ -44,11 +44,21 @@ const scopeScheduled = (scope: Habit[], date: string): boolean =>
  */
 const scopeRun = (scope: Habit[], entries: Entry[], today: string): number => {
   const values = valueMap(entries);
+  // Nothing earlier than the scope's earliest creation can be scheduled
+  // (isScheduled gates on createdAt), so bound the walk there instead of
+  // running to the 36,500-day guard on every render for a fresh scope.
+  const created = scope
+    .map((h) => new Date(h.createdAt))
+    .filter((d) => !Number.isNaN(d.getTime()));
+  const earliest = created.length
+    ? toKey(new Date(Math.min(...created.map((d) => d.getTime()))))
+    : undefined;
   let run = 0;
   let cursor = today;
   // Safety bound mirrors habitStreaks: unreachable for real history, it only
   // stops a never-scheduled scope from walking forever.
   for (let guard = 0; guard < 36500; guard++, cursor = addDays(cursor, -1)) {
+    if (earliest !== undefined && cursor < earliest) break;
     if (!scopeScheduled(scope, cursor)) continue;       // gap day: neither counts nor breaks (G3)
     if (dayPerfect(scope, values, cursor)) { run++; continue; }
     if (cursor === today) continue;                     // today isn't over yet — never breaks
@@ -91,7 +101,12 @@ export function challengeOutcome(c: Challenge, habits: Habit[], entries: Entry[]
   if (c.type === 'weekend') {
     const { saturday, sunday } = weekendWindow(c.startedAt);
     const values = valueMap(entries);
-    if (dayPerfect(habits, values, saturday) && dayPerfect(habits, values, sunday)) return 'won'; // decided once both days are done
+    // The window must have ARRIVED before it can be decided: dayPerfect on a
+    // future day is vacuously true when nothing is scheduled, so an unguarded
+    // check wins a weekday-only account instantly at join (spec: no vacuous
+    // wins / joining never produces an instant win). When today === Sunday a
+    // perfected weekend wins; an imperfect one stays active until Monday.
+    if (today >= sunday && dayPerfect(habits, values, saturday) && dayPerfect(habits, values, sunday)) return 'won';
     if (today > sunday) return 'failed'; // the weekend closed with a miss (persists to next open)
     return 'active';
   }
@@ -115,7 +130,10 @@ export function challengeProgress(c: Challenge, habits: Habit[], entries: Entry[
   if (c.type === 'weekend') {
     const { saturday, sunday } = weekendWindow(c.startedAt);
     const values = valueMap(entries);
-    const current = Number(dayPerfect(habits, values, saturday)) + Number(dayPerfect(habits, values, sunday));
+    // Only ARRIVED days count — a future day is vacuously perfect when
+    // nothing is scheduled, and the label must never show it as done.
+    const current = Number(saturday <= today && dayPerfect(habits, values, saturday))
+      + Number(sunday <= today && dayPerfect(habits, values, sunday));
     return { label: `${current}/2 weekend days`, current, total: 2 };
   }
   const scope = c.type === 'streak7'

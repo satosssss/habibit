@@ -252,3 +252,60 @@ describe('weekend progress', () => {
     expect(challengeProgress(c, [h], entries, '2026-10-25')).toEqual({ label: '1/2 weekend days', current: 1, total: 2 });
   });
 });
+
+// Final fix 1 — spec line 25 "Joining never produces an instant win" and line 30
+// "no vacuous wins": a weekday-only account had dayPerfect() vacuously true on
+// the FUTURE target Saturday too, so a midweek join won instantly. The window
+// must actually arrive before either day can be decided.
+describe('weekend: no vacuous win on future days (final fix 1)', () => {
+  const weekdayOnly = habit({ frequency: [1, 2, 3, 4, 5] }); // Mon–Fri
+  const weekendScheduled = habit({ id: 'wk', frequency: [6, 0] }); // Sat + Sun
+  const wk = (startedAt: number): Challenge => ({
+    id: newId(), type: 'weekend', scopeLabel: 'All habits', status: 'active', startedAt,
+  });
+  const joinedWed = Date.parse('2026-10-21T09:00:00'); // window Sat 24 / Sun 25
+
+  it('stays active on the target Saturday — Sunday has not arrived yet', () => {
+    expect(challengeOutcome(wk(joinedWed), [weekdayOnly], [], '2026-10-24')).toBe('active');
+  });
+
+  it('wins on Sunday once both days have arrived and are perfect', () => {
+    expect(challengeOutcome(wk(joinedWed), [weekdayOnly], [], '2026-10-25')).toBe('won');
+  });
+
+  it('an imperfect weekend stays active through Sunday and fails on Monday', () => {
+    // Weekend-scheduled habit with no entries: Sat/Sun are scheduled misses.
+    expect(challengeOutcome(wk(joinedWed), [weekendScheduled], [], '2026-10-25')).toBe('active'); // win-before-fail: Sunday pending
+    expect(challengeOutcome(wk(joinedWed), [weekendScheduled], [], '2026-10-26')).toBe('failed'); // Monday arrives
+  });
+
+  it('progress never shows future days as perfect (0/2 midweek, not 2/2)', () => {
+    const c = wk(joinedWed);
+    // Midweek: both window days are in the future — neither counts.
+    expect(challengeProgress(c, [weekdayOnly], [], '2026-10-21')).toEqual({ label: '0/2 weekend days', current: 0, total: 2 });
+    // Saturday has arrived (vacuously perfect — the G3 fail-path convention
+    // applies to ARRIVED days only); Sunday is still future → 0 for it.
+    expect(challengeProgress(c, [weekdayOnly], [], '2026-10-24')).toEqual({ label: '1/2 weekend days', current: 1, total: 2 });
+  });
+});
+
+// Final fix 6 — scopeRun's walk is bounded by the scope's earliest createdAt:
+// nothing earlier can be scheduled (isScheduled gates on createdAt), so the
+// 36,500-day guard run never happens for fresh scopes.
+describe('scopeRun earliest-createdAt bound (final fix 6)', () => {
+  const cat7 = (category: string, startedAt: number): Challenge => ({
+    id: newId(), type: 'category7', category, scopeLabel: category, status: 'active', startedAt,
+  });
+
+  it('a recently-created category scope still computes the correct run', () => {
+    const a = habit({
+      id: 'fresh', category: 'Health',
+      createdAt: Date.parse(`${daysBack(4, TODAY)}T12:00:00`), // created 4 days ago
+    });
+    // Perfect on the 4 days since it existed (days 3 and 4 predate creation).
+    const entries = Array.from({ length: 4 }, (_, i) => entry('fresh', daysBack(i, TODAY), 1));
+    const run4: Challenge = cat7('Health', startedBefore(2));
+    expect(challengeOutcome(run4, [a], entries, TODAY)).toBe('active'); // run 4 < 7, post-join completion exists
+    expect(challengeProgress(run4, [a], entries, TODAY)).toEqual({ label: 'Day 4/7', current: 4, total: 7 });
+  });
+});
