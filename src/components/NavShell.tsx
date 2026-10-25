@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ensureDb } from '@/lib/db';
-import { clampLegacyEntries, pruneOrphans } from '@/lib/repo';
+import { clampLegacyEntries, evaluateChallenges, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
 import { reportWriteError } from '@/lib/writeError';
 import { CompletionToast } from './CompletionToast';
@@ -44,6 +44,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       setDegraded(s === 'degraded');
       void pruneOrphans().catch(reportWriteError);   // stray entries never reach stats
       void clampLegacyEntries().catch(reportWriteError);   // spec R1 §2.3 boot migration
+      void evaluateChallenges().catch(reportWriteError);   // challenges: close weekend/fail orphans
     }).catch(reportWriteError);
   }, []);
 

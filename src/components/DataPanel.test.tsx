@@ -106,7 +106,7 @@ describe('DataPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /yes, erase/i }));
     await waitFor(async () => {
       expect((await listHabits()).length).toBe(0);              // I1
-      expect(await exportState()).toEqual({ habits: [], entries: [] });
+      expect(await exportState()).toEqual({ habits: [], entries: [], challenges: [] });
       expect(await hasSeeded()).toBe(true);                     // I2 at the panel boundary
     });
     // I4 inside waitFor so a slow success-message flush can't race the poll

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db';
-import { activeChallenges, clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, joinChallenge, listChallenges, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putChallenge, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
+import { activeChallenges, clampLegacyEntries, clearAll, deleteHabit, evaluateChallenges, exportState, hasSeeded, importState, joinChallenge, listChallenges, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putChallenge, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
 import type { Challenge, Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -359,5 +359,123 @@ describe('challenges (repo)', () => {
     const replaced = await joinChallenge({ type: 'streak7', habitId: 'h2', scopeLabel: 'retry' });
     expect(replaced.status).toBe('active');
     expect(await activeChallenges()).toHaveLength(3);
+  });
+});
+
+describe('challenges export/import/reset', () => {
+  const chal = (over: Partial<Challenge> = {}): Challenge => ({
+    id: newId(), type: 'weekend', scopeLabel: 'All habits', status: 'active',
+    startedAt: Date.now(), ...over,
+  });
+
+  it('exportState includes challenges', async () => {
+    await putHabit(habit());
+    await putChallenge(chal());
+    const data = await exportState();
+    expect(data.challenges).toHaveLength(1);
+  });
+
+  it('imports an OLD export with no challenges key without crashing, and clears stale challenges (Review Focus #3)', async () => {
+    await putChallenge(chal()); // stale local challenge
+    const h = habit();
+    await importState({ habits: [h], entries: [] }); // legacy payload: no challenges key
+    expect(await listHabits()).toHaveLength(1);
+    expect(await listChallenges()).toHaveLength(0); // import replaces the world
+  });
+
+  it('restores challenges from a new-style export', async () => {
+    const h = habit();
+    await putHabit(h);
+    const won = chal({ status: 'won', resultAt: 123 });
+    await putChallenge(won);
+    const data = await exportState();
+    await clearAll();
+    await importState(data);
+    const restored = await listChallenges();
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).toMatchObject({ id: won.id, status: 'won', resultAt: 123 });
+  });
+
+  it('rejects a file whose challenges are structurally invalid (nothing half-applied)', async () => {
+    const h = habit();
+    const before = await exportState();
+    await expect(importState({
+      habits: [h], entries: [],
+      challenges: [{ id: 'x', type: 'binge', status: 'active', scopeLabel: '', startedAt: 1 }],
+    })).rejects.toThrow();
+    expect(await listHabits()).toHaveLength(0); // validation ran before any write
+    expect(await listChallenges()).toHaveLength(0);
+    expect(before).toBeTruthy();
+  });
+
+  it('resetToEmpty clears challenges', async () => {
+    await putHabit(habit());
+    await putChallenge(chal());
+    await resetToEmpty();
+    expect(await listChallenges()).toHaveLength(0);
+    expect(await hasSeeded()).toBe(true); // marker still claimed
+  });
+});
+
+describe('evaluateChallenges', () => {
+  const chal = (over: Partial<Challenge> = {}): Challenge => ({
+    id: newId(), type: 'weekend', scopeLabel: 'All habits', status: 'active',
+    startedAt: Date.now(), ...over,
+  });
+
+  it('transitions a won weekend challenge and returns it exactly once (Review Focus #5)', async () => {
+    // createdAt: 0 so the fixed weekend dates (Oct 24/25) are actually
+    // scheduled — the shared helper's Date.now() (after those dates) would
+    // make isScheduled false and the win trivially true via the G3 skip.
+    const h = habit({ createdAt: 0 });
+    await putHabit(h);
+    // Joined Wed 2026-10-21 → weekend Sat 24 / Sun 25, both perfect.
+    const c = chal({ startedAt: Date.parse('2026-10-21T09:00:00') });
+    await putChallenge(c);
+    await putEntry(h.id, '2026-10-24', 1);
+    await putEntry(h.id, '2026-10-25', 1);
+    const now = Date.parse('2026-10-25T20:00:00'); // Sunday evening
+
+    const first = await evaluateChallenges(now);
+    expect(first.map((x) => x.id)).toEqual([c.id]);
+    expect((await listChallenges())[0].status).toBe('won');
+
+    // Second pass (e.g. next boot): nothing transitions — no replayed wins.
+    expect(await evaluateChallenges(now)).toHaveLength(0);
+  });
+
+  it('fails a broken streak7 immediately and stamps resultAt', async () => {
+    // createdAt: 0 so Oct 19–21 are scheduled days for the streak rule —
+    // the helper default (= now, after those dates) would turn the missed
+    // Oct 20 into an unscheduled gap and nothing would transition.
+    const h = habit({ createdAt: 0 });
+    await putHabit(h);
+    const c = chal({ type: 'streak7', habitId: h.id, scopeLabel: h.name, startedAt: Date.parse('2026-10-18T09:00:00') });
+    await putChallenge(c);
+    await putEntry(h.id, '2026-10-19', 1); // perfect yesterday …
+    // … but 2026-10-20 (scheduled, post-join) has no entry and today is 2026-10-21.
+    const changed = await evaluateChallenges(Date.parse('2026-10-21T12:00:00'));
+    expect(changed).toHaveLength(1);
+    const after = (await listChallenges())[0];
+    expect(after.status).toBe('failed');
+    expect(after.resultAt).toBeTypeOf('number');
+  });
+
+  it('closes an orphaned active challenge as abandoned at boot', async () => {
+    const c = chal({ type: 'streak7', habitId: 'deleted-habit', scopeLabel: 'Ghost', startedAt: Date.now() });
+    await putChallenge(c);
+    const changed = await evaluateChallenges();
+    expect(changed[0].status).toBe('abandoned');
+  });
+
+  it('never touches terminal statuses', async () => {
+    const h = habit();
+    await putHabit(h);
+    await putChallenge(chal({ status: 'won', resultAt: 1, startedAt: Date.parse('2026-10-21T09:00:00') }));
+    await putChallenge(chal({ status: 'failed', resultAt: 2, startedAt: Date.parse('2026-10-21T09:00:00') }));
+    await putChallenge(chal({ status: 'abandoned', resultAt: 3, startedAt: Date.parse('2026-10-21T09:00:00') }));
+    expect(await evaluateChallenges(Date.parse('2026-11-01T12:00:00'))).toHaveLength(0);
+    const all = await listChallenges();
+    expect(all.map((c) => c.resultAt).sort()).toEqual([1, 2, 3]);
   });
 });

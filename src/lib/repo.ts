@@ -1,4 +1,6 @@
 import { db, ensureDb, resetDb } from './db';
+import { challengeOutcome } from './challenges';
+import { toKey } from './dates';
 import { ICON_CHOICES } from './icons';
 import type { Challenge, ChallengeType, Entry, Habit } from './types';
 import { clampedValue } from './values';
@@ -81,9 +83,10 @@ export async function clearAll(): Promise<void> {
  */
 export async function resetToEmpty(): Promise<void> {
   await ensureDb();
-  await db.transaction('rw', db.habits, db.entries, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, async () => {
     await db.habits.clear();
     await db.entries.clear();
+    await db.challenges.clear();
     await db.entries.put(seedMarker());
   });
 }
@@ -119,13 +122,14 @@ export async function markSeeded(): Promise<void> {
   await db.entries.put(seedMarker());
 }
 
-export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[] }> {
+export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[]; challenges: Challenge[] }> {
   await ensureDb();
   return {
     habits: (await db.habits.toArray()).filter((h) => h.id !== SEED_FLAG_ID),
     entries: (await db.entries.toArray()).filter(
       (e) => e.id !== SEED_FLAG_ID && e.habitId !== SEED_FLAG_ID,
     ),
+    challenges: await db.challenges.toArray(),
   };
 }
 
@@ -156,6 +160,21 @@ function isEntryShape(x: unknown): boolean {
     typeof e.date === 'string' && typeof e.timestamp === 'number'
   );
 }
+
+const isChallengeShape = (x: unknown): boolean => {
+  if (!x || typeof x !== 'object') return false;
+  const c = x as Record<string, unknown>;
+  return (
+    typeof c.id === 'string' &&
+    (c.type === 'streak7' || c.type === 'weekend' || c.type === 'category7') &&
+    (c.status === 'active' || c.status === 'won' || c.status === 'failed' || c.status === 'abandoned') &&
+    typeof c.scopeLabel === 'string' &&
+    typeof c.startedAt === 'number' && Number.isFinite(c.startedAt) &&
+    (c.habitId === undefined || typeof c.habitId === 'string') &&
+    (c.category === undefined || typeof c.category === 'string') &&
+    (c.resultAt === undefined || typeof c.resultAt === 'number')
+  );
+};
 
 const isWeekday = (v: unknown): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 6;
@@ -196,13 +215,19 @@ function repairHabit(x: Record<string, unknown>): Habit | null {
 
 /** Validates fully before writing anything, so a bad file never half-applies. */
 export async function importState(data: unknown): Promise<void> {
-  const payload = data as { habits?: unknown; entries?: unknown } | null;
+  const payload = data as { habits?: unknown; entries?: unknown; challenges?: unknown } | null;
   if (!payload || !Array.isArray(payload.habits) || !Array.isArray(payload.entries)) {
     throw new Error("That file isn't a Habibit export.");                     // payload shape
   }
   if (!payload.habits.every(isHabitShape)) throw new Error(VALUES_MESSAGE);   // habit-level (decision 7)
   if (!payload.entries.every(isEntryShape)) {
     throw new Error("That file isn't a Habibit export.");                     // entry-row shape (half-bad pin)
+  }
+  if (payload.challenges !== undefined && !Array.isArray(payload.challenges)) {
+    throw new Error("That file isn't a Habibit export.");
+  }
+  if (payload.challenges !== undefined && !(payload.challenges as unknown[]).every(isChallengeShape)) {
+    throw new Error(VALUES_MESSAGE);
   }
   await ensureDb();
 
@@ -215,11 +240,15 @@ export async function importState(data: unknown): Promise<void> {
     return { ...e, value: habit ? clampedValue(habit, safe) : safe };
   });
 
-  await db.transaction('rw', db.habits, db.entries, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, async () => {
     await db.habits.clear();
     await db.entries.clear();
+    await db.challenges.clear();                                  // import replaces the world
     await db.habits.bulkPut(habits as Habit[]);
     await db.entries.bulkPut(entries);
+    if (payload.challenges !== undefined) {
+      await db.challenges.bulkPut(payload.challenges as Challenge[]);
+    }
     // §11: the clear above also wiped the `__seed__` marker, so a non-empty
     // payload must claim it here — otherwise import → delete-all → reload
     // would resurrect the seed data. An empty payload stays marker-less =
@@ -303,4 +332,48 @@ export async function joinChallenge(input: {
     await db.challenges.put(challenge);
     return challenge;
   });
+}
+
+/**
+ * Evaluate every ACTIVE challenge once and persist transitions (challenges
+ * spec §2): won/failed from the pure rule engine, plus the boot orphan pass
+ * (habit/category gone → abandoned). Returns only the challenges that changed
+ * this call — callers celebrate a returned `won` exactly once, since a
+ * terminal challenge is never evaluated again.
+ */
+export async function evaluateChallenges(now = Date.now()): Promise<Challenge[]> {
+  await ensureDb();
+  const active = await db.challenges.where('status').equals('active').toArray();
+  if (active.length === 0) return [];
+  const habits = await db.habits.toArray();
+  const today = toKey(new Date(now));
+  // Entries only from the earliest join day — a challenge never reads history
+  // older than its own start for the anti-instant-win guard.
+  const from = active.reduce((min, c) => {
+    const d = toKey(new Date(c.startedAt));
+    return d < min ? d : min;
+  }, today);
+  const entries = (await db.entries.where('date').between(from, today, true, true).toArray())
+    .filter((e) => e.id !== SEED_FLAG_ID);
+  const habitIds = new Set(habits.map((h) => h.id));
+  const categories = new Set(habits.map((h) => h.category));
+
+  const changed: Challenge[] = [];
+  for (const c of active) {
+    const orphaned =
+      (c.type === 'streak7' && (!c.habitId || !habitIds.has(c.habitId))) ||
+      (c.type === 'category7' && (!c.category || !categories.has(c.category)));
+    const next: Challenge['status'] | null = orphaned
+      ? 'abandoned'
+      : (() => {
+          const outcome = challengeOutcome(c, habits, entries, today);
+          return outcome === 'active' ? null : outcome;
+        })();
+    if (next) {
+      const updated: Challenge = { ...c, status: next, resultAt: now };
+      await db.challenges.put(updated);
+      changed.push(updated);
+    }
+  }
+  return changed;
 }
