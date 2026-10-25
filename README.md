@@ -47,8 +47,10 @@ Zero config: there is no backend, database, or environment to provision.
 ## What's in the box
 
 - **Today** — check habits off, grouped by *category* (Morning / Health / Evening).
+- **Habits** — create, edit, reschedule, and archive the habits themselves.
 - **Calendar** — a month grid with per-day markers: perfect, partial, missed, and streak break.
-- **Stats** — streaks, a year-at-a-glance activity heatmap, per-*intention* breakdowns, plus trend charts: streak growth, consistency, and when you show up.
+- **Insights** — streaks, a year-at-a-glance activity heatmap, per-*intention* breakdowns, plus trend charts: streak growth, consistency, and when you show up.
+- **Challenges** — time-boxed modes you can join: a 7-day streak on one habit, a weekend app-wide intensive, or a 7-day category sprint — with live progress, a win celebration, and a results shelf.
 - **Coach** — reads your rhythm and nudges: trim a slipping habit, move a reminder, stack a habit, level up, celebrate a streak.
 - **Settings** — data export/import, theme, and Reset data (erases everything back to an empty app).
 
@@ -58,21 +60,43 @@ Next.js (App Router) + React + Tailwind CSS; Dexie over IndexedDB for storage;
 Vitest + Testing Library for tests; lucide-react for icons. No backend, no
 database to provision, no environment variables to lose sleep over.
 
-### src/ map
+## Project structure
+
+    .gitignore  README.md  package.json  tsconfig.json  next.config.ts  vitest.config.ts  .eslintrc.json  postcss.config.mjs
+    <- everything in the root is config + docs; no source files here
+    docs/
+      superpowers/specs/              <- design specs (what & why), dated YYYY-MM-DD-*
+      superpowers/plans/              <- implementation plans (how)
+    src/
+      app/        routes + layout, globals.css, fonts (Next.js App Router)
+      components/ UI — one component per file, colocated tests
+      lib/        logic & storage (dates, streaks, Dexie repo), colocated tests
+      test/       Vitest setup
+    node_modules/                     <- third-party dependencies (gitignored)
+    .next/  coverage/  *.tsbuildinfo  <- build output (gitignored)
 
 | Path | What lives there |
 |---|---|
-| `src/app/` | Routes: `/today`, `/today/[date]`, `/stats`, `/settings` |
-| `src/components/` | The UI: habit rows, heatmap, stat tiles, modals, nav shell |
-| `src/lib/` | The brains: dates, streaks, stats, coach, seed data, Dexie repo |
+| `/` (root) | Config files only: `package.json`, `tsconfig.json`, `next.config.ts`, `vitest.config.ts`, `.eslintrc.json`, `postcss.config.mjs`, `.gitignore`, `README.md` |
+| `docs/superpowers/specs/` | Design specs — what each slice decides |
+| `docs/superpowers/plans/` | Implementation plans — how each slice gets built |
+| `src/app/` | Routes (App Router): `/`, `/today`, `/today/[date]`, `/challenges`, `/habits`, `/calendar`, `/insights`, `/stats`, `/add-habit`, `/settings` + `layout.tsx`, `globals.css`, `fonts/` |
+| `src/components/` | The UI: screens, habit rows, heatmap, modals, pickers, nav shell |
+| `src/lib/` | The brains: dates, streaks, stats, coach, challenges, seed data, Dexie repo |
 | `src/test/` | Test setup |
+
+**Conventions:** directories are lowercase; components are `PascalCase.tsx`, library
+modules `camelCase.ts`; tests sit next to the code they test (`*.test.ts(x)`);
+third-party code lives only in `node_modules` (via `package.json`), fonts in
+`src/app/fonts/`, and every generated artifact (`.next/`, `coverage/`,
+`*.tsbuildinfo`) is gitignored — the root stays config + docs + source.
 
 ## Docs & roadmap
 
 Design specs live in `docs/superpowers/specs/`, implementation plans next to
-them in `docs/superpowers/plans/`. The work ships in small slices — currently
-slice **1a** (bug fixes), followed by storage safety/backups, celebrations,
-onboarding, and retention.
+them in `docs/superpowers/plans/`. Work ships in small slices: each slice gets a
+dated spec (the decisions) and a dated plan (the build), so the docs and the
+code stay traceable to each other.
 
 ## Credits
 
