@@ -338,9 +338,12 @@ export async function joinChallenge(input: {
 /**
  * Evaluate every ACTIVE challenge once and persist transitions (challenges
  * spec §2): won/failed from the pure rule engine, plus the boot orphan pass
- * (habit/category gone → abandoned). Returns only the challenges that changed
- * this call — callers celebrate a returned `won` exactly once, since a
- * terminal challenge is never evaluated again.
+ * (habit/category gone → abandoned). The whole pass runs in one read-write
+ * transaction with a live per-row recheck, so a row that turned terminal (or
+ * vanished) between the snapshot and the write is never overwritten. Returns
+ * only the challenges that changed (and were persisted) this call — callers
+ * celebrate a returned `won` exactly once, since a terminal challenge is
+ * never evaluated again.
  */
 export async function evaluateChallenges(now = Date.now()): Promise<Challenge[]> {
   await ensureDb();
@@ -359,21 +362,28 @@ export async function evaluateChallenges(now = Date.now()): Promise<Challenge[]>
   const categories = new Set(habits.map((h) => h.category));
 
   const changed: Challenge[] = [];
-  for (const c of active) {
-    const orphaned =
-      (c.type === 'streak7' && (!c.habitId || !habitIds.has(c.habitId))) ||
-      (c.type === 'category7' && (!c.category || !categories.has(c.category)));
-    const next: Challenge['status'] | null = orphaned
-      ? 'abandoned'
-      : (() => {
-          const outcome = challengeOutcome(c, habits, entries, today);
-          return outcome === 'active' ? null : outcome;
-        })();
-    if (next) {
-      const updated: Challenge = { ...c, status: next, resultAt: now };
-      await db.challenges.put(updated);
-      changed.push(updated);
+  await db.transaction('rw', db.challenges, async () => {
+    for (const c of active) {
+      // Live recheck before every write: another tab/writer may have closed
+      // (or deleted) this row since the snapshot read above — never overwrite
+      // a status that is no longer `active` (terminal statuses never return).
+      const live = await db.challenges.get(c.id);
+      if (!live || live.status !== 'active') continue;
+      const orphaned =
+        (live.type === 'streak7' && (!live.habitId || !habitIds.has(live.habitId))) ||
+        (live.type === 'category7' && (!live.category || !categories.has(live.category)));
+      const next: Challenge['status'] | null = orphaned
+        ? 'abandoned'
+        : (() => {
+            const outcome = challengeOutcome(live, habits, entries, today);
+            return outcome === 'active' ? null : outcome;
+          })();
+      if (next) {
+        const updated: Challenge = { ...live, status: next, resultAt: now };
+        await db.challenges.put(updated);
+        changed.push(updated);
+      }
     }
-  }
+  });
   return changed;
 }

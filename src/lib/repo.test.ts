@@ -502,4 +502,45 @@ describe('evaluateChallenges', () => {
     const all = await listChallenges();
     expect(all.map((c) => c.resultAt).sort()).toEqual([1, 2, 3]);
   });
+
+  // Final fix 4 — the old code read a snapshot then blind-put; a row that
+  // turned terminal between the snapshot and the write was overwritten. The
+  // simulated interleave plants the terminal flip inside the pass's own
+  // re-read window (the only single-threaded, honest way to model it here).
+  it('never overwrites a challenge that turned terminal since the snapshot (final fix 4)', async () => {
+    const h = habit({ createdAt: 0 });
+    await putHabit(h);
+    // Won-eligible weekend (Sat 24 + Sun 25 perfect, joined Wed 21): a blind
+    // put would stamp `won` over the concurrent `abandoned`.
+    const c = chal({ startedAt: Date.parse('2026-10-21T09:00:00') });
+    await putChallenge(c);
+    await putEntry(h.id, '2026-10-24', 1);
+    await putEntry(h.id, '2026-10-25', 1);
+    const now = Date.parse('2026-10-25T20:00:00');
+
+    const realGet = db.challenges.get.bind(db.challenges);
+    const getSpy = vi.spyOn(db.challenges, 'get') as unknown as {
+      mockImplementation(fn: (key: string) => Promise<Challenge | undefined>): void;
+      mockRestore(): void;
+    };
+    getSpy.mockImplementation(async (key) => {
+      const row = await realGet(key);
+      if (row?.id === c.id && row.status === 'active') {
+        // Another writer (e.g. a same-type join elsewhere) closed this
+        // challenge after the boot snapshot but before this pass's write.
+        await db.challenges.put({ ...row, status: 'abandoned' as const, resultAt: 12345 });
+        return realGet(key);   // honest re-read: the recheck must see the terminal row
+      }
+      return row;
+    });
+    try {
+      const changed = await evaluateChallenges(now);
+      expect(changed).toHaveLength(0);                        // nothing overwritten → nothing persisted as won
+      const after = (await listChallenges()).find((x) => x.id === c.id)!;
+      expect(after.status).toBe('abandoned');                 // concurrent close survives
+      expect(after.resultAt).toBe(12345);                     // not restamped by the losing pass
+    } finally {
+      getSpy.mockRestore();
+    }
+  });
 });
