@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db';
-import { clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
-import type { Entry, Habit } from './types';
+import { activeChallenges, clampLegacyEntries, clearAll, deleteHabit, exportState, hasSeeded, importState, joinChallenge, listChallenges, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putChallenge, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
+import type { Challenge, Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
   id: newId(), name: 'Meditate', icon: 'flower2', color: '#c026d3',
@@ -298,5 +298,66 @@ describe('boot migration clampLegacyEntries (spec R1 §2.3)', () => {
     expect(await clampLegacyEntries()).toBe(0);
     expect((await loadDay('2026-09-20'))[0].value).toBe(5);
     expect(await hasSeeded()).toBe(true);
+  });
+});
+
+describe('challenges (repo)', () => {
+  const chal = (over: Partial<Challenge> = {}): Challenge => ({
+    id: newId(), type: 'weekend', scopeLabel: 'All habits', status: 'active',
+    startedAt: Date.now(), ...over,
+  });
+
+  it('stores, lists, and upserts challenges by id', async () => {
+    await putChallenge(chal({ scopeLabel: 'One' }));
+    const c = chal({ scopeLabel: 'Two' });
+    await putChallenge(c);
+    await putChallenge({ ...c, status: 'won', resultAt: Date.now() });
+    const all = await listChallenges();
+    expect(all).toHaveLength(2);
+    expect(all.find((x) => x.id === c.id)?.status).toBe('won');
+  });
+
+  it('lists active challenges via the [type+status] index', async () => {
+    await putChallenge(chal({ type: 'streak7', habitId: 'h1' }));
+    await putChallenge(chal({ type: 'weekend', status: 'won', resultAt: 1 }));
+    const active = await activeChallenges();
+    expect(active).toHaveLength(1);
+    expect(active[0].type).toBe('streak7');
+  });
+
+  it('joinChallenge creates an active instance with startedAt = now', async () => {
+    const before = Date.now();
+    const c = await joinChallenge({ type: 'streak7', habitId: 'h1', scopeLabel: 'Read' });
+    expect(c).toMatchObject({ type: 'streak7', habitId: 'h1', scopeLabel: 'Read', status: 'active' });
+    expect(c.startedAt).toBeGreaterThanOrEqual(before);
+    expect(await activeChallenges()).toHaveLength(1);
+  });
+
+  it('replaces a same-type active instance with `abandoned` (never two actives of one type)', async () => {
+    const first = await joinChallenge({ type: 'streak7', habitId: 'h1', scopeLabel: 'Read' });
+    const second = await joinChallenge({ type: 'streak7', habitId: 'h2', scopeLabel: 'Run' });
+    const all = await listChallenges();
+    expect(all.filter((c) => c.status === 'active')).toHaveLength(1);
+    const old = all.find((c) => c.id === first.id)!;
+    expect(old.status).toBe('abandoned');
+    expect(old.resultAt).toBeTypeOf('number');
+    expect((await activeChallenges())[0].id).toBe(second.id);
+  });
+
+  // Controller ruling 3: the throw branch (`active >= MAX && sameType === 0`) is
+  // unreachable through joinChallenge alone when all 3 types are active, because
+  // one-active-per-type takes the replace path. Seed duplicate-type actives via
+  // putChallenge (only possible there) so a different-type join hits the cap.
+  it('enforces the 3-active cap but a same-type replacement still passes at the cap (Review Focus #4)', async () => {
+    await putChallenge(chal({ type: 'weekend', scopeLabel: 'a' }));
+    await putChallenge(chal({ type: 'weekend', scopeLabel: 'b' }));
+    await putChallenge(chal({ type: 'streak7', habitId: 'h1', scopeLabel: 'c' }));
+    // Cap reached: a fourth DIFFERENT-type join throws …
+    await expect(joinChallenge({ type: 'category7', category: 'Health', scopeLabel: 'Health' }))
+      .rejects.toThrow('You can hold up to 3 active challenges at once.');
+    // … but replacing the existing streak7 (same type) is allowed.
+    const replaced = await joinChallenge({ type: 'streak7', habitId: 'h2', scopeLabel: 'retry' });
+    expect(replaced.status).toBe('active');
+    expect(await activeChallenges()).toHaveLength(3);
   });
 });

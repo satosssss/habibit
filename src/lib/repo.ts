@@ -1,6 +1,6 @@
 import { db, ensureDb, resetDb } from './db';
 import { ICON_CHOICES } from './icons';
-import type { Entry, Habit } from './types';
+import type { Challenge, ChallengeType, Entry, Habit } from './types';
 import { clampedValue } from './values';
 
 export function newId(): string {
@@ -250,4 +250,57 @@ export async function clampLegacyEntries(): Promise<number> {
   }
   if (updates.length) await db.entries.bulkPut(updates);
   return updates.length;
+}
+
+export const MAX_ACTIVE_CHALLENGES = 3;
+
+export async function listChallenges(): Promise<Challenge[]> {
+  await ensureDb();
+  return db.challenges.toArray();
+}
+
+export async function activeChallenges(): Promise<Challenge[]> {
+  await ensureDb();
+  return db.challenges.where('status').equals('active').toArray();
+}
+
+export async function putChallenge(c: Challenge): Promise<Challenge> {
+  await ensureDb();
+  await db.challenges.put(c);
+  return c;
+}
+
+/**
+ * Join a challenge (challenges spec Q4): one active per type — a same-type
+ * active instance is replaced with `abandoned`; at most MAX_ACTIVE_CHALLENGES
+ * concurrent actives. All checks and writes run in one transaction.
+ */
+export async function joinChallenge(input: {
+  type: ChallengeType; habitId?: string; category?: string; scopeLabel: string;
+}): Promise<Challenge> {
+  await ensureDb();
+  return db.transaction('rw', db.challenges, async () => {
+    const active = await db.challenges.where('status').equals('active').toArray();
+    const sameType = active.filter((c) => c.type === input.type);
+    if (sameType.length === 0 && active.length >= MAX_ACTIVE_CHALLENGES) {
+      throw new Error('You can hold up to 3 active challenges at once.');
+    }
+    const now = Date.now();
+    if (sameType.length) {
+      await db.challenges.bulkPut(
+        sameType.map((c) => ({ ...c, status: 'abandoned' as const, resultAt: now })),
+      );
+    }
+    const challenge: Challenge = {
+      id: newId(),
+      type: input.type,
+      ...(input.habitId ? { habitId: input.habitId } : {}),
+      ...(input.category ? { category: input.category } : {}),
+      scopeLabel: input.scopeLabel,
+      status: 'active',
+      startedAt: now,
+    };
+    await db.challenges.put(challenge);
+    return challenge;
+  });
 }
