@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { celebrateChallengeWin, dismissChallengeWin } from '@/lib/challengeWin';
 import { ChallengeWinOverlay } from './ChallengeWinOverlay';
 import type { Challenge } from '@/lib/types';
@@ -10,6 +10,7 @@ const win: Challenge = {
 };
 
 beforeEach(() => { dismissChallengeWin(); vi.useRealTimers(); });
+afterEach(() => { dismissChallengeWin(); vi.useRealTimers(); });   // a failing assertion can't leak fake timers
 
 describe('ChallengeWinOverlay', () => {
   it('renders nothing without a win', () => {
@@ -21,9 +22,23 @@ describe('ChallengeWinOverlay', () => {
     render(<ChallengeWinOverlay />);
     act(() => { celebrateChallengeWin(win); });
     const region = screen.getByTestId('challenge-win');
+    expect(region).toHaveAttribute('role', 'status');
     expect(region).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByText('Challenge complete!')).toBeInTheDocument();
     expect(screen.getByText('7-Day Streak — Read')).toBeInTheDocument();
+  });
+
+  it('moves focus to the Done button when a win opens', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+  });
+
+  it('dismisses via the Escape key', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('challenge-win')).not.toBeInTheDocument();
   });
 
   it('dismisses via the Done button', () => {

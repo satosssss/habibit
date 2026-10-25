@@ -10,6 +10,8 @@ import { dismissChallengeWin, useChallengeWin } from '@/lib/challengeWin';
  * glass overlay over a soft scrim; the polite region announces the win, Done
  * (and Escape) dismiss immediately, and the timer auto-dismisses. Reduced
  * motion gets the static card — toast-in only ever runs under motion-safe.
+ * The region is click-through (house CompletionToast posture): taps always
+ * reach the list behind it; only the card itself is interactive.
  */
 export function ChallengeWinOverlay() {
   const c = useChallengeWin();
@@ -26,9 +28,9 @@ export function ChallengeWinOverlay() {
   if (!c) return null;
   return (
     <div role="status" aria-live="polite" data-testid="challenge-win"
-         className="fixed inset-0 z-[70] grid place-items-center bg-black/50 p-4 backdrop-blur-sm">
+         className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-black/50 p-4 backdrop-blur-sm">
       <div data-testid="challenge-win-card"
-           className="glass-heavy w-full max-w-sm rounded-[28px] p-8 text-center motion-safe:animate-[toast-in_200ms_ease-out]">
+           className="glass-heavy pointer-events-auto w-full max-w-sm rounded-[28px] p-8 text-center motion-safe:animate-[toast-in_200ms_ease-out]">
         <Trophy size={44} className="mx-auto mb-3 text-[var(--color-accent)]" aria-hidden />
         <h2 className="mb-1 text-xl font-extrabold">Challenge complete!</h2>
         <p className="mb-1 text-sm font-semibold text-[var(--color-fg)]">
