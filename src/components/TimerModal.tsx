@@ -2,7 +2,8 @@
 
 import { Pause, Play, Plus, Minus, RotateCcw, SkipForward, Square, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { putEntry } from '@/lib/repo';
+import { evaluateChallenges, putEntry } from '@/lib/repo';
+import { celebrateWins } from '@/lib/challengeWin';
 import { reportWriteError } from '@/lib/writeError';
 import { celebrateIfCompleted } from '@/lib/completionToast';
 import type { Habit } from '@/lib/types';
@@ -69,6 +70,8 @@ export function TimerModal({
     const written = Math.min(elapsed, duration);
     void putEntry(habit.id, date, written)
       .then(() => celebrateIfCompleted(habit, initialSeconds, written))  // A2: after success only
+      .then(() => evaluateChallenges())
+      .then(celebrateWins)
       .catch(reportWriteError);
     onComplete();
   }, [elapsed, duration, running, habit.id, date, initialSeconds, onComplete]);

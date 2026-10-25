@@ -1,0 +1,99 @@
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { celebrateChallengeWin, dismissChallengeWin } from '@/lib/challengeWin';
+import { ChallengeWinOverlay } from './ChallengeWinOverlay';
+import type { Challenge } from '@/lib/types';
+
+const win: Challenge = {
+  id: 'c1', type: 'streak7', habitId: 'h1', scopeLabel: 'Read',
+  status: 'won', startedAt: 1, resultAt: 2,
+};
+
+beforeEach(() => { dismissChallengeWin(); vi.useRealTimers(); });
+afterEach(() => { dismissChallengeWin(); vi.useRealTimers(); });   // a failing assertion can't leak fake timers
+
+describe('ChallengeWinOverlay', () => {
+  it('renders nothing without a win', () => {
+    render(<ChallengeWinOverlay />);
+    expect(screen.queryByTestId('challenge-win')).not.toBeInTheDocument();
+  });
+
+  it('announces the win politely with title, scope, and status text', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    const region = screen.getByTestId('challenge-win');
+    expect(region).toHaveAttribute('role', 'status');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByText('Challenge complete!')).toBeInTheDocument();
+    expect(screen.getByText('7-Day Streak — Read')).toBeInTheDocument();
+  });
+
+  it('moves focus to the Done button when a win opens', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+  });
+
+  it('dismisses via the Escape key', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('challenge-win')).not.toBeInTheDocument();
+  });
+
+  it('dismisses via the Done button', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByTestId('challenge-win')).not.toBeInTheDocument();
+  });
+
+  it('auto-dismisses after the timer', () => {
+    vi.useFakeTimers();
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(screen.queryByTestId('challenge-win')).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('uses the motion-safe animation class (reduced-motion stays static)', () => {
+    render(<ChallengeWinOverlay />);
+    act(() => { celebrateChallengeWin(win); });
+    const card = screen.getByTestId('challenge-win-card');
+    expect(card.className).toContain('motion-safe:animate-[toast-in_200ms_ease-out]');
+  });
+
+  // Final fix 3 — spec line 117: "focus moves to it and returns on close".
+  it('returns focus to the opener on close', () => {
+    render(
+      <div>
+        <button type="button">Trigger</button>
+        <ChallengeWinOverlay />
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Trigger' });
+    act(() => { trigger.focus(); });
+    act(() => { celebrateChallengeWin(win); });                       // focus → Done
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));    // dismiss
+    expect(trigger).toHaveFocus();                                    // focus → back to opener
+  });
+
+  it('a replace-on second win still returns focus to the genuine opener', () => {
+    render(
+      <div>
+        <button type="button">Trigger</button>
+        <ChallengeWinOverlay />
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Trigger' });
+    act(() => { trigger.focus(); });
+    act(() => { celebrateChallengeWin({ ...win, id: 'c1' }); });
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    act(() => { celebrateChallengeWin({ ...win, id: 'c2' }); });      // second win replaces the first
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(trigger).toHaveFocus();                                    // opener was re-captured, not the dead Done
+  });
+});
