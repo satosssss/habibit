@@ -994,6 +994,8 @@ git commit -m "feat: challenge export/import/reset and boot evaluation pass"
 - [ ] **Step 1: Write the failing tests**
 
 Create `src/lib/challengeWin.test.ts` (mirrors `completionToast.test.ts` mechanics; the store lives outside React, so tests read it through the hook with `renderHook`):
+
+```ts
 import { renderHook, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { celebrateChallengeWin, celebrateWins, dismissChallengeWin, useChallengeWin } from './challengeWin';
