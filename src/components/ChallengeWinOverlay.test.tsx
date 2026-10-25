@@ -63,4 +63,37 @@ describe('ChallengeWinOverlay', () => {
     const card = screen.getByTestId('challenge-win-card');
     expect(card.className).toContain('motion-safe:animate-[toast-in_200ms_ease-out]');
   });
+
+  // Final fix 3 — spec line 117: "focus moves to it and returns on close".
+  it('returns focus to the opener on close', () => {
+    render(
+      <div>
+        <button type="button">Trigger</button>
+        <ChallengeWinOverlay />
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Trigger' });
+    act(() => { trigger.focus(); });
+    act(() => { celebrateChallengeWin(win); });                       // focus → Done
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));    // dismiss
+    expect(trigger).toHaveFocus();                                    // focus → back to opener
+  });
+
+  it('a replace-on second win still returns focus to the genuine opener', () => {
+    render(
+      <div>
+        <button type="button">Trigger</button>
+        <ChallengeWinOverlay />
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Trigger' });
+    act(() => { trigger.focus(); });
+    act(() => { celebrateChallengeWin({ ...win, id: 'c1' }); });
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    act(() => { celebrateChallengeWin({ ...win, id: 'c2' }); });      // second win replaces the first
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(trigger).toHaveFocus();                                    // opener was re-captured, not the dead Done
+  });
 });

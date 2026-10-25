@@ -16,13 +16,25 @@ import { dismissChallengeWin, useChallengeWin } from '@/lib/challengeWin';
 export function ChallengeWinOverlay() {
   const c = useChallengeWin();
   const doneRef = useRef<HTMLButtonElement>(null);
+  // The opener to restore on close. Captured on every open transition: on a
+  // replace-once second win the previous cleanup has already refocused the
+  // genuine opener and cleared this ref, so the re-capture below picks the
+  // opener again — never the first overlay's dead Done button.
+  const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!c) return;
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     doneRef.current?.focus();                       // focus lands on the dismiss action
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissChallengeWin(); };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      // Spec R5: focus returns to the opener on close (Sheet.tsx pattern).
+      const opener = openerRef.current;
+      openerRef.current = null;
+      if (opener?.isConnected) opener.focus();
+    };
   }, [c]);
 
   if (!c) return null;

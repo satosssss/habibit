@@ -2,10 +2,10 @@
 
 import { Check, Plus, Trophy, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { allTimeStart } from '@/lib/stats';
-import { challengeProgress, challengeTitle } from '@/lib/challenges';
+import { allTimeStart, isScheduled } from '@/lib/stats';
+import { challengeProgress, challengeTitle, weekendWindow } from '@/lib/challenges';
 import { celebrateWins } from '@/lib/challengeWin';
-import { todayKey } from '@/lib/dates';
+import { formatShort, todayKey, toKey } from '@/lib/dates';
 import { evaluateChallenges, joinChallenge, listChallenges, listHabits, loadRange, MAX_ACTIVE_CHALLENGES } from '@/lib/repo';
 import { reportWriteError } from '@/lib/writeError';
 import { useLiveQuery } from '@/lib/useLiveQuery';
@@ -47,9 +47,21 @@ export function ChallengesScreen() {
   const scopeReady = (type: ChallengeType): boolean => {
     if (!habits) return false;
     if (type === 'streak7') return habits.length > 0;
-    if (type === 'weekend') return habits.length > 0;
+    if (type === 'weekend') {
+      if (habits.length === 0) return false;
+      // No-vacuous-win join guard (spec line 25/30): a weekday-only account
+      // would win the moment the window matures, so require something to be
+      // scheduled on the TARGET weekend (the first Saturday on/after today).
+      const { saturday, sunday } = weekendWindow(Date.now());
+      return habits.some((h) => isScheduled(h, saturday) || isScheduled(h, sunday));
+    }
     return habits.some((h) => h.category.trim().length > 0);
   };
+  // Per-type explanation for a blocked (empty-scope) card: weekend's scope gap
+  // is scheduling, not existence — "Add a habit first" would be wrong there.
+  const scopeHint = (type: ChallengeType): string => type === 'weekend'
+    ? 'No habit is scheduled on the target weekend.'
+    : 'Add a category first — a challenge needs a scope.';
   const capFull = active.length >= MAX_ACTIVE_CHALLENGES;
 
   const categories = useMemo(() => {
@@ -130,7 +142,7 @@ export function ChallengesScreen() {
                 <p className="mb-1 text-sm font-bold">{challengeTitle(type)}</p>
                 <p className="mb-3 text-xs text-[var(--color-subtle)]">{blurb}</p>
                 {!ready && habits !== undefined && habits.length > 0
-                  && <p className="mb-2 text-xs text-[var(--color-subtle)]">Add a category first — a challenge needs a scope.</p>}
+                  && <p className="mb-2 text-xs text-[var(--color-subtle)]">{scopeHint(type)}</p>}
                 <button type="button" disabled={!ready || blocked || joining === type}
                         onClick={() => {
                           const direct = pickFor(type);
@@ -157,6 +169,9 @@ export function ChallengesScreen() {
                 <Check size={16} className="text-[var(--color-accent)]" aria-hidden />
                 <span className="font-semibold">{challengeTitle(c.type)}</span>
                 <span className="text-xs text-[var(--color-subtle)]">{c.scopeLabel}</span>
+                {/* Spec line 80: "✓ + date". Legacy rows may lack resultAt —
+                    fall back to the join date. */}
+                <span className="text-xs text-[var(--color-subtle)]">{formatShort(toKey(new Date(c.resultAt ?? c.startedAt)))}</span>
                 <span className="ml-auto text-xs font-semibold">Won</span>
               </li>
             ))}
@@ -165,6 +180,8 @@ export function ChallengesScreen() {
                 <X size={16} className="text-[var(--color-subtle)]" aria-hidden />
                 <span className="font-semibold">{challengeTitle(c.type)}</span>
                 <span className="text-xs text-[var(--color-subtle)]">{c.scopeLabel}</span>
+                {/* Spec line 96: "✗ + date"; resultAt ?? startedAt for legacy rows. */}
+                <span className="text-xs text-[var(--color-subtle)]">{formatShort(toKey(new Date(c.resultAt ?? c.startedAt)))}</span>
                 <span className="ml-auto text-xs font-semibold">{c.status === 'failed' ? 'Failed' : 'Replaced'}</span>
               </li>
             ))}

@@ -4,6 +4,7 @@ import { BarChart3, CalendarDays, Flame, House, ListChecks, Plus, Settings, Tria
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { celebrateWins } from '@/lib/challengeWin';
 import { ensureDb } from '@/lib/db';
 import { clampLegacyEntries, evaluateChallenges, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
@@ -45,7 +46,11 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       setDegraded(s === 'degraded');
       void pruneOrphans().catch(reportWriteError);   // stray entries never reach stats
       void clampLegacyEntries().catch(reportWriteError);   // spec R1 §2.3 boot migration
-      void evaluateChallenges().catch(reportWriteError);   // challenges: close weekend/fail orphans
+      // Genuine transitions only: evaluateChallenges returns rows that changed
+      // active → won THIS call (and fix 4 keeps racing passes from double-
+      // returning), so a weekend win that matured while the app was closed
+      // celebrates here at boot — never a replay of an already-won row.
+      void evaluateChallenges().then(celebrateWins).catch(reportWriteError);   // challenges: close weekend/fail orphans
     }).catch(reportWriteError);
   }, []);
 
