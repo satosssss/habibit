@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { challengeOutcome, challengeProgress, challengeTitle } from './challenges';
+import { challengeOutcome, challengeProgress, challengeTitle, weekendWindow } from './challenges';
 import { newId } from './repo';
 import type { Challenge, Entry, Habit } from './types';
 
@@ -139,5 +139,116 @@ describe('challengeProgress (streak7)', () => {
     const short = Array.from({ length: 3 }, (_, i) => entry(h.id, daysBack(i, TODAY), 1));
     expect(challengeProgress(streak7(h, startedBefore(1)), [h], short, TODAY))
       .toEqual({ label: 'Day 3/7', current: 3, total: 7 });
+  });
+});
+
+describe('category7 outcome', () => {
+  const cat7 = (category: string, startedAt: number): Challenge => ({
+    id: newId(), type: 'category7', category, scopeLabel: category, status: 'active', startedAt,
+  });
+
+  it('wins on 7 consecutive perfect days across the category', () => {
+    const a = habit({ id: 'a', name: 'Run', category: 'Health' });
+    const b = habit({ id: 'b', name: 'Water', category: 'Health' });
+    // Both habits perfect on each of the last 7 days.
+    const entries = Array.from({ length: 7 }, (_, i) => [
+      entry('a', daysBack(i, TODAY), 1), entry('b', daysBack(i, TODAY), 1),
+    ]).flat();
+    expect(challengeOutcome(cat7('Health', startedBefore(2)), [a, b], entries, TODAY)).toBe('won');
+  });
+
+  it('fails when one habit in the category is missed after joining', () => {
+    const a = habit({ id: 'a', category: 'Health' });
+    const b = habit({ id: 'b', category: 'Health' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry('a', daysBack(i, TODAY), 1)); // b never done
+    expect(challengeOutcome(cat7('Health', startedBefore(2)), [a, b], entries, TODAY)).toBe('failed');
+  });
+
+  it('ignores habits outside the category', () => {
+    const a = habit({ id: 'a', category: 'Health' });
+    const other = habit({ id: 'x', category: 'Mind' });
+    const entries = Array.from({ length: 7 }, (_, i) => entry('a', daysBack(i, TODAY), 1));
+    // x is missed every day — must not affect the Health challenge.
+    expect(challengeOutcome(cat7('Health', startedBefore(2)), [a, other], entries, TODAY)).toBe('won');
+  });
+
+  it('re-derives scope from current habits (a habit added mid-challenge joins the scope)', () => {
+    const a = habit({ id: 'a', category: 'Health' });
+    const late = habit({ id: 'late', category: 'Health', createdAt: Date.parse(`${daysBack(1, TODAY)}T12:00:00`) });
+    // a perfect for 7 days; late perfect since it appeared (yesterday, today).
+    const entries = [
+      ...Array.from({ length: 7 }, (_, i) => entry('a', daysBack(i, TODAY), 1)),
+      entry('late', daysBack(0, TODAY), 1), entry('late', daysBack(1, TODAY), 1),
+    ];
+    // Scope is re-derived from CURRENT habits, so `late` is in scope — but the
+    // scheduling rule is the house isScheduled, which gates on createdAt. Days
+    // 2-6 predate `late`'s createdAt, so those days are unscheduled for it and
+    // skip (G3: neither count nor break); `a` is perfect across all 7 days and
+    // a post-join completion exists → won. Pinned so the semantics stay: adding
+    // a habit mid-challenge is safe — it is only judged on days it existed.
+    expect(challengeOutcome(cat7('Health', startedBefore(2)), [a, late], entries, TODAY)).toBe('won');
+  });
+
+  it('anti-instant-win: pre-existing 7-day category run stays active until a post-join completion', () => {
+    const a = habit({ id: 'a', category: 'Health' });
+    const entries = Array.from({ length: 10 }, (_, i) =>
+      entry('a', daysBack(i, TODAY), 1, Date.parse(`${daysBack(i, TODAY)}T07:00:00`)));
+    const c = cat7('Health', Date.parse(`${TODAY}T12:00:00`));
+    expect(challengeOutcome(c, [a], entries, TODAY)).toBe('active');
+  });
+});
+
+describe('weekend window math', () => {
+  it('join Saturday → that same weekend', () => {
+    expect(weekendWindow(Date.parse('2026-10-24T09:00:00'))).toEqual({ saturday: '2026-10-24', sunday: '2026-10-25' });
+  });
+
+  it('join Sunday → next weekend (Review Focus #1)', () => {
+    expect(weekendWindow(Date.parse('2026-10-25T09:00:00'))).toEqual({ saturday: '2026-10-31', sunday: '2026-11-01' });
+  });
+
+  it('join midweek → the upcoming Sat–Sun', () => {
+    expect(weekendWindow(Date.parse('2026-10-21T09:00:00'))).toEqual({ saturday: '2026-10-24', sunday: '2026-10-25' }); // Wed → this week's Sat
+    expect(weekendWindow(Date.parse('2026-10-23T09:00:00'))).toEqual({ saturday: '2026-10-24', sunday: '2026-10-25' }); // Fri → this week's Sat
+  });
+});
+
+describe('weekend outcome', () => {
+  const wk = (startedAt: number): Challenge => ({
+    id: newId(), type: 'weekend', scopeLabel: 'All habits', status: 'active', startedAt,
+  });
+
+  it('wins when both days of the target weekend are perfect app-wide', () => {
+    const h = habit();
+    // Joined Wednesday 2026-10-21 → weekend is Sat 24 / Sun 25. Both perfect.
+    const entries = [entry(h.id, '2026-10-24', 1), entry(h.id, '2026-10-25', 1)];
+    expect(challengeOutcome(wk(Date.parse('2026-10-21T09:00:00')), [h], entries, '2026-10-25')).toBe('won');
+  });
+
+  it('stays active during the weekend while days are pending', () => {
+    const h = habit();
+    const entries = [entry(h.id, '2026-10-24', 1)]; // Saturday done, Sunday not yet
+    expect(challengeOutcome(wk(Date.parse('2026-10-21T09:00:00')), [h], entries, '2026-10-25')).toBe('active');
+  });
+
+  it('fails once Monday arrives with either day missing (time-based fail persists to next open)', () => {
+    const h = habit();
+    const entries = [entry(h.id, '2026-10-24', 1)]; // Sunday missed
+    expect(challengeOutcome(wk(Date.parse('2026-10-21T09:00:00')), [h], entries, '2026-10-26')).toBe('failed'); // Monday
+  });
+
+  it('a day with nothing scheduled is perfect (never a vacuous fail)', () => {
+    const weekdayOnly = habit({ frequency: [1, 2, 3, 4, 5] });
+    // Both weekend days have zero scheduled habits → both perfect → won.
+    expect(challengeOutcome(wk(Date.parse('2026-10-21T09:00:00')), [weekdayOnly], [], '2026-10-25')).toBe('won');
+  });
+});
+
+describe('weekend progress', () => {
+  it('counts the two weekend days', () => {
+    const h = habit();
+    const c: Challenge = { id: newId(), type: 'weekend', scopeLabel: 'All', status: 'active', startedAt: Date.parse('2026-10-21T09:00:00') };
+    const entries = [entry(h.id, '2026-10-24', 1)];
+    expect(challengeProgress(c, [h], entries, '2026-10-25')).toEqual({ label: '1/2 weekend days', current: 1, total: 2 });
   });
 });
