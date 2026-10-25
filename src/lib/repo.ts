@@ -2,6 +2,7 @@ import { db, ensureDb, resetDb } from './db';
 import { challengeOutcome } from './challenges';
 import { toKey } from './dates';
 import { ICON_CHOICES } from './icons';
+import { allTimeStart } from './stats';
 import type { Challenge, ChallengeType, Entry, Habit } from './types';
 import { clampedValue } from './values';
 
@@ -347,12 +348,11 @@ export async function evaluateChallenges(now = Date.now()): Promise<Challenge[]>
   if (active.length === 0) return [];
   const habits = await db.habits.toArray();
   const today = toKey(new Date(now));
-  // Entries only from the earliest join day — a challenge never reads history
-  // older than its own start for the anti-instant-win guard.
-  const from = active.reduce((min, c) => {
-    const d = toKey(new Date(c.startedAt));
-    return d < min ? d : min;
-  }, today);
+  // Entries from the earliest habit start (allTimeStart — the same window
+  // Home loads) so pre-join streak history counts per G2; the join-day fail
+  // window lives inside challengeOutcome and is unaffected. The anti-instant-
+  // win guard is entry.timestamp >= startedAt, inside the pure engine.
+  const from = allTimeStart(habits);
   const entries = (await db.entries.where('date').between(from, today, true, true).toArray())
     .filter((e) => e.id !== SEED_FLAG_ID);
   const habitIds = new Set(habits.map((h) => h.id));

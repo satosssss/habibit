@@ -405,7 +405,7 @@ describe('challenges export/import/reset', () => {
     })).rejects.toThrow();
     expect(await listHabits()).toHaveLength(0); // validation ran before any write
     expect(await listChallenges()).toHaveLength(0);
-    expect(before).toBeTruthy();
+    expect(await exportState()).toEqual(before);   // world unchanged by the rejected import
   });
 
   it('resetToEmpty clears challenges', async () => {
@@ -459,6 +459,30 @@ describe('evaluateChallenges', () => {
     const after = (await listChallenges())[0];
     expect(after.status).toBe('failed');
     expect(after.resultAt).toBeTypeOf('number');
+  });
+
+  // Ruling 1 (fix round 1): entries are loaded from the earliest habit start
+  // (allTimeStart, the same window Home loads) — NOT from the earliest join
+  // day. A join-day window starves the streak rule of pre-join days, so a
+  // user with a 10-day streak who joins and completes post-join could never
+  // win. G2: pre-existing streaks count toward progress; the anti-instant-win
+  // guard is entry.timestamp >= startedAt (inside the pure engine, unaffected
+  // by how far back entries are loaded).
+  it('wins a streak7 for a pre-join streak plus one post-join completion (G2)', async () => {
+    // createdAt: 0 so the fixed October dates are scheduled days.
+    const h = habit({ createdAt: 0 });
+    await putHabit(h);
+    // 10 perfect pre-join days (Oct 11–20), then join midday Oct 21 with one
+    // completion after.
+    for (let d = 11; d <= 20; d++) {
+      await putEntry(h.id, `2026-10-${d}`, 1);
+    }
+    const c = chal({ type: 'streak7', habitId: h.id, scopeLabel: h.name, startedAt: Date.parse('2026-10-21T09:00:00') });
+    await putChallenge(c);
+    await putEntry(h.id, '2026-10-21', 1);   // post-join completion (timestamp = now ≥ startedAt)
+    const changed = await evaluateChallenges(Date.parse('2026-10-21T12:00:00'));
+    expect(changed.map((x) => x.id)).toEqual([c.id]);
+    expect((await listChallenges())[0].status).toBe('won');
   });
 
   it('closes an orphaned active challenge as abandoned at boot', async () => {
