@@ -8,6 +8,9 @@
   --color-subtle: rgba(20, 16, 12, 0.62);
   --color-placeholder: rgba(20, 16, 12, 0.62);
   --color-muted: rgba(255, 255, 255, 0.62);
+  /* Filled interaction surfaces (picker rows) lift one step on hover; a real
+     token because --glass-bg-hover collides with --color-muted in dark. */
+  --color-muted-hover: rgba(255, 255, 255, 0.80);
   --color-panel: rgba(255, 255, 255, 0.45);
   --color-line: rgba(20, 16, 12, 0.10);
   --color-accent: #f59e0b;
@@ -54,6 +57,7 @@
      0.60 only reaches ~3.3:1 — its own ink keeps spec R10/V6's ≥4.5 bar. */
   --color-placeholder: rgba(255, 248, 240, 0.80);
   --color-muted: rgba(255, 255, 255, 0.13);
+  --color-muted-hover: rgba(255, 255, 255, 0.20);
   --color-panel: rgba(255, 255, 255, 0.08);
   --color-line: rgba(255, 255, 255, 0.12);
   --color-accent: #f59e0b;
@@ -110,6 +114,11 @@ html, body {
   h1, h2, h3 { font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif; }
   h1 { letter-spacing: -0.02em; }
   h2 { letter-spacing: -0.01em; }
+
+  /* ui-ux-pro-max / html-tailwind: Tailwind v4's preflight leaves enabled
+     buttons on the UA default cursor (v3 set pointer in preflight). Restore it
+     once here instead of sprinkling cursor-pointer across ~40 call sites. */
+  button:not(:disabled), [role="button"]:not(:disabled), summary { cursor: pointer; }
 }
 
 /* Slice A2 R2: completion-toast entrance — applied only under motion-safe. */
@@ -249,6 +258,18 @@ html, body {
   }
   .btn-glass:hover { background: var(--glass-bg-hover); border-color: var(--glass-border-hover); transform: translateY(-2px); }
   .btn-glass:active { transform: translateY(1px) scale(.97); transition-duration: .08s; }
+
+  /* ui-ux-pro-max disabled-state rule: an unavailable action must read as
+     unavailable — it keeps neither the hover lift nor the hover brightness.
+     Source order (after :hover/:active, equal specificity) makes this win. */
+  .btn-primary:disabled,
+  .btn-glass:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+    box-shadow: none;
+  }
 
   .glass-pill {
     display: inline-flex; align-items: center; gap: .375rem;

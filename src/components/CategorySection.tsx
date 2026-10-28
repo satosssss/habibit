@@ -36,7 +36,7 @@ export function CategorySection({
     <section ref={revealRef} className="mb-3 break-inside-avoid glass-card reveal p-3">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide">
-          <Icon size={16} /> {category}
+          <Icon size={16} aria-hidden /> {category}
         </h2>
         <button
           type="button"
@@ -48,7 +48,7 @@ export function CategorySection({
           onClick={onToggleCollapse}
           className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--color-accent-ink)] text-[var(--color-accent-ink)]"
         >
-          {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {collapsed ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
         </button>
       </div>
 

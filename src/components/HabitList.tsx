@@ -64,7 +64,7 @@ export function HabitList({
         return (
           <section key={category}>
             <h3 className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">
-              <Icon size={14} /> {category}
+              <Icon size={14} aria-hidden /> {category}
             </h3>
             <ul className="flex flex-col gap-2">
               {list.map((habit, index) => {
@@ -75,9 +75,9 @@ export function HabitList({
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => drop(habit)}
                       className="flex items-center gap-2 glass-row px-3 py-2.5">
-                    <GripVertical size={16} className="cursor-grab text-[var(--color-subtle)]" />
+                    <GripVertical size={16} className="cursor-grab text-[var(--color-subtle)]" aria-hidden />
                     <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: habit.color }}>
-                      <HabitIcon size={16} color="#fff" />
+                      <HabitIcon size={16} color="#fff" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{habit.name}</p>
@@ -88,20 +88,20 @@ export function HabitList({
                     <button type="button" aria-label={`Move ${habit.name} up`} disabled={index === 0}
                             onClick={() => move(habit, -1)}
                             className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
-                      <ChevronUp size={15} />
+                      <ChevronUp size={15} aria-hidden />
                     </button>
                     <button type="button" aria-label={`Move ${habit.name} down`} disabled={index === list.length - 1}
                             onClick={() => move(habit, 1)}
                             className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-[var(--color-muted)] disabled:opacity-40">
-                      <ChevronDown size={15} />
+                      <ChevronDown size={15} aria-hidden />
                     </button>
                     <button type="button" aria-label={`Edit ${habit.name}`} onClick={() => onEdit(habit.id)}
                             className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-[var(--color-muted)]">
-                      <Pencil size={15} />
+                      <Pencil size={15} aria-hidden />
                     </button>
                     <button type="button" aria-label={`Delete ${habit.name}`} onClick={() => setPendingDelete(habit.id)}
                             className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-red-500 hover:bg-red-500/10">
-                      <Trash2 size={15} />
+                      <Trash2 size={15} aria-hidden />
                     </button>
                   </li>
                 );

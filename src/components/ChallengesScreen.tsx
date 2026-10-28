@@ -105,6 +105,7 @@ export function ChallengesScreen() {
                   </div>
                   <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">{p.label}</p>
                   <div role="progressbar" aria-valuenow={p.current} aria-valuemin={0} aria-valuemax={p.total}
+                       aria-valuetext={p.label}
                        aria-label={`${challengeTitle(c.type)} progress`}
                        className="h-1.5 overflow-hidden rounded-full bg-[var(--color-muted)]">
                     <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${pct}%` }} />
@@ -144,6 +145,7 @@ export function ChallengesScreen() {
                 {!ready && habits !== undefined && habits.length > 0
                   && <p className="mb-2 text-xs text-[var(--color-subtle)]">{scopeHint(type)}</p>}
                 <button type="button" disabled={!ready || blocked || joining === type}
+                        aria-busy={joining === type || undefined}
                         onClick={() => {
                           const direct = pickFor(type);
                           if (direct) void join(type, direct);
@@ -165,24 +167,24 @@ export function ChallengesScreen() {
           <h2 className="mb-2 text-sm font-bold text-[var(--color-subtle)]">Results</h2>
           <ul className="flex flex-col gap-2">
             {won.map((c) => (
-              <li key={c.id} className="glass-row flex items-center gap-2 rounded-2xl px-4 py-3 text-sm">
-                <Check size={16} className="text-[var(--color-accent)]" aria-hidden />
-                <span className="font-semibold">{challengeTitle(c.type)}</span>
-                <span className="text-xs text-[var(--color-subtle)]">{c.scopeLabel}</span>
+              <li key={c.id} className="glass-row grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded-2xl px-4 py-3 text-sm">
+                <Check size={16} className="row-span-2 shrink-0 text-[var(--color-accent)]" aria-hidden />
+                <span className="truncate font-semibold">{challengeTitle(c.type)}</span>
                 {/* Spec line 80: "✓ + date". Legacy rows may lack resultAt —
                     fall back to the join date. */}
-                <span className="text-xs text-[var(--color-subtle)]">{formatShort(toKey(new Date(c.resultAt ?? c.startedAt)))}</span>
-                <span className="ml-auto text-xs font-semibold">Won</span>
+                <span className="shrink-0 text-xs text-[var(--color-subtle)]">{formatShort(toKey(new Date(c.resultAt ?? c.startedAt)))}</span>
+                <span className="truncate text-xs text-[var(--color-subtle)]">{c.scopeLabel}</span>
+                <span className="justify-self-end text-xs font-semibold">Won</span>
               </li>
             ))}
             {closed.map((c) => (
-              <li key={c.id} className="glass-row flex items-center gap-2 rounded-2xl px-4 py-3 text-sm opacity-70">
-                <X size={16} className="text-[var(--color-subtle)]" aria-hidden />
-                <span className="font-semibold">{challengeTitle(c.type)}</span>
-                <span className="text-xs text-[var(--color-subtle)]">{c.scopeLabel}</span>
+              <li key={c.id} className="glass-row grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded-2xl px-4 py-3 text-sm">
+                <X size={16} className="row-span-2 shrink-0 text-[var(--color-subtle)]" aria-hidden />
+                <span className="truncate font-semibold">{challengeTitle(c.type)}</span>
                 {/* Spec line 96: "✗ + date"; resultAt ?? startedAt for legacy rows. */}
-                <span className="text-xs text-[var(--color-subtle)]">{formatShort(toKey(new Date(c.resultAt ?? c.startedAt)))}</span>
-                <span className="ml-auto text-xs font-semibold">{c.status === 'failed' ? 'Failed' : 'Replaced'}</span>
+                <span className="shrink-0 text-xs text-[var(--color-subtle)]">{formatShort(toKey(new Date(c.resultAt ?? c.startedAt)))}</span>
+                <span className="truncate text-xs text-[var(--color-subtle)]">{c.scopeLabel}</span>
+                <span className="justify-self-end text-xs font-semibold">{c.status === 'failed' ? 'Failed' : 'Replaced'}</span>
               </li>
             ))}
           </ul>
@@ -198,7 +200,7 @@ export function ChallengesScreen() {
                 <li key={h.id}>
                   <button type="button"
                           onClick={() => void join('streak7', { habitId: h.id, scopeLabel: h.name })}
-                          className="min-h-11 w-full rounded-2xl bg-[var(--color-muted)] px-4 py-3 text-left text-sm font-medium">
+                          className="min-h-11 w-full rounded-2xl bg-[var(--color-muted)] px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-[var(--color-muted-hover)] active:brightness-95">
                     {h.name}
                   </button>
                 </li>
@@ -211,7 +213,7 @@ export function ChallengesScreen() {
                 <li key={cat}>
                   <button type="button"
                           onClick={() => void join('category7', { category: cat, scopeLabel: cat })}
-                          className="min-h-11 w-full rounded-2xl bg-[var(--color-muted)] px-4 py-3 text-left text-sm font-medium">
+                          className="min-h-11 w-full rounded-2xl bg-[var(--color-muted)] px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-[var(--color-muted-hover)] active:brightness-95">
                     {cat}
                   </button>
                 </li>

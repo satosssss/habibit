@@ -175,28 +175,28 @@ export function TimerModal({
         <button type="button" aria-label="Decrease duration" {...stepper(-1)}
                 disabled={duration <= 60}
                 className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white disabled:opacity-40">
-          <Minus size={18} />
+          <Minus size={18} aria-hidden />
         </button>
         <button type="button" aria-label="Increase duration" {...stepper(1)}
                 disabled={duration >= cap}
                 className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white disabled:opacity-40">
-          <Plus size={18} />
+          <Plus size={18} aria-hidden />
         </button>
       </div>
 
       <div className="mt-4 flex items-center gap-2">
         <button type="button" aria-label="Skip" onClick={() => { setStage('idle'); close(); }}
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white">
-          <SkipForward size={16} />
+          <SkipForward size={16} aria-hidden />
         </button>
         <button type="button" aria-label="Undo minute" onClick={() => setElapsed((e) => Math.max(0, e - 60))}
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white">
-          <Undo2 size={16} />
+          <Undo2 size={16} aria-hidden />
         </button>
         <button type="button" aria-label="Reset timer"
                 onClick={() => { setElapsed(0); completed.current = false; }}
                 className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white">
-          <RotateCcw size={16} />
+          <RotateCcw size={16} aria-hidden />
         </button>
         <button type="button" aria-label="+5 minutes"
                 disabled={duration >= cap}
@@ -220,9 +220,9 @@ export function TimerModal({
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3.5 font-bold text-white"
         style={{ background: habit.color }}
       >
-        {stage === 'running' ? <Pause size={18} />
-          : stage === 'paused' ? <Square size={18} />
-          : <Play size={18} />}
+        {stage === 'running' ? <Pause size={18} aria-hidden />
+          : stage === 'paused' ? <Square size={18} aria-hidden />
+          : <Play size={18} aria-hidden />}
         {stage === 'idle' ? 'Start timer' : stage === 'running' ? 'Pause' : 'Stop'}
       </button>
     </Sheet>

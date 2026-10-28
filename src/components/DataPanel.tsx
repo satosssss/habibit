@@ -59,12 +59,12 @@ export function DataPanel() {
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void exportJson()}
                 className="flex items-center gap-2 btn-glass px-4 py-2.5 text-sm font-semibold">
-          <Download size={15} /> Export JSON
+          <Download size={15} aria-hidden /> Export JSON
         </button>
 
         <button type="button" onClick={() => fileRef.current?.click()}
                 className="flex items-center gap-2 btn-glass px-4 py-2.5 text-sm font-semibold">
-          <Upload size={15} /> Import JSON
+          <Upload size={15} aria-hidden /> Import JSON
         </button>
         <input ref={fileRef} type="file" accept="application/json" className="sr-only"
                aria-label="Import JSON file"
@@ -72,7 +72,7 @@ export function DataPanel() {
 
         <button type="button" onClick={() => setConfirmReset(true)}
                 className="flex items-center gap-2 btn-glass border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-500">
-          <RotateCcw size={15} /> Reset data
+          <RotateCcw size={15} aria-hidden /> Reset data
         </button>
       </div>
 

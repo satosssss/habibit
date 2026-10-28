@@ -64,21 +64,21 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       >
         {/* Wordmark only in the labelled sidebar; flame only in the icon rail */}
         <div className="mb-4 hidden items-center gap-2 px-2 xl:flex">
-          <Flame className="text-[var(--color-accent)]" size={22} />
+          <Flame className="text-[var(--color-accent)]" size={22} aria-hidden />
           <span className="font-display text-lg font-extrabold tracking-tight">Habibit</span>
         </div>
         <div className="mb-4 grid place-items-center xl:hidden">
-          <Flame className="text-[var(--color-accent)]" size={22} />
+          <Flame className="text-[var(--color-accent)]" size={22} aria-hidden />
         </div>
         <Link href="/add-habit" title="Add habit" aria-label="Add habit"
               className="mb-3 flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-[var(--color-on-accent)] xl:justify-start">
-          <Plus size={18} />
+          <Plus size={18} aria-hidden />
           <span className="hidden xl:inline">Add habit</span>
         </Link>
         {TABS.map(({ href, label, Icon }) => (
           <Link key={href} href={href} aria-current={isActive(href) ? 'page' : undefined}
                 className={linkClass(isActive(href))} title={label}>
-            <Icon size={20} />
+            <Icon size={20} aria-hidden />
             <span className="hidden xl:inline">{label}</span>
           </Link>
         ))}
@@ -91,7 +91,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         {degraded && (
           <p role="alert"
              className="m-3 flex items-start gap-2 rounded-2xl glass-card px-4 py-3 text-sm">
-            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[var(--color-accent-ink)]" />
+            <TriangleAlert size={16} className="mt-0.5 shrink-0 text-[var(--color-accent-ink)]" aria-hidden />
             <span>Storage is unavailable (private browsing?), so changes will be lost when you close this tab.</span>
           </p>
         )}
@@ -99,7 +99,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         {showFab && (
           <Link href="/add-habit" aria-label="Add a habit"
                 className="fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow-lg transition-transform active:scale-95 md:hidden">
-            <Plus size={22} />
+            <Plus size={22} aria-hidden />
           </Link>
         )}
       </div>
@@ -112,7 +112,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                 className={`flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium ${
                   isActive(href) ? 'text-[var(--color-accent-ink)]' : 'text-[var(--color-subtle)]'
                 }`}>
-            <Icon size={20} />
+            <Icon size={20} aria-hidden />
             {label}
           </Link>
         ))}

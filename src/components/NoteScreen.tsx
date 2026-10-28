@@ -79,7 +79,7 @@ export function NoteScreen({ date }: { date: string }) {
         <h1 className="text-lg font-extrabold">{formatLong(date)}</h1>
         <button type="button" aria-label="Share this day" onClick={() => void share()}
                 className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
-          <Share2 size={16} />
+          <Share2 size={16} aria-hidden />
         </button>
       </header>
 
@@ -102,7 +102,7 @@ export function NoteScreen({ date }: { date: string }) {
           return (
             <section key={intention} className="glass-card p-4">
               <h2 className="mb-2 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-[var(--color-fg)]">
-                <Icon size={16} style={{ color }} /> {intention.toUpperCase()}
+                <Icon size={16} style={{ color }} aria-hidden /> {intention.toUpperCase()}
               </h2>
               <ul className="flex flex-col gap-2">
                 {list.map((habit) => {

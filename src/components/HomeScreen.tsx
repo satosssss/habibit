@@ -145,7 +145,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
       <header className="relative flex items-center gap-3 px-2 py-4">
         <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--color-muted)] md:hidden">
-          <Menu size={18} />
+          <Menu size={18} aria-hidden />
         </button>
         {/* Date-derived text stays empty in prerendered HTML and fills in only
             after mount, so the build day can never freeze into the h1. */}
@@ -154,11 +154,11 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
         </h1>
         <div className="ml-auto flex items-center gap-3">
           <span data-testid="header-streak" className="flex items-center gap-1 text-sm font-bold">
-            <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}
+            <Flame size={18} className="text-[#f97316]" fill="#f97316" aria-hidden /> {overallStreak}
           </span>
           <button type="button" aria-label="Add habit" onClick={() => router.push('/add-habit')}
                   className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
-            <Plus size={18} />
+            <Plus size={18} aria-hidden />
           </button>
         </div>
       </header>

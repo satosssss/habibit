@@ -45,7 +45,7 @@ export function HabitsPanel() {
         <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Habits</h2>
         <Link href="/add-habit"
               className="flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-[var(--color-on-accent)]">
-          <Plus size={15} /> New habit
+          <Plus size={15} aria-hidden /> New habit
         </Link>
       </div>
 
