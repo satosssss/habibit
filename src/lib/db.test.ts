@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
 import { HabibitDexie } from './db';
-import type { Entry, Habit } from './types';
+import type { Challenge, Entry, Habit } from './types';
 
 // Spec §1 (challenges): the v1 → v2 upgrade is a pure delta — v1 tables keep
 // their schema and every v1 row, and the new `challenges` store is created
@@ -17,6 +17,24 @@ class V1HabibitDexie extends Dexie {
     this.version(1).stores({
       habits: 'id, name, category, intention, type, order, createdAt',
       entries: 'id, habitId, date, value, timestamp, [habitId+date]',
+    });
+  }
+}
+
+/** A v2-era database: challenges exist, badges do not. */
+class V2HabibitDexie extends Dexie {
+  habits!: Table<Habit, string>;
+  entries!: Table<Entry, string>;
+  challenges!: Table<Challenge, string>;
+
+  constructor(name: string) {
+    super(name);
+    this.version(1).stores({
+      habits: 'id, name, category, intention, type, order, createdAt',
+      entries: 'id, habitId, date, value, timestamp, [habitId+date]',
+    });
+    this.version(2).stores({
+      challenges: 'id, type, status, [type+status], startedAt',
     });
   }
 }
@@ -72,5 +90,56 @@ describe('HabibitDexie v1 → v2 migration (spec line 144)', () => {
     // 4) v1 structure unchanged — exactly the v1 index set, nothing added/removed.
     expect(indexSources(upgraded.habits)).toEqual(v1HabitIndexes);
     expect(indexSources(upgraded.entries)).toEqual(v1EntryIndexes);
+  });
+});
+
+describe('HabibitDexie v2 → v3 migration (badges spec R3)', () => {
+  afterEach(async () => {
+    for (const name of opened.splice(0)) {
+      await Dexie.delete(name);
+    }
+  });
+
+  it('creates the badges store, keeps v1/v2 rows, and accepts badge writes', async () => {
+    const name = `habibit-badges-migration-test-${Date.now()}-${opened.length + 1}`;
+    const v2 = new V2HabibitDexie(name);
+    opened.push(name);
+    await v2.open();
+    const v2Habit = habitFactory();
+    const v2Entry = entryFactory();
+    const v2Challenge: Challenge = {
+      id: 'c1', type: 'weekend', scopeLabel: 'Weekend', status: 'won',
+      startedAt: Date.parse('2026-09-19T08:00:00'),
+      resultAt: Date.parse('2026-09-21T20:00:00'),
+    };
+    await v2.habits.put(v2Habit);
+    await v2.entries.put(v2Entry);
+    await v2.challenges.put(v2Challenge);
+    const v2HabitIndexes = indexSources(v2.habits);
+    const v2EntryIndexes = indexSources(v2.entries);
+    const v2ChallengeIndexes = indexSources(v2.challenges);
+    v2.close();
+
+    const upgraded = new HabibitDexie(name);
+    await upgraded.open();
+
+    // Existing data survives the upgrade untouched.
+    expect(await upgraded.habits.get('h1')).toEqual(v2Habit);
+    expect(await upgraded.entries.get('h1_2026-09-20')).toEqual(v2Entry);
+    expect(await upgraded.challenges.get('c1')).toEqual(v2Challenge);
+
+    // v3 delta: empty badges store, primary key `id`, secondary index `earnedAt`.
+    expect(await upgraded.badges.count()).toBe(0);
+    expect(upgraded.badges.schema.primKey.keyPath).toBe('id');
+    expect(indexSources(upgraded.badges)).toEqual(['earnedAt']);
+
+    // ...and it is writable through the new version.
+    await upgraded.badges.put({ id: 'streak-3', earnedAt: 1 });
+    expect(await upgraded.badges.get('streak-3')).toEqual({ id: 'streak-3', earnedAt: 1 });
+
+    // v1/v2 structure unchanged.
+    expect(indexSources(upgraded.habits)).toEqual(v2HabitIndexes);
+    expect(indexSources(upgraded.entries)).toEqual(v2EntryIndexes);
+    expect(indexSources(upgraded.challenges)).toEqual(v2ChallengeIndexes);
   });
 });

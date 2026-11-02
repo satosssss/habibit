@@ -1,10 +1,11 @@
 import Dexie, { type Table } from 'dexie';
-import type { Challenge, Entry, Habit } from './types';
+import type { Challenge, EarnedBadge, Entry, Habit } from './types';
 
 export class HabibitDexie extends Dexie {
   habits!: Table<Habit, string>;
   entries!: Table<Entry, string>;
   challenges!: Table<Challenge, string>;
+  badges!: Table<EarnedBadge, string>;
 
   constructor(name = 'habibit') {
     super(name);
@@ -16,6 +17,10 @@ export class HabibitDexie extends Dexie {
     // store on upgrade and leaves the v1 tables untouched.
     this.version(2).stores({
       challenges: 'id, type, status, [type+status], startedAt',
+    });
+    // v3 delta (badges spec R3): additive only, same rule as v2.
+    this.version(3).stores({
+      badges: 'id, earnedAt',
     });
   }
 }
@@ -58,9 +63,10 @@ export async function resetDb(): Promise<void> {
   await ensureDb();
   // One transaction for all clears: a failure between them must not leave
   // 0 habits plus orphaned entries (spec §11/§12 rule out partial applies).
-  await db.transaction('rw', db.habits, db.entries, db.challenges, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
     await db.habits.clear();
     await db.entries.clear();
     await db.challenges.clear();
+    await db.badges.clear();
   });
 }

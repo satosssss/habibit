@@ -54,6 +54,17 @@ describe('InsightsScreen', () => {
     expect(await screen.findByText(String(new Date().getFullYear()), {}, WAIT)).toBeInTheDocument();
   });
 
+  it('mounts the Badges section after the All time tiles (badges spec R5)', async () => {
+    await putHabit(habit());
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
+    const badges = await screen.findByRole('heading', { name: 'Badges' }, WAIT);
+    const allTime = screen.getByRole('heading', { name: 'All time' });
+    // DOCUMENT_POSITION_FOLLOWING: the badges heading comes after "All time".
+    expect(allTime.compareDocumentPosition(badges) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await screen.findByText('0 of 16 earned', {}, WAIT)).toBeInTheDocument();
+  });
+
   it('lays the intention bars beside the heatmap on tablet, full width on desktop (spec §10)', async () => {
     const { InsightsScreen } = await import('./InsightsScreen');
     const { container } = render(<InsightsScreen />);

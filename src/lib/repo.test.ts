@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db';
-import { activeChallenges, clampLegacyEntries, clearAll, deleteHabit, evaluateChallenges, exportState, hasSeeded, importState, joinChallenge, listChallenges, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putChallenge, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
+import { activeChallenges, clampLegacyEntries, clearAll, deleteHabit, evaluateBadges, evaluateChallenges, exportState, hasSeeded, importState, joinChallenge, listBadges, listChallenges, listHabits, loadDay, loadRange, markSeeded, newId, pruneOrphans, putChallenge, putEntry, putHabit, putHabits, resetToEmpty } from './repo';
 import type { Challenge, Entry, Habit } from './types';
 
 const habit = (over: Partial<Habit> = {}): Habit => ({
@@ -542,5 +542,110 @@ describe('evaluateChallenges', () => {
     } finally {
       getSpy.mockRestore();
     }
+  });
+});
+
+describe('badges (repo)', () => {
+  const NOW = Date.parse('2026-10-21T12:00:00');
+  // createdAt must precede the fixed entry dates, otherwise allTimeStart
+  // (Jan 1 of the creation year) would clip them out of the stats window.
+  const since = () => habit({ createdAt: Date.parse('2026-01-05T12:00:00') });
+
+  const seedThreeDays = async (): Promise<Habit> => {
+    const h = since();
+    await putHabit(h);
+    for (const d of ['2026-10-19', '2026-10-20', '2026-10-21']) await putEntry(h.id, d, 1);
+    return h;
+  };
+
+  it('awards eligible badges once and returns only the new rows', async () => {
+    await seedThreeDays();
+    const first = await evaluateBadges(NOW);
+    expect(first.map((b) => b.id).sort()).toEqual(['completions-1', 'perfect-1', 'streak-3']);
+    expect(first.every((b) => b.earnedAt === NOW)).toBe(true);
+
+    const second = await evaluateBadges(NOW + 60_000);
+    expect(second).toEqual([]);                                    // idempotent
+    const stored = await listBadges();
+    expect(stored).toHaveLength(3);
+    expect(stored.every((b) => b.earnedAt === NOW)).toBe(true);    // earnedAt never restamped
+  });
+
+  it('never un-earns a badge when the data that earned it disappears', async () => {
+    const h = await seedThreeDays();
+    await evaluateBadges(NOW);
+    for (const d of ['2026-10-19', '2026-10-20', '2026-10-21']) {
+      await db.entries.delete(`${h.id}_${d}`);
+    }
+    expect(await evaluateBadges(NOW)).toEqual([]);
+    expect((await listBadges()).map((b) => b.id).sort())
+      .toEqual(['completions-1', 'perfect-1', 'streak-3']);
+  });
+
+  it('awards a challenge badge from a won challenge', async () => {
+    await putHabit(since());
+    await putChallenge({
+      id: newId(), type: 'weekend', scopeLabel: 'All habits', status: 'won',
+      startedAt: 0, resultAt: 1,
+    });
+    const earned = await evaluateBadges(NOW);
+    expect(earned.map((b) => b.id)).toEqual(['challenge-weekend']);
+  });
+
+  it('ignores unknown ids already in the store (forward compatibility)', async () => {
+    await db.badges.put({ id: 'from-the-future', earnedAt: 1 });
+    await seedThreeDays();
+    const earned = await evaluateBadges(NOW);
+    expect(earned.map((b) => b.id)).not.toContain('from-the-future');
+    expect((await listBadges()).map((b) => b.id)).toContain('from-the-future');
+  });
+});
+
+describe('badges export/import/reset', () => {
+  it('exportState includes badges', async () => {
+    await db.badges.put({ id: 'streak-3', earnedAt: 123 });
+    expect((await exportState()).badges).toEqual([{ id: 'streak-3', earnedAt: 123 }]);
+  });
+
+  it('restores badges from a new-style export', async () => {
+    const h = habit();
+    await putHabit(h);
+    await db.badges.put({ id: 'streak-7', earnedAt: 456 });
+    const data = await exportState();
+    await clearAll();
+    await importState(data);
+    expect(await listBadges()).toEqual([{ id: 'streak-7', earnedAt: 456 }]);
+  });
+
+  it('clears badges when importing a legacy payload with no badges key', async () => {
+    await db.badges.put({ id: 'streak-7', earnedAt: 456 });
+    await importState({ habits: [habit()], entries: [] });
+    expect(await listBadges()).toEqual([]);
+  });
+
+  it('allows unknown badge ids through import', async () => {
+    await importState({
+      habits: [habit()], entries: [],
+      badges: [{ id: 'future-badge', earnedAt: 9 }],
+    });
+    expect(await listBadges()).toEqual([{ id: 'future-badge', earnedAt: 9 }]);
+  });
+
+  it('rejects malformed badges before writing anything', async () => {
+    const before = await exportState();
+    await expect(importState({
+      habits: [habit()], entries: [], badges: [{ id: 'streak-3', earnedAt: 'soon' }],
+    })).rejects.toThrow(/values we can't import/);
+    await expect(importState({
+      habits: [habit()], entries: [], badges: 'nope',
+    })).rejects.toThrow(/Habibit export/);
+    expect(await exportState()).toEqual(before);
+  });
+
+  it('resetToEmpty clears badges', async () => {
+    await putHabit(habit());
+    await db.badges.put({ id: 'streak-3', earnedAt: 1 });
+    await resetToEmpty();
+    expect(await listBadges()).toEqual([]);
   });
 });

@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { allTimeStart, isScheduled } from '@/lib/stats';
 import { challengeProgress, challengeTitle, weekendWindow } from '@/lib/challenges';
 import { celebrateWins } from '@/lib/challengeWin';
+import { celebrateBadges } from '@/lib/badgeUnlock';
 import { formatShort, todayKey, toKey } from '@/lib/dates';
-import { evaluateChallenges, joinChallenge, listChallenges, listHabits, loadRange, MAX_ACTIVE_CHALLENGES } from '@/lib/repo';
+import { evaluateBadges, evaluateChallenges, joinChallenge, listChallenges, listHabits, loadRange, MAX_ACTIVE_CHALLENGES } from '@/lib/repo';
 import { reportWriteError } from '@/lib/writeError';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { ChallengeType } from '@/lib/types';
@@ -28,7 +29,11 @@ export function ChallengesScreen() {
   // Surface load evaluation: closes time-based weekend fails and catches wins
   // earned since the last boot pass; returned `won` transitions celebrate once.
   useEffect(() => {
-    evaluateChallenges().then(celebrateWins).catch(reportWriteError);
+    evaluateChallenges()
+      .then(celebrateWins)
+      .then(() => evaluateBadges())
+      .then(celebrateBadges)
+      .catch(reportWriteError);
   }, []);
 
   // Entries needed to derive progress: the same window Home / Task 7's strip

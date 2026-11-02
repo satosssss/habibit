@@ -12,6 +12,7 @@ import {
 } from '@/lib/stats';
 import { todayKey } from '@/lib/dates';
 import { useLiveQuery } from '@/lib/useLiveQuery';
+import { BadgesSection } from './BadgesSection';
 import { CoachSection } from './CoachSection';
 import { Heatmap } from './Heatmap';
 import { IntentionBar } from './IntentionBar';
@@ -149,6 +150,9 @@ export function InsightsScreen() {
         <StatTile icon={CalendarCheck} value={countActiveDays(allTime)} caption="Total Active Days" />
         <StatTile icon={Star} value={countPerfectDays(allTime)} caption="Total Perfect Days" />
       </div>
+
+      {/* Badges spec R5: all-time achievements, after the All time tiles. */}
+      <BadgesSection habits={habits ?? []} entries={allEntries ?? []} today={today} />
     </div>
   );
 }

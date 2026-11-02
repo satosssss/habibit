@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { celebrateWins } from '@/lib/challengeWin';
+import { celebrateBadges } from '@/lib/badgeUnlock';
 import { ensureDb } from '@/lib/db';
-import { clampLegacyEntries, evaluateChallenges, pruneOrphans } from '@/lib/repo';
+import { clampLegacyEntries, evaluateBadges, evaluateChallenges, pruneOrphans } from '@/lib/repo';
 import { seedIfEmpty } from '@/lib/seed';
 import { reportWriteError } from '@/lib/writeError';
+import { BadgeToast } from './BadgeToast';
 import { ChallengeWinOverlay } from './ChallengeWinOverlay';
 import { CompletionToast } from './CompletionToast';
 import { BackgroundScene } from './BackgroundScene';
@@ -41,16 +43,26 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
-    void seedIfEmpty().catch(reportWriteError);   // idempotent: returns immediately once the seed marker is claimed
     void ensureDb().then((s) => {
       setDegraded(s === 'degraded');
       void pruneOrphans().catch(reportWriteError);   // stray entries never reach stats
       void clampLegacyEntries().catch(reportWriteError);   // spec R1 §2.3 boot migration
-      // Genuine transitions only: evaluateChallenges returns rows that changed
-      // active → won THIS call (and fix 4 keeps racing passes from double-
-      // returning), so a weekend win that matured while the app was closed
-      // celebrates here at boot — never a replay of an already-won row.
-      void evaluateChallenges().then(celebrateWins).catch(reportWriteError);   // challenges: close weekend/fail orphans
+      // Seed BEFORE evaluating: on a fresh install the seed rows carry 13 weeks
+      // of history, so boot must see them — otherwise the first badges (and any
+      // challenge outcome) would wait for the user's first write.
+      void seedIfEmpty()   // idempotent: returns immediately once the marker is claimed
+        .then(() => evaluateChallenges())
+        // Genuine transitions only: evaluateChallenges returns rows that changed
+        // active → won THIS call (and fix 4 keeps racing passes from double-
+        // returning), so a weekend win that matured while the app was closed
+        // celebrates here at boot — never a replay of an already-won row.
+        .then(celebrateWins)
+        // Badges spec R4: run AFTER challenges so a win that just landed can
+        // award its badge in the same pass. evaluateBadges returns only new
+        // rows, so an already-earned badge never replays on boot.
+        .then(() => evaluateBadges())
+        .then(celebrateBadges)
+        .catch(reportWriteError);
     }).catch(reportWriteError);
   }, []);
 
@@ -87,6 +99,7 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <div className={`min-w-0 flex-1 md:pb-0 ${showFab ? 'pb-40' : 'pb-24'}`}>
         <WriteErrorBanner />
         <CompletionToast />
+        <BadgeToast />
         <ChallengeWinOverlay />
         {degraded && (
           <p role="alert"

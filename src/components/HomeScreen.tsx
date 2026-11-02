@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateCoachInsights } from '@/lib/coach';
 import { celebrateWins } from '@/lib/challengeWin';
-import { evaluateChallenges, loadRange, listHabits, putEntry } from '@/lib/repo';
+import { celebrateBadges } from '@/lib/badgeUnlock';
+import { evaluateBadges, evaluateChallenges, loadRange, listHabits, putEntry } from '@/lib/repo';
 import { todayKey } from '@/lib/dates';
 import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
 import { reportWriteError } from '@/lib/writeError';
@@ -114,7 +115,11 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
     try {
       await putEntry(habit.id, date, value);   // putEntry owns the clamp (R1)
       celebrateIfCompleted(habit, before, value);   // A2: only after a successful write
-      void evaluateChallenges().then(celebrateWins).catch(reportWriteError);   // wins pop the moment they happen
+      void evaluateChallenges()
+        .then(celebrateWins)
+        .then(() => evaluateBadges())
+        .then(celebrateBadges)
+        .catch(reportWriteError);   // wins + badges pop the moment they happen
     }
     catch (err) { reportWriteError(err); }           // failure → banner, never a toast
   }, [date, values]);
