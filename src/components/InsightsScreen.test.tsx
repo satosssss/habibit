@@ -5,6 +5,10 @@ import type { Habit } from '@/lib/types';
 import { todayKey, addDays } from '@/lib/dates';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/lib/shareCardCanvas', () => ({
+  renderShareCard: vi.fn(async () => ({ width: 1080, height: 1350 })),
+  shareCardBlob: vi.fn(async () => new Blob(['png'], { type: 'image/png' })),
+}));
 
 // Full-suite CPU contention pushes the live-query past the default 1s wait
 // budget (observed: '0 of 12' missing after 1s under load). Same elements,
@@ -339,5 +343,24 @@ describe('coach section (coach spec R3)', () => {
     const byIntention = screen.getByText('By intention');
     expect(yearStats.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(group.compareDocumentPosition(byIntention) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+// Share card spec R4: the entry point sits on the Year stats heading row.
+describe('share card entry point (C R4)', () => {
+  it('opens the share sheet from the Year stats row', async () => {
+    await putHabit(habit());
+    const { InsightsScreen } = await import('./InsightsScreen');
+    render(<InsightsScreen />);
+    const button = await screen.findByRole('button', { name: /share card/i }, WAIT);
+    fireEvent.click(button);
+    expect(await screen.findByRole('dialog', { name: 'Share your year' }, WAIT)).toBeInTheDocument();
+    // Let the async preview pass settle so its state updates happen inside the test.
+    await waitFor(() => {
+      expect(screen.queryByText(/building your card/i)).not.toBeInTheDocument();
+      const settled = screen.queryByRole('img', { name: /year in review/i })
+        ?? screen.queryByRole('alert');
+      expect(settled).not.toBeNull();
+    }, WAIT);
   });
 });

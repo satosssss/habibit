@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarCheck, CheckSquare, Flame, Star, TrendingUp, Trophy, Zap } from 'lucide-react';
+import { CalendarCheck, CheckSquare, Flame, Share2, Star, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { generateCoachInsights } from '@/lib/coach';
 import { intentionColor } from '@/lib/colors';
@@ -16,6 +16,7 @@ import { BadgesSection } from './BadgesSection';
 import { CoachSection } from './CoachSection';
 import { Heatmap } from './Heatmap';
 import { IntentionBar } from './IntentionBar';
+import { ShareCardSheet } from './ShareCardSheet';
 import { StatTile } from './StatTile';
 import { TrendsSection } from './TrendsSection';
 import { YearNav } from './YearNav';
@@ -24,6 +25,7 @@ export function InsightsScreen() {
   const today = todayKey();
   const maxYear = Number(today.slice(0, 4));
   const [year, setYear] = useState(maxYear);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const habits = useLiveQuery(() => listHabits(), []);
   const minYear = useMemo(
@@ -97,7 +99,14 @@ export function InsightsScreen() {
     <div className="mx-auto w-full max-w-5xl px-4 pb-10">
       <YearNav year={year} minYear={minYear} maxYear={maxYear} onChange={setYear} />
 
-      <h2 className="mb-2 mt-2 text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Year stats</h2>
+      <div className="mb-2 mt-2 flex items-center justify-between gap-3">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--color-subtle)]">Year stats</h2>
+        {/* Share card spec R4: tied to the year currently selected above. */}
+        <button type="button" onClick={() => setShareOpen(true)}
+                className="flex h-10 items-center gap-2 btn-glass px-3 text-xs font-semibold">
+          <Share2 size={14} aria-hidden /> Share card
+        </button>
+      </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={CalendarCheck} value={countActiveDays(stats)} caption="Active Days" />
         <StatTile icon={Star} value={countPerfectDays(stats)} caption="Perfect Days" />
@@ -153,6 +162,10 @@ export function InsightsScreen() {
 
       {/* Badges spec R5: all-time achievements, after the All time tiles. */}
       <BadgesSection habits={habits ?? []} entries={allEntries ?? []} today={today} />
+
+      {/* Share card spec R4: aggregates for the selected year, built on open. */}
+      <ShareCardSheet open={shareOpen} onClose={() => setShareOpen(false)}
+                      habits={habits ?? []} entries={allEntries ?? []} year={year} today={today} />
     </div>
   );
 }

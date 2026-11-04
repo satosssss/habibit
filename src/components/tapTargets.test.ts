@@ -101,4 +101,13 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
     expect(src('Sheet.tsx')).toMatch(/aria-label="Close"[\s\S]{0,160}h-10 w-10/);
     expect(src('WriteErrorBanner.tsx')).toMatch(/aria-label="Dismiss"[\s\S]{0,160}h-10 w-10/);
   });
+
+  it('share-card entry point and actions are ≥40px (C R4)', () => {
+    expect(src('InsightsScreen.tsx')).toContain(
+      'flex h-10 items-center gap-2 btn-glass px-3 text-xs font-semibold',
+    );
+    const s = src('ShareCardSheet.tsx');
+    expect(s).toContain('btn-primary px-4 py-2.5 text-sm font-semibold');
+    expect(s).toContain('btn-glass px-4 py-2.5 text-sm font-semibold');
+  });
 });
