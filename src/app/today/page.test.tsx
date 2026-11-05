@@ -5,7 +5,7 @@ vi.mock('next/navigation', () => ({
 import TodayPage from './page';
 
 describe('/today', () => {
-  it('redirects to / (slice E R2)', () => {
-    expect(() => TodayPage()).toThrow('NEXT_REDIRECT:/');
+  it('redirects to /home (slice E R2, accounts D2)', () => {
+    expect(() => TodayPage()).toThrow('NEXT_REDIRECT:/home');
   });
 });

@@ -1,10 +1,14 @@
 import { db, ensureDb, resetDb } from './db';
 import { badgeSnapshot, earnedBadgeIds } from './badges';
 import { challengeOutcome } from './challenges';
-import { toKey } from './dates';
+import { addDays, toKey } from './dates';
 import { ICON_CHOICES } from './icons';
+import { emptyProfile, mergeProfile, normalizeProfile, PROFILE_ID, type ProfilePatch } from './profile';
+import type { PromptHistory } from './recommendPrompt';
 import { allTimeStart } from './stats';
-import type { Challenge, ChallengeType, EarnedBadge, Entry, Habit } from './types';
+import type {
+  Challenge, ChallengeType, EarnedBadge, Entry, Habit, Profile, RecommendationCache,
+} from './types';
 import { clampedValue } from './values';
 
 export function newId(): string {
@@ -85,11 +89,12 @@ export async function clearAll(): Promise<void> {
  */
 export async function resetToEmpty(): Promise<void> {
   await ensureDb();
-  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, db.profile, async () => {
     await db.habits.clear();
     await db.entries.clear();
     await db.challenges.clear();
     await db.badges.clear();
+    await db.profile.clear();
     await db.entries.put(seedMarker());
   });
 }
@@ -127,6 +132,7 @@ export async function markSeeded(): Promise<void> {
 
 export async function exportState(): Promise<{
   habits: Habit[]; entries: Entry[]; challenges: Challenge[]; badges: EarnedBadge[];
+  profile: Profile | null;
 }> {
   await ensureDb();
   return {
@@ -136,6 +142,67 @@ export async function exportState(): Promise<{
     ),
     challenges: await db.challenges.toArray(),
     badges: await db.badges.toArray(),
+    profile: (await db.profile.get(PROFILE_ID)) ?? null,
+  };
+}
+
+/** Profile spec R2: one row, created on first save from the defaults. */
+export async function getProfile(): Promise<Profile | null> {
+  await ensureDb();
+  return (await db.profile.get(PROFILE_ID)) ?? null;
+}
+
+/**
+ * Merges a patch over the stored profile (or the defaults) and stamps
+ * `updatedAt`. Answers that changed clear the recommendation cache in the same
+ * transaction, so the home screen can never show suggestions for an old profile.
+ */
+export async function saveProfile(patch: ProfilePatch, now = Date.now()): Promise<Profile> {
+  await ensureDb();
+  return db.transaction('rw', db.profile, async () => {
+    const base = (await db.profile.get(PROFILE_ID)) ?? emptyProfile(now);
+    const next = mergeProfile(base, patch, now);
+    await db.profile.put(next);
+    return next;
+  });
+}
+
+export async function clearProfile(): Promise<void> {
+  await ensureDb();
+  await db.profile.delete(PROFILE_ID);
+}
+
+/** Stores a fresh suggestion set without touching the answers or `updatedAt`. */
+export async function putRecommendations(cache: RecommendationCache): Promise<void> {
+  await ensureDb();
+  await db.profile.update(PROFILE_ID, { recommendations: cache });
+}
+
+export async function latestEntryDate(): Promise<string | null> {
+  await ensureDb();
+  const last = await db.entries.orderBy('date').last();
+  if (!last || last.id === SEED_FLAG_ID || !last.date) return null;
+  return last.date;
+}
+
+/**
+ * The history half of the recommendation prompt (spec R5): counts and habit
+ * names only, from the last 14 days. `ratePct` is over recorded slots rather
+ * than scheduled days, so "no data" can never masquerade as a 0% week.
+ */
+export async function recommendationHistory(today = toKey(new Date()), days = 14): Promise<PromptHistory> {
+  await ensureDb();
+  const from = addDays(today, -(days - 1));
+  const [habits, entries] = await Promise.all([
+    listHabits(),
+    loadRange(from, today),
+  ]);
+  const completions = entries.filter((entry) => entry.value > 0).length;
+  return {
+    activeDays: new Set(entries.map((entry) => entry.date)).size,
+    completions,
+    ratePct: entries.length ? Math.round((completions / entries.length) * 100) : 0,
+    habitNames: habits.map((habit) => habit.name).slice(0, 10),
   };
 }
 
@@ -229,7 +296,7 @@ function repairHabit(x: Record<string, unknown>): Habit | null {
 /** Validates fully before writing anything, so a bad file never half-applies. */
 export async function importState(data: unknown): Promise<void> {
   const payload = data as {
-    habits?: unknown; entries?: unknown; challenges?: unknown; badges?: unknown;
+    habits?: unknown; entries?: unknown; challenges?: unknown; badges?: unknown; profile?: unknown;
   } | null;
   if (!payload || !Array.isArray(payload.habits) || !Array.isArray(payload.entries)) {
     throw new Error("That file isn't a Habibit export.");                     // payload shape
@@ -262,11 +329,12 @@ export async function importState(data: unknown): Promise<void> {
     return { ...e, value: habit ? clampedValue(habit, safe) : safe };
   });
 
-  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, db.profile, async () => {
     await db.habits.clear();
     await db.entries.clear();
     await db.challenges.clear();                                  // import replaces the world
     await db.badges.clear();                                      // ...including earned badges
+    await db.profile.clear();                                     // ...and the profile (R2)
     await db.habits.bulkPut(habits as Habit[]);
     await db.entries.bulkPut(entries);
     if (payload.challenges !== undefined) {
@@ -275,6 +343,9 @@ export async function importState(data: unknown): Promise<void> {
     if (payload.badges !== undefined) {
       await db.badges.bulkPut(payload.badges as EarnedBadge[]);
     }
+    // Profile spec R2: pre-profile exports simply import without one.
+    const profile = normalizeProfile(payload.profile);
+    if (profile) await db.profile.put(profile);
     // §11: the clear above also wiped the `__seed__` marker, so a non-empty
     // payload must claim it here — otherwise import → delete-all → reload
     // would resurrect the seed data. An empty payload stays marker-less =

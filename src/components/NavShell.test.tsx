@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NavShell } from './NavShell';
 
-const { pathname } = vi.hoisted(() => ({ pathname: vi.fn(() => '/') }));
+const { pathname } = vi.hoisted(() => ({ pathname: vi.fn(() => '/home') }));
 vi.mock('next/navigation', () => ({ usePathname: () => pathname() }));
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -13,12 +13,12 @@ vi.mock('next/link', () => ({
 const fab = () => document.querySelector('a[aria-label="Add a habit"][href="/add-habit"]');
 
 describe('NavShell (slice E R1)', () => {
-  beforeEach(() => pathname.mockReturnValue('/'));
+  beforeEach(() => pathname.mockReturnValue('/home'));
 
   it('renders all five destinations in both nav variants', () => {
     render(<NavShell><main>content</main></NavShell>);
     for (const [name, href] of [
-      ['Home', '/'], ['Habits', '/habits'], ['Calendar', '/calendar'],
+      ['Home', '/home'], ['Habits', '/habits'], ['Calendar', '/calendar'],
       ['Insights', '/insights'], ['Settings', '/settings'],
     ] as const) {
       const links = screen.getAllByRole('link', { name });
@@ -34,7 +34,7 @@ describe('NavShell (slice E R1)', () => {
     expect(adds[0]).toHaveAttribute('href', '/add-habit');
   });
 
-  it('lights Home on /', () => {
+  it('lights Home on /home', () => {
     render(<NavShell><main>c</main></NavShell>);
     for (const l of screen.getAllByRole('link', { name: 'Home' }))
       expect(l).toHaveAttribute('aria-current', 'page');
@@ -64,7 +64,7 @@ describe('NavShell (slice E R1)', () => {
   });
 
   it('shows the FAB on Home, date views, and Habits only', () => {
-    for (const p of ['/', '/today/2026-10-03', '/habits']) {
+    for (const p of ['/home', '/today/2026-10-03', '/habits']) {
       pathname.mockReturnValue(p);
       const { unmount } = render(<NavShell><main>c</main></NavShell>);
       expect(fab()).not.toBeNull();
@@ -79,7 +79,7 @@ describe('NavShell (slice E R1)', () => {
   });
 
   it('reserves bottom room for the FAB (spec V6: never covers the last row)', () => {
-    pathname.mockReturnValue('/');
+    pathname.mockReturnValue('/home');
     const a = render(<NavShell><main>c</main></NavShell>);
     expect(a.container.querySelector('main')!.parentElement!.className).toContain('pb-40');
     a.unmount();
