@@ -1,9 +1,10 @@
 import { db, ensureDb, resetDb } from './db';
+import { badgeSnapshot, earnedBadgeIds } from './badges';
 import { challengeOutcome } from './challenges';
 import { toKey } from './dates';
 import { ICON_CHOICES } from './icons';
 import { allTimeStart } from './stats';
-import type { Challenge, ChallengeType, Entry, Habit } from './types';
+import type { Challenge, ChallengeType, EarnedBadge, Entry, Habit } from './types';
 import { clampedValue } from './values';
 
 export function newId(): string {
@@ -84,10 +85,11 @@ export async function clearAll(): Promise<void> {
  */
 export async function resetToEmpty(): Promise<void> {
   await ensureDb();
-  await db.transaction('rw', db.habits, db.entries, db.challenges, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
     await db.habits.clear();
     await db.entries.clear();
     await db.challenges.clear();
+    await db.badges.clear();
     await db.entries.put(seedMarker());
   });
 }
@@ -123,7 +125,9 @@ export async function markSeeded(): Promise<void> {
   await db.entries.put(seedMarker());
 }
 
-export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[]; challenges: Challenge[] }> {
+export async function exportState(): Promise<{
+  habits: Habit[]; entries: Entry[]; challenges: Challenge[]; badges: EarnedBadge[];
+}> {
   await ensureDb();
   return {
     habits: (await db.habits.toArray()).filter((h) => h.id !== SEED_FLAG_ID),
@@ -131,6 +135,7 @@ export async function exportState(): Promise<{ habits: Habit[]; entries: Entry[]
       (e) => e.id !== SEED_FLAG_ID && e.habitId !== SEED_FLAG_ID,
     ),
     challenges: await db.challenges.toArray(),
+    badges: await db.badges.toArray(),
   };
 }
 
@@ -177,6 +182,13 @@ const isChallengeShape = (x: unknown): boolean => {
   );
 };
 
+/** Badges spec R7: id string + finite earnedAt. Unknown catalog ids stay allowed. */
+function isBadgeShape(x: unknown): boolean {
+  if (!x || typeof x !== 'object') return false;
+  const b = x as Record<string, unknown>;
+  return typeof b.id === 'string' && typeof b.earnedAt === 'number' && Number.isFinite(b.earnedAt);
+}
+
 const isWeekday = (v: unknown): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 6;
 
@@ -216,7 +228,9 @@ function repairHabit(x: Record<string, unknown>): Habit | null {
 
 /** Validates fully before writing anything, so a bad file never half-applies. */
 export async function importState(data: unknown): Promise<void> {
-  const payload = data as { habits?: unknown; entries?: unknown; challenges?: unknown } | null;
+  const payload = data as {
+    habits?: unknown; entries?: unknown; challenges?: unknown; badges?: unknown;
+  } | null;
   if (!payload || !Array.isArray(payload.habits) || !Array.isArray(payload.entries)) {
     throw new Error("That file isn't a Habibit export.");                     // payload shape
   }
@@ -230,6 +244,13 @@ export async function importState(data: unknown): Promise<void> {
   if (payload.challenges !== undefined && !(payload.challenges as unknown[]).every(isChallengeShape)) {
     throw new Error(VALUES_MESSAGE);
   }
+  // Badges spec R7: optional, so every pre-badge export stays importable.
+  if (payload.badges !== undefined && !Array.isArray(payload.badges)) {
+    throw new Error("That file isn't a Habibit export.");
+  }
+  if (payload.badges !== undefined && !(payload.badges as unknown[]).every(isBadgeShape)) {
+    throw new Error(VALUES_MESSAGE);
+  }
   await ensureDb();
 
   const habits = (payload.habits as Record<string, unknown>[]).map(repairHabit);
@@ -241,14 +262,18 @@ export async function importState(data: unknown): Promise<void> {
     return { ...e, value: habit ? clampedValue(habit, safe) : safe };
   });
 
-  await db.transaction('rw', db.habits, db.entries, db.challenges, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
     await db.habits.clear();
     await db.entries.clear();
     await db.challenges.clear();                                  // import replaces the world
+    await db.badges.clear();                                      // ...including earned badges
     await db.habits.bulkPut(habits as Habit[]);
     await db.entries.bulkPut(entries);
     if (payload.challenges !== undefined) {
       await db.challenges.bulkPut(payload.challenges as Challenge[]);
+    }
+    if (payload.badges !== undefined) {
+      await db.badges.bulkPut(payload.badges as EarnedBadge[]);
     }
     // §11: the clear above also wiped the `__seed__` marker, so a non-empty
     // payload must claim it here — otherwise import → delete-all → reload
@@ -386,4 +411,36 @@ export async function evaluateChallenges(now = Date.now()): Promise<Challenge[]>
     }
   });
   return changed;
+}
+
+export async function listBadges(): Promise<EarnedBadge[]> {
+  await ensureDb();
+  return db.badges.toArray();
+}
+
+/**
+ * Badges spec R3: award every badge whose threshold is met, exactly once.
+ * Insert-only — a badge is never updated or removed, so breaking a streak
+ * cannot un-earn it. Reads and writes share one transaction, and an existing
+ * id is skipped (not rewritten), keeping earnedAt stable across calls.
+ * Returns only the rows inserted by THIS call, so callers celebrate once.
+ */
+export async function evaluateBadges(now = Date.now()): Promise<EarnedBadge[]> {
+  await ensureDb();
+  return db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
+    const habits = await db.habits.toArray();
+    const challenges = await db.challenges.toArray();
+    const today = toKey(new Date(now));
+    const entries = habits.length === 0
+      ? []
+      : (await db.entries.where('date').between(allTimeStart(habits), today, true, true).toArray())
+          .filter((e) => e.id !== SEED_FLAG_ID);
+    const eligible = earnedBadgeIds(badgeSnapshot({ habits, entries, challenges, today }));
+    const existing = new Set((await db.badges.toArray()).map((b) => b.id));
+    const inserted: EarnedBadge[] = eligible
+      .filter((id) => !existing.has(id))
+      .map((id) => ({ id, earnedAt: now }));
+    if (inserted.length) await db.badges.bulkAdd(inserted);
+    return inserted;
+  });
 }

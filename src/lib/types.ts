@@ -40,3 +40,9 @@ export interface Challenge {
   startedAt: number;       // epoch ms (join time)
   resultAt?: number;       // epoch ms when won/failed/abandoned
 }
+
+/** Badges spec R3: one row per earned badge, keyed by catalog id. */
+export interface EarnedBadge {
+  id: string;              // catalog id from src/lib/badges.ts
+  earnedAt: number;        // epoch ms, first time the threshold was met
+}
