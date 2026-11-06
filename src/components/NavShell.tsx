@@ -17,7 +17,7 @@ import { BackgroundScene } from './BackgroundScene';
 import { WriteErrorBanner } from './WriteErrorBanner';
 
 const TABS = [
-  { href: '/', label: 'Home', Icon: House },
+  { href: '/home', label: 'Home', Icon: House },
   { href: '/habits', label: 'Habits', Icon: ListChecks },
   { href: '/calendar', label: 'Calendar', Icon: CalendarDays },
   { href: '/insights', label: 'Insights', Icon: BarChart3 },
@@ -34,12 +34,12 @@ const linkClass = (active: boolean) =>
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  // '/' is special: the per-day view /today/<date> is Home content (spec R1)
+  // '/home' is special: the per-day view /today/<date> is Home content (spec R1)
   const isActive = (href: string) =>
-    href === '/'
-      ? pathname === '/' || pathname.startsWith('/today')
+    href === '/home'
+      ? pathname === '/home' || pathname.startsWith('/today')
       : pathname === href || pathname.startsWith(`${href}/`);
-  const showFab = pathname === '/' || pathname.startsWith('/today') || pathname === '/habits';
+  const showFab = pathname === '/home' || pathname.startsWith('/today') || pathname === '/habits';
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {

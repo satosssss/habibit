@@ -21,6 +21,7 @@ import { ActiveChallengesStrip } from './ActiveChallengesStrip';
 import { CoachCard } from './CoachCard';
 import { DateStrip } from './DateStrip';
 import { MenuDrawer } from './MenuDrawer';
+import { RecommendationsSection } from './RecommendationsSection';
 import { StreakStrip } from './StreakStrip';
 import { TimerModal } from './TimerModal';
 import { ValueSheet } from './ValueSheet';
@@ -169,7 +170,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
       </header>
 
       <DateStrip selected={date} today={today}
-                 onSelect={(key) => router.push(key === today ? '/' : `/today/${key}`)} />
+                 onSelect={(key) => router.push(key === today ? '/home' : `/today/${key}`)} />
 
       {habits !== undefined && entries !== undefined && habits.length > 0 && (
         <StreakStrip habits={habits} entries={entries} today={date} />
@@ -180,6 +181,8 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
       )}
 
       <ActiveChallengesStrip />
+
+      <RecommendationsSection />
 
       {habits === undefined || entries === undefined ? (
         <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>

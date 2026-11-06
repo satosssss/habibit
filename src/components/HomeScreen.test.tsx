@@ -71,8 +71,9 @@ describe('HomeScreen', () => {
     expect(await screen.findByText('Meditate')).toBeInTheDocument();
     expect(screen.getByText('Drink Water')).toBeInTheDocument();
     // Spec §5.3: sections ordered by category name (localeCompare → Health < Morning)
+    // The ideas card carries its own h2 and always sits above the categories.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.trim());
-    expect(headings).toEqual(['Health', 'Morning']);
+    expect(headings).toEqual(['Habit ideas', 'Health', 'Morning']);
   });
 
   it('hides a category with nothing scheduled on the rendered day', async () => {
@@ -418,7 +419,7 @@ it('hides the strip when there are no habits (slice E R2)', async () => {
 it('routes a tapped today cell to Home (slice E R2)', () => {
   render(<HomeScreen date={todayKey()} />);
   screen.getByRole('button', { name: todayKey() }).click();
-  expect(push).toHaveBeenCalledWith('/');
+  expect(push).toHaveBeenCalledWith('/home');
 });
 
 // Coach spec R3: the card sits between the streak strip and the habit list,

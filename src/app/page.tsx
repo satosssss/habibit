@@ -1,12 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { NavShell } from '@/components/NavShell';
-import { HomeScreen } from '@/components/HomeScreen';
-
-export default function HomePage() {
-  return (
-    <NavShell>
-      <HomeScreen />
-    </NavShell>
-  );
+/** Accounts spec D2: Home moved to /home so / can stay a stable redirect. */
+export default function RootPage() {
+  redirect('/home');
 }

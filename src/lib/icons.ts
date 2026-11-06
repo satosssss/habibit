@@ -22,6 +22,11 @@ export function nameIcon(name: string): LucideIcon {
   return ICONS[name as IconName] ?? PenLine;
 }
 
+/** Suggestion → habit needs a string key, not the component `nameIcon` returns. */
+export function iconNameFor(name: string): IconName {
+  return ICON_CHOICES[stablePick(name)];
+}
+
 const CATEGORY_MAP: Record<string, IconName> = {
   morning: 'sunrise', afternoon: 'sun', evening: 'moon', night: 'moon',
   health: 'heart', mind: 'brain', work: 'wallet', study: 'graduation',

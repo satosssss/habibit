@@ -23,8 +23,8 @@ export default function DayPage({ params }: { params: Promise<{ date: string }> 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!isValidDateKey(date)) redirect('/');
-  if (classifyDate(date, todayKey()) === 'future') redirect('/');
+  if (!isValidDateKey(date)) redirect('/home');
+  if (classifyDate(date, todayKey()) === 'future') redirect('/home');
 
   if (!mounted) return <NavShell>{null}</NavShell>;
   return (

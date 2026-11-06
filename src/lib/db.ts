@@ -1,11 +1,12 @@
 import Dexie, { type Table } from 'dexie';
-import type { Challenge, EarnedBadge, Entry, Habit } from './types';
+import type { Challenge, EarnedBadge, Entry, Habit, Profile } from './types';
 
 export class HabibitDexie extends Dexie {
   habits!: Table<Habit, string>;
   entries!: Table<Entry, string>;
   challenges!: Table<Challenge, string>;
   badges!: Table<EarnedBadge, string>;
+  profile!: Table<Profile, string>;
 
   constructor(name = 'habibit') {
     super(name);
@@ -21,6 +22,10 @@ export class HabibitDexie extends Dexie {
     // v3 delta (badges spec R3): additive only, same rule as v2.
     this.version(3).stores({
       badges: 'id, earnedAt',
+    });
+    // v4 delta (accounts spec R2): the profile is a single row keyed by 'me'.
+    this.version(4).stores({
+      profile: 'id',
     });
   }
 }
@@ -63,10 +68,11 @@ export async function resetDb(): Promise<void> {
   await ensureDb();
   // One transaction for all clears: a failure between them must not leave
   // 0 habits plus orphaned entries (spec §11/§12 rule out partial applies).
-  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, async () => {
+  await db.transaction('rw', db.habits, db.entries, db.challenges, db.badges, db.profile, async () => {
     await db.habits.clear();
     await db.entries.clear();
     await db.challenges.clear();
     await db.badges.clear();
+    await db.profile.clear();
   });
 }

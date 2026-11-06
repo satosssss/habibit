@@ -46,3 +46,56 @@ export interface EarnedBadge {
   id: string;              // catalog id from src/lib/badges.ts
   earnedAt: number;        // epoch ms, first time the threshold was met
 }
+
+export type ActivityLevel = 'low' | 'moderate' | 'high';
+export type CoachingTone = 'gentle' | 'direct';
+
+/** Profile spec R2: the onboarding answers, one row, id 'me'. */
+export interface ProfileLifestyle {
+  wakeTime: string;        // 'HH:MM'
+  sleepTime: string;       // 'HH:MM'
+  schedule: string;        // free text: work/school shape
+  activityLevel: ActivityLevel;
+  currentHabits: string;
+  timeSinks: string;
+}
+
+export interface ProfileGoals {
+  items: string[];         // 1-3 entries, trimmed; empty strings dropped on save
+  timeframe: string;
+  why: string;
+}
+
+export interface ProfilePreferences {
+  reminderTime: string;    // 'HH:MM' or ''
+  tone: CoachingTone;
+}
+
+/** One AI suggestion; `id` is stable for the cache lifetime only. */
+export interface HabitSuggestion {
+  id: string;
+  name: string;
+  reason: string;
+  suggestedTime: string;   // 'HH:MM' or ''
+  firstStep: string;
+}
+
+export interface RecommendationCache {
+  generatedAt: number;
+  dataThrough: string;     // last entry date the model saw ('YYYY-MM-DD')
+  source: 'server' | 'on-device';
+  suggestions: HabitSuggestion[];
+}
+
+export interface Profile {
+  id: 'me';
+  accountEmail: string | null;
+  lifestyle: ProfileLifestyle;
+  goals: ProfileGoals;
+  challenges: string;
+  preferences: ProfilePreferences;
+  skipped: boolean;
+  onboardedAt: number;
+  updatedAt: number;
+  recommendations: RecommendationCache | null;
+}
