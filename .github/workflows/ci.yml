@@ -21,11 +21,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      # Node 22 is the active LTS and Vercel's current default runtime, so CI
+      # builds the same major the deployment does. (Node 20 is EOL.)
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # package-lock.json is committed; `ci` fails on drift instead of
