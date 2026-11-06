@@ -26,3 +26,17 @@ export interface Entry {
   value: number;   // boolean 0|1, quantity count, timer seconds done
   timestamp: number;
 }
+
+export type ChallengeType = 'streak7' | 'weekend' | 'category7';
+export type ChallengeStatus = 'active' | 'won' | 'failed' | 'abandoned';
+
+export interface Challenge {
+  id: string;
+  type: ChallengeType;
+  habitId?: string;        // streak7 scope
+  category?: string;       // category7 scope
+  scopeLabel: string;      // human-readable scope, shown in UI
+  status: ChallengeStatus;
+  startedAt: number;       // epoch ms (join time)
+  resultAt?: number;       // epoch ms when won/failed/abandoned
+}

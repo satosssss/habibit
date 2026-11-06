@@ -3,7 +3,8 @@
 import { Share2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatLong, todayKey, weekdayIndex } from '@/lib/dates';
-import { listHabits, loadRange, putEntry } from '@/lib/repo';
+import { celebrateWins } from '@/lib/challengeWin';
+import { evaluateChallenges, listHabits, loadRange, putEntry } from '@/lib/repo';
 import { isCompleted } from '@/lib/stats';
 import { clampedValue, toggleValue } from '@/lib/values';
 import { celebrateIfCompleted } from '@/lib/completionToast';
@@ -78,7 +79,7 @@ export function NoteScreen({ date }: { date: string }) {
         <h1 className="text-lg font-extrabold">{formatLong(date)}</h1>
         <button type="button" aria-label="Share this day" onClick={() => void share()}
                 className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
-          <Share2 size={16} />
+          <Share2 size={16} aria-hidden />
         </button>
       </header>
 
@@ -101,7 +102,7 @@ export function NoteScreen({ date }: { date: string }) {
           return (
             <section key={intention} className="glass-card p-4">
               <h2 className="mb-2 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-[var(--color-fg)]">
-                <Icon size={16} style={{ color }} /> {intention.toUpperCase()}
+                <Icon size={16} style={{ color }} aria-hidden /> {intention.toUpperCase()}
               </h2>
               <ul className="flex flex-col gap-2">
                 {list.map((habit) => {
@@ -118,6 +119,8 @@ export function NoteScreen({ date }: { date: string }) {
                           const next = toggleValue(habit, v);
                           void putEntry(habit.id, date, next)
                             .then(() => celebrateIfCompleted(habit, v, next))   // A2: after success only
+                            .then(() => evaluateChallenges())
+                            .then(celebrateWins)
                             .catch(reportWriteError);
                         }}
                         className="h-4 w-4 accent-[var(--color-accent)]"

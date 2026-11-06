@@ -94,4 +94,11 @@ describe('tap targets ≥40px (spec R10, V5)', () => {
     expect(s).toContain('btn-primary mt-2 h-10 px-4 text-sm');   // Apply = 40px
     expect(s).toMatch(/aria-label="Dismiss suggestion"[\s\S]{0,240}h-10 w-10/);
   });
+
+  it('sheet close and write-error dismiss are h-10 (ui-ux-pro-max audit)', () => {
+    // Both were ~30px icon-only pills around a 14-18px glyph; the audit puts
+    // every dismiss control on the same 40px rule as the rest of the house.
+    expect(src('Sheet.tsx')).toMatch(/aria-label="Close"[\s\S]{0,160}h-10 w-10/);
+    expect(src('WriteErrorBanner.tsx')).toMatch(/aria-label="Dismiss"[\s\S]{0,160}h-10 w-10/);
+  });
 });

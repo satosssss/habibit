@@ -19,7 +19,7 @@ export function CompletionToast() {
               onClick={dismissCompletionToast}
               aria-label={message}
               className="pointer-events-auto flex max-w-full items-center gap-2 rounded-2xl glass-card border border-[var(--glass-border)] px-4 py-3 text-sm font-semibold text-[var(--color-fg)] shadow-lg motion-safe:animate-[toast-in_200ms_ease-out]">
-        <Check size={18} className="shrink-0 text-[var(--color-accent)]" strokeWidth={3} />
+        <Check size={18} className="shrink-0 text-[var(--color-accent)]" strokeWidth={3} aria-hidden />
         <span className="truncate">{message}</span>
       </button>
     </div>

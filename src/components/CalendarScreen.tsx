@@ -62,14 +62,14 @@ export function CalendarScreen() {
         <div className="flex items-center gap-1">
           <button type="button" aria-label="Previous month" onClick={() => step(-1)}
                   className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-muted)]">
-            <ChevronLeft size={18} />
+            <ChevronLeft size={18} aria-hidden />
           </button>
           <p className="min-w-36 text-center text-sm font-bold">
             {mounted ? `${MONTHS[cursor.m]} ${cursor.y}` : <span className="skeleton inline-block h-5 w-28" />}
           </p>
           <button type="button" aria-label="Next month" onClick={() => step(1)}
                   className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-muted)]">
-            <ChevronRight size={18} />
+            <ChevronRight size={18} aria-hidden />
           </button>
         </div>
         <button type="button" onClick={goToday}

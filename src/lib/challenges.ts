@@ -1,0 +1,147 @@
+import { addDays, toKey, weekdayIndex } from './dates';
+import { habitStreaks } from './streaks';
+import { isCompleted, isScheduled } from './stats';
+import type { Challenge, ChallengeType, Entry, Habit } from './types';
+
+export type ChallengeOutcome = 'active' | 'won' | 'failed';
+export type ChallengeProgress = { label: string; current: number; total: number };
+
+export function challengeTitle(type: ChallengeType): string {
+  return type === 'streak7' ? '7-Day Streak'
+    : type === 'weekend' ? 'Weekend Warrior'
+    : 'Category Sprint';
+}
+
+/** Key -> value map for O(1) day lookups (same shape habitStreaks builds). */
+const valueMap = (entries: Entry[]): Map<string, number> =>
+  new Map(entries.map((e) => [`${e.habitId}|${e.date}`, e.value]));
+
+/**
+ * A day is perfect for a scope when every scheduled habit in it is complete.
+ * A day with nothing scheduled in scope is skipped: it counts as perfect
+ * (streak-preserving) and never fails — the same convention streaks use (G3).
+ */
+const dayPerfect = (scope: Habit[], values: Map<string, number>, date: string): boolean => {
+  for (const h of scope) {
+    // isScheduled is the house scheduling rule (stats.ts) and also gates on
+    // habit.createdAt, so a day before the habit existed is never treated as
+    // scheduled-and-missed — never reimplement it here.
+    if (!isScheduled(h, date)) continue;
+    if (!isCompleted(h, values.get(`${h.id}|${date}`) ?? 0)) return false;
+  }
+  return true;
+};
+
+/** Does anything in scope have a schedule on `date`? (isScheduled is house scheduling.) */
+const scopeScheduled = (scope: Habit[], date: string): boolean =>
+  scope.some((h) => isScheduled(h, date));
+
+/**
+ * Consecutive perfect scheduled in-scope days ending today — same convention
+ * as habitStreaks: a day with nothing scheduled in scope is skipped (neither
+ * counts nor breaks, G3); a scheduled-and-perfect day increments; a missed
+ * scheduled day breaks; an incomplete `today` never breaks.
+ */
+const scopeRun = (scope: Habit[], entries: Entry[], today: string): number => {
+  const values = valueMap(entries);
+  // Nothing earlier than the scope's earliest creation can be scheduled
+  // (isScheduled gates on createdAt), so bound the walk there instead of
+  // running to the 36,500-day guard on every render for a fresh scope.
+  const created = scope
+    .map((h) => new Date(h.createdAt))
+    .filter((d) => !Number.isNaN(d.getTime()));
+  const earliest = created.length
+    ? toKey(new Date(Math.min(...created.map((d) => d.getTime()))))
+    : undefined;
+  let run = 0;
+  let cursor = today;
+  // Safety bound mirrors habitStreaks: unreachable for real history, it only
+  // stops a never-scheduled scope from walking forever.
+  for (let guard = 0; guard < 36500; guard++, cursor = addDays(cursor, -1)) {
+    if (earliest !== undefined && cursor < earliest) break;
+    if (!scopeScheduled(scope, cursor)) continue;       // gap day: neither counts nor breaks (G3)
+    if (dayPerfect(scope, values, cursor)) { run++; continue; }
+    if (cursor === today) continue;                     // today isn't over yet — never breaks
+    break;                                              // a missed scheduled day ends the run
+  }
+  return run;
+};
+
+/** True when some scheduled in-scope day in [from, to) is not perfect. */
+const missedBetween = (scope: Habit[], values: Map<string, number>, from: string, to: string): boolean => {
+  for (let cursor = from, guard = 0; cursor < to && guard < 36500; cursor = addDays(cursor, 1), guard++) {
+    if (!dayPerfect(scope, values, cursor)) return true;
+  }
+  return false;
+};
+
+/** Anti-instant-win guard: at least one in-scope completion written at/after the join moment. */
+const completedSince = (scope: Habit[], entries: Entry[], since: number): boolean => {
+  const ids = new Set(scope.map((h) => h.id));
+  return entries.some((e) => ids.has(e.habitId) && e.timestamp >= since && isCompleted(scope.find((h) => h.id === e.habitId)!, e.value));
+};
+
+/**
+ * The first Saturday on/after the join date (join Saturday → that same
+ * weekend; join Sunday → next weekend; join midweek → the upcoming one).
+ */
+export function weekendWindow(startedAt: number): { saturday: string; sunday: string } {
+  const joinDay = toKey(new Date(startedAt));
+  const delta = (6 - weekdayIndex(joinDay) + 7) % 7; // Sat → 0, Sun → 6, Fri → 1 …
+  const saturday = addDays(joinDay, delta);
+  return { saturday, sunday: addDays(saturday, 1) };
+}
+
+/**
+ * Pure evaluation of an ACTIVE challenge. Callers (repo.evaluateChallenges)
+ * only pass active instances — terminal statuses are never re-evaluated.
+ * Win is checked before fail (spec: win-before-fail ordering).
+ */
+export function challengeOutcome(c: Challenge, habits: Habit[], entries: Entry[], today: string): ChallengeOutcome {
+  if (c.type === 'weekend') {
+    const { saturday, sunday } = weekendWindow(c.startedAt);
+    const values = valueMap(entries);
+    // The window must have ARRIVED before it can be decided: dayPerfect on a
+    // future day is vacuously true when nothing is scheduled, so an unguarded
+    // check wins a weekday-only account instantly at join (spec: no vacuous
+    // wins / joining never produces an instant win). When today === Sunday a
+    // perfected weekend wins; an imperfect one stays active until Monday.
+    if (today >= sunday && dayPerfect(habits, values, saturday) && dayPerfect(habits, values, sunday)) return 'won';
+    if (today > sunday) return 'failed'; // the weekend closed with a miss (persists to next open)
+    return 'active';
+  }
+
+  const scope = c.type === 'streak7'
+    ? habits.filter((h) => h.id === c.habitId)
+    : habits.filter((h) => h.category === c.category);
+  if (scope.length === 0) return 'active'; // orphan closes via the boot orphan pass, not here
+
+  const run = c.type === 'streak7'
+    ? habitStreaks(scope, entries, today)[scope[0].id] // single habit: reuse the house run, never reimplement it
+    : scopeRun(scope, entries, today);
+
+  if (run >= 7 && completedSince(scope, entries, c.startedAt)) return 'won';
+  if (missedBetween(scope, valueMap(entries), toKey(new Date(c.startedAt)), today)) return 'failed';
+  return 'active';
+}
+
+/** Live progress for the UI. Pure; derives everything from entries. */
+export function challengeProgress(c: Challenge, habits: Habit[], entries: Entry[], today: string): ChallengeProgress {
+  if (c.type === 'weekend') {
+    const { saturday, sunday } = weekendWindow(c.startedAt);
+    const values = valueMap(entries);
+    // Only ARRIVED days count — a future day is vacuously perfect when
+    // nothing is scheduled, and the label must never show it as done.
+    const current = Number(saturday <= today && dayPerfect(habits, values, saturday))
+      + Number(sunday <= today && dayPerfect(habits, values, sunday));
+    return { label: `${current}/2 weekend days`, current, total: 2 };
+  }
+  const scope = c.type === 'streak7'
+    ? habits.filter((h) => h.id === c.habitId)
+    : habits.filter((h) => h.category === c.category);
+  const run = scope.length === 0 ? 0 : c.type === 'streak7'
+    ? habitStreaks(scope, entries, today)[scope[0].id]
+    : scopeRun(scope, entries, today);
+  const current = Math.min(run, 7);
+  return { label: `Day ${current}/7`, current, total: 7 };
+}

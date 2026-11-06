@@ -17,3 +17,6 @@ npm-debug.log*
 next-env.d.ts
 # vitest
 /coverage
+
+# local agent tooling (installed design skills — reinstall with npx)
+/.opencode/

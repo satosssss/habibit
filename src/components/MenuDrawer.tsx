@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings } from 'lucide-react';
+import { Settings, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { applyTheme, getThemePref, type ThemePref } from '@/lib/theme';
@@ -21,9 +21,15 @@ export function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     <Sheet open={open} onClose={onClose} title="Menu">
       <nav aria-label="Menu" className="glass-menu flex flex-col gap-3 p-3">
         <button type="button"
+                onClick={() => { router.push('/challenges'); onClose(); }}
+                className="flex items-center gap-3 rounded-2xl bg-[var(--color-muted)] px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--color-muted-hover)]">
+          <Trophy size={18} aria-hidden />
+          Challenges
+        </button>
+        <button type="button"
                 onClick={() => { router.push('/settings'); onClose(); }}
-                className="flex items-center gap-3 rounded-2xl bg-[var(--color-muted)] px-3 py-2.5 text-sm font-medium">
-          <Settings size={18} />
+                className="flex items-center gap-3 rounded-2xl bg-[var(--color-muted)] px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--color-muted-hover)]">
+          <Settings size={18} aria-hidden />
           Settings
         </button>
         <div className="inline-flex w-fit rounded-2xl border border-[var(--color-line)] p-1">

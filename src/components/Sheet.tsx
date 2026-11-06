@@ -97,8 +97,8 @@ export function Sheet({
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
           <button type="button" aria-label="Close" onClick={onClose}
-                  className="rounded-full p-1.5 opacity-70 hover:opacity-100">
-            <X size={18} />
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full opacity-70 hover:opacity-100">
+            <X size={18} aria-hidden />
           </button>
         </div>
         {children}

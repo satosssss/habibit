@@ -253,3 +253,21 @@ describe('slice D review fixes — cascade order (spec R4/R6)', () => {
     expect(css).toMatch(/(^|\n)html \{[^}]*background: var\(--color-bg\)/);
   });
 });
+
+// ui-ux-pro-max audit (2026-10-25): pointer cursor + legible disabled states.
+describe('interaction affordances (ui-ux-pro-max)', () => {
+  it('restores the pointer cursor for enabled controls (Tailwind v4 preflight dropped it)', () => {
+    expect(css).toContain('button:not(:disabled), [role="button"]:not(:disabled), summary { cursor: pointer; }');
+  });
+
+  it('dims disabled btn-primary/btn-glass after the hover rules so they cannot lift or brighten', () => {
+    const disabled = css.indexOf('.btn-primary:disabled');
+    expect(disabled).toBeGreaterThan(css.indexOf('.btn-primary:hover'));
+    expect(disabled).toBeGreaterThan(css.indexOf('.btn-glass:hover'));
+    const block = css.slice(disabled, css.indexOf('}', disabled));
+    expect(block).toContain('opacity: .5');
+    expect(block).toContain('cursor: not-allowed');
+    expect(block).toContain('transform: none');
+    expect(block).toContain('filter: none');
+  });
+});

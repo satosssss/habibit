@@ -168,7 +168,7 @@ export function HabitForm({
                             className={`grid h-10 w-10 place-items-center rounded-xl border ${
                               active ? 'border-[var(--color-accent)] bg-[var(--color-muted)]' : 'border-[var(--color-line)]'
                             }`}>
-                      <Icon size={16} />
+                      <Icon size={16} aria-hidden />
                     </button>
                   );
                 })}

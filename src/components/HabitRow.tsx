@@ -49,7 +49,7 @@ export function HabitRow({
            }} />
       <div className="relative flex items-center gap-3 px-3 py-2.5 xl:gap-2">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: habit.color }}>
-          <Icon size={20} color="#fff" />
+          <Icon size={20} color="#fff" aria-hidden />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -65,13 +65,13 @@ export function HabitRow({
                     disabled={v <= 0}
                     onClick={() => onStep(-1)}
                     className="grid h-10 w-10 shrink-0 place-items-center rounded-full glass-pill disabled:opacity-40">
-              <Minus size={16} color={habit.color} />
+              <Minus size={16} color={habit.color} aria-hidden />
             </button>
             <button type="button" aria-label={`Add one ${habit.unit || 'unit'}`}
                     disabled={v >= habit.target}
                     onClick={() => onStep(1)}
                     className="grid h-10 w-10 shrink-0 place-items-center rounded-full glass-pill disabled:opacity-40">
-              <Plus size={20} color={habit.color} />
+              <Plus size={20} color={habit.color} aria-hidden />
             </button>
           </div>
         )}
@@ -84,7 +84,7 @@ export function HabitRow({
                   onClick={onOpenTimer}
                   className="shrink-0 rounded-full">
             <ProgressRing size={40} stroke={4} progress={ratio} color={habit.color}>
-              {done ? <Check size={18} className="text-[var(--color-fg)]" strokeWidth={3} /> : <Plus size={18} className="text-[var(--color-fg)]" />}
+              {done ? <Check size={18} className="text-[var(--color-fg)]" strokeWidth={3} aria-hidden /> : <Plus size={18} className="text-[var(--color-fg)]" aria-hidden />}
             </ProgressRing>
           </button>
         )}
@@ -98,7 +98,7 @@ export function HabitRow({
                   className="shrink-0 rounded-full">
             <ProgressRing size={40} stroke={4} progress={ratio} color={habit.color}>
               {done ? (
-                <Check size={16} className="text-[var(--color-fg)]" strokeWidth={3} />
+                <Check size={16} className="text-[var(--color-fg)]" strokeWidth={3} aria-hidden />
               ) : (
                 <span className="text-[10px] font-bold text-[var(--color-fg)]">{Math.floor(ratio * 100)}</span>
               )}
@@ -114,7 +114,7 @@ export function HabitRow({
                 className={done
                   ? 'grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)] shadow'
                   : 'grid h-10 w-10 shrink-0 place-items-center rounded-full glass-pill text-[var(--color-subtle)] disabled:opacity-40'}>
-          {done ? <Check size={22} strokeWidth={3} /> : <span>○</span>}
+          {done ? <Check size={22} strokeWidth={3} aria-hidden /> : <span>○</span>}
         </button>
       </div>
     </li>

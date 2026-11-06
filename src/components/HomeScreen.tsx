@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateCoachInsights } from '@/lib/coach';
+import { celebrateWins } from '@/lib/challengeWin';
+import { evaluateChallenges, loadRange, listHabits, putEntry } from '@/lib/repo';
 import { todayKey } from '@/lib/dates';
-import { loadRange, listHabits, putEntry } from '@/lib/repo';
 import { allTimeStart, buildDayStats, currentStreak } from '@/lib/stats';
 import { reportWriteError } from '@/lib/writeError';
 import { habitStreaks } from '@/lib/streaks';
@@ -15,6 +16,7 @@ import { celebrateIfCompleted } from '@/lib/completionToast';
 import { useLiveQuery } from '@/lib/useLiveQuery';
 import type { Habit } from '@/lib/types';
 import { CategorySection } from './CategorySection';
+import { ActiveChallengesStrip } from './ActiveChallengesStrip';
 import { CoachCard } from './CoachCard';
 import { DateStrip } from './DateStrip';
 import { MenuDrawer } from './MenuDrawer';
@@ -112,6 +114,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
     try {
       await putEntry(habit.id, date, value);   // putEntry owns the clamp (R1)
       celebrateIfCompleted(habit, before, value);   // A2: only after a successful write
+      void evaluateChallenges().then(celebrateWins).catch(reportWriteError);   // wins pop the moment they happen
     }
     catch (err) { reportWriteError(err); }           // failure → banner, never a toast
   }, [date, values]);
@@ -142,7 +145,7 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
       <header className="relative flex items-center gap-3 px-2 py-4">
         <button type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--color-muted)] md:hidden">
-          <Menu size={18} />
+          <Menu size={18} aria-hidden />
         </button>
         {/* Date-derived text stays empty in prerendered HTML and fills in only
             after mount, so the build day can never freeze into the h1. */}
@@ -151,11 +154,11 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
         </h1>
         <div className="ml-auto flex items-center gap-3">
           <span data-testid="header-streak" className="flex items-center gap-1 text-sm font-bold">
-            <Flame size={18} className="text-[#f97316]" fill="#f97316" /> {overallStreak}
+            <Flame size={18} className="text-[#f97316]" fill="#f97316" aria-hidden /> {overallStreak}
           </span>
           <button type="button" aria-label="Add habit" onClick={() => router.push('/add-habit')}
                   className="grid h-10 w-10 place-items-center rounded-full bg-[var(--color-muted)]">
-            <Plus size={18} />
+            <Plus size={18} aria-hidden />
           </button>
         </div>
       </header>
@@ -170,6 +173,8 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
       {habits !== undefined && entries !== undefined && habits.length > 0 && (
         <CoachCard insights={coach} habits={habits} date={date} />
       )}
+
+      <ActiveChallengesStrip />
 
       {habits === undefined || entries === undefined ? (
         <p className="skeleton p-6 text-center text-sm text-[var(--color-subtle)]">Loading…</p>
