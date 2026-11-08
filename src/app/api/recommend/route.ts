@@ -6,7 +6,10 @@ import { parseRecommendRequest } from '@/lib/recommendRequest';
 
 export const runtime = 'nodejs';
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// 2.x models are retired for keys created after the 3.x rollout (the API
+// answers 404 "no longer available to new users"), so the default must track
+// a current generation. Override per-deployment with GEMINI_MODEL.
+const DEFAULT_MODEL = 'gemini-3.5-flash';
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const TIMEOUT_MS = 30_000;
 const WINDOW_MS = 60 * 60 * 1000;

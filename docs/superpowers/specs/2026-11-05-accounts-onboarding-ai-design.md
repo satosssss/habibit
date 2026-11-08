@@ -142,7 +142,7 @@ interface Profile {
 - Body is validated: strings trimmed and capped (2 000 chars), habit names
   capped at 50, arrays capped at 10. Invalid input → 400 with a message.
 - Missing `GEMINI_API_KEY` → 503 with a clear message; the client shows it.
-- Model from `GEMINI_MODEL` (default `gemini-2.5-flash`). Request asks for JSON
+- Model from `GEMINI_MODEL` (default `gemini-3.5-flash`). Request asks for JSON
   via `responseMimeType` + `responseSchema`; the reply is parsed and normalised.
 - Best-effort per-session limit of 10 generations per hour (in-memory; resets
   with the instance) → 429.
@@ -188,7 +188,7 @@ interface Profile {
 | `AUTH_SECRET` | Auth.js JWT signing (`npx auth secret`) |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth client |
 | `GEMINI_API_KEY` | Server-side suggestions |
-| `GEMINI_MODEL` | Optional model override (default `gemini-2.5-flash`) |
+| `GEMINI_MODEL` | Optional model override (default `gemini-3.5-flash`) |
 
 Google Cloud Console: create a project → OAuth consent screen (External, test
 users while unverified) → Credentials → OAuth client ID → Web application →
