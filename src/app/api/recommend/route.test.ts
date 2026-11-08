@@ -87,7 +87,7 @@ describe('POST /api/recommend (spec R6)', () => {
     expect(data.suggestions[0]).toMatchObject({ name: 'Walk', suggestedTime: '13:00' });
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain('gemini-2.5-flash:generateContent');
+    expect(url).toContain('gemini-3.5-flash:generateContent');
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('test-key');
     const sent = JSON.parse(init.body as string);
     expect(sent.generationConfig.responseMimeType).toBe('application/json');
