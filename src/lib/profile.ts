@@ -1,6 +1,7 @@
 import type {
-  ActivityLevel, CoachingTone, Profile, ProfileGoals, ProfileLifestyle, ProfilePreferences,
+  ActivityLevel, CoachingTone, Profile, ProfileGoals, ProfileIdentity, ProfileLifestyle, ProfilePreferences,
 } from './types';
+import { DEFAULT_AVATAR_ID, isAvatarId } from './avatars';
 
 /**
  * Profile spec R2: one row, keyed 'me'. Defaults live here and nowhere else so
@@ -33,6 +34,7 @@ export function emptyProfile(now = Date.now()): Profile {
   return {
     id: PROFILE_ID,
     accountEmail: null,
+    identity: { displayName: '', avatarId: DEFAULT_AVATAR_ID },
     lifestyle: {
       wakeTime: '07:00',
       sleepTime: '23:00',
@@ -52,7 +54,8 @@ export function emptyProfile(now = Date.now()): Profile {
 }
 
 export type ProfilePatch =
-  Partial<Omit<Profile, 'id' | 'updatedAt' | 'recommendations' | 'lifestyle' | 'goals' | 'preferences'>> & {
+  Partial<Omit<Profile, 'id' | 'updatedAt' | 'recommendations' | 'lifestyle' | 'goals' | 'preferences' | 'identity'>> & {
+    identity?: Partial<ProfileIdentity>;
     lifestyle?: Partial<ProfileLifestyle>;
     goals?: Partial<ProfileGoals>;
     preferences?: Partial<ProfilePreferences>;
@@ -83,6 +86,12 @@ export function mergeProfile(base: Profile, patch: ProfilePatch, now = Date.now(
     ...patch,
     id: PROFILE_ID,
     accountEmail: patch.accountEmail !== undefined ? patch.accountEmail : base.accountEmail,
+    // Name and avatar are cosmetic: merging them must never invalidate the
+    // recommendation cache, so they are absent from answersChanged().
+    identity: {
+      displayName: (patch.identity?.displayName ?? base.identity.displayName).trim().slice(0, 40),
+      avatarId: isAvatarId(patch.identity?.avatarId) ? patch.identity.avatarId : base.identity.avatarId,
+    },
     lifestyle: { ...base.lifestyle, ...patch.lifestyle },
     goals: {
       ...base.goals,
@@ -122,10 +131,15 @@ export function normalizeProfile(raw: unknown, now = Date.now()): Profile | null
   const lifestyle = (value.lifestyle ?? {}) as Record<string, unknown>;
   const goals = (value.goals ?? {}) as Record<string, unknown>;
   const preferences = (value.preferences ?? {}) as Record<string, unknown>;
+  const identity = (value.identity ?? {}) as Record<string, unknown>;
 
   return {
     id: PROFILE_ID,
     accountEmail: typeof value.accountEmail === 'string' ? value.accountEmail : null,
+    identity: {
+      displayName: (asString(identity.displayName) || asString(value.displayName)).trim().slice(0, 40),
+      avatarId: isAvatarId(identity.avatarId) ? identity.avatarId : DEFAULT_AVATAR_ID,
+    },
     lifestyle: {
       wakeTime: asTime(lifestyle.wakeTime, base.lifestyle.wakeTime),
       sleepTime: asTime(lifestyle.sleepTime, base.lifestyle.sleepTime),
@@ -158,6 +172,7 @@ export function normalizeProfile(raw: unknown, now = Date.now()): Profile | null
 /** Human summary for Settings; never throws on an empty profile. */
 export function profileSummary(profile: Profile): string[] {
   const lines: string[] = [];
+  if (profile.identity.displayName) lines.push(`Name: ${profile.identity.displayName}`);
   const goals = profile.goals.items.filter(Boolean);
   if (goals.length) lines.push(`Goals: ${goals.join(', ')}`);
   const { wakeTime, sleepTime, schedule, activityLevel } = profile.lifestyle;
@@ -165,4 +180,19 @@ export function profileSummary(profile: Profile): string[] {
   if (profile.challenges.trim()) lines.push(`Hard before: ${profile.challenges.trim()}`);
   lines.push(`Coaching: ${profile.preferences.tone}${profile.preferences.reminderTime ? ` · reminder ${profile.preferences.reminderTime}` : ''}`);
   return lines;
+}
+
+/** Trimmed display name, or '' when the user skipped that question. */
+export function displayName(profile: Profile | null | undefined): string {
+  return profile?.identity.displayName.trim() ?? '';
+}
+
+/**
+ * Time-of-day greeting. `hour` is injected so tests never depend on the clock.
+ * Falls back to a neutral line when no name was given.
+ */
+export function greeting(profile: Profile | null | undefined, hour: number): string {
+  const name = displayName(profile);
+  const part = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 22 ? 'Good evening' : 'Winding down';
+  return name ? `${part}, ${name}` : part;
 }
