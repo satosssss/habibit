@@ -87,9 +87,16 @@ export interface RecommendationCache {
   suggestions: HabitSuggestion[];
 }
 
+/** Onboarding v2: how the app addresses you. Cosmetic only, never sent to AI. */
+export interface ProfileIdentity {
+  displayName: string;     // trimmed; '' means "not set"
+  avatarId: string;        // key into AVATARS (src/lib/avatars.ts)
+}
+
 export interface Profile {
   id: 'me';
   accountEmail: string | null;
+  identity: ProfileIdentity;
   lifestyle: ProfileLifestyle;
   goals: ProfileGoals;
   challenges: string;

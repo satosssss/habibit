@@ -197,6 +197,7 @@ describe('HabibitDexie v3 → v4 migration (accounts spec R2)', () => {
 
     await upgraded.profile.put({
       id: 'me', accountEmail: null,
+      identity: { displayName: '', avatarId: 'spark' },
       lifestyle: {
         wakeTime: '07:00', sleepTime: '23:00', schedule: '', activityLevel: 'moderate',
         currentHabits: '', timeSinks: '',

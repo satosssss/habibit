@@ -20,6 +20,7 @@ import { CategorySection } from './CategorySection';
 import { ActiveChallengesStrip } from './ActiveChallengesStrip';
 import { CoachCard } from './CoachCard';
 import { DateStrip } from './DateStrip';
+import { GreetingBar } from './GreetingBar';
 import { MenuDrawer } from './MenuDrawer';
 import { RecommendationsSection } from './RecommendationsSection';
 import { StreakStrip } from './StreakStrip';
@@ -168,6 +169,8 @@ export function HomeScreen({ date = todayKey() }: { date?: string }) {
           </button>
         </div>
       </header>
+
+      <GreetingBar />
 
       <DateStrip selected={date} today={today}
                  onSelect={(key) => router.push(key === today ? '/home' : `/today/${key}`)} />
